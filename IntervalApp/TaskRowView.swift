@@ -12,6 +12,7 @@ struct TaskRowView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var text: String = ""
     @State private var isHovering: Bool = false
+    @State private var isCheckmarkHovering: Bool = false
     
     var body: some View {
         HStack(alignment: .center, spacing: 15) {
@@ -22,38 +23,54 @@ struct TaskRowView: View {
                         task.completedAt = task.completed ? Date() : nil
                     }
                 }) {
-                    Text("–")
-                        .font(.system(size: fontSize * 0.8, weight: .light))
-                        .foregroundColor(task.completed ? .primary : .secondary)
+                    Group {
+                        if isCheckmarkHovering {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: fontSize * 0.8, weight: .light))
+                                .foregroundColor(.primary)
+                        } else {
+                            Text("–")
+                                .font(.system(size: fontSize * 0.8, weight: .light))
+                                .foregroundColor(task.completed ? .primary : .secondary)
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
+                .onHover { hovering in
+                    isCheckmarkHovering = hovering
+                }
             } else {
                 Text("–")
                     .font(.system(size: fontSize * 0.8, weight: .light))
                     .opacity(0)
             }
             
-            TextField(isNew ? "Add task..." : "", text: $text)
-                .font(.system(size: fontSize, weight: .light))
-                .foregroundColor(task.completed ? .secondary : .primary)
-                .strikethrough(task.completed)
-                .textFieldStyle(.plain)
-                .focused($focusedTaskId, equals: task.id)
-                .onKeyPress(.delete) {
-                    if text.trimmingCharacters(in: .whitespaces).isEmpty && !isNew {
-                        let descriptor = FetchDescriptor<TaskItem>()
-                        if let all = try? modelContext.fetch(descriptor) {
-                            let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
-                            if let idx = sorted.firstIndex(where: { $0.id == task.id }), idx > 0 {
-                                focusedTaskId = sorted[idx - 1].id
+            CustomTextField(
+                text: $text,
+                isFocused: focusedTaskId == task.id,
+                onFocusChanged: { focused in
+                    if focused {
+                        focusedTaskId = task.id
+                    } else {
+                        if focusedTaskId == task.id {
+                            focusedTaskId = nil
+                        }
+                        if isNew {
+                            if !text.trimmingCharacters(in: .whitespaces).isEmpty {
+                                let newTask = TaskItem(text: text, intervalType: listTitle)
+                                modelContext.insert(newTask)
+                                text = ""
+                            }
+                        } else {
+                            if text.trimmingCharacters(in: .whitespaces).isEmpty {
+                                task.deletedAt = Date()
+                            } else {
+                                task.text = text
                             }
                         }
-                        task.deletedAt = Date()
-                        return .handled
                     }
-                    return .ignored
-                }
-                .onSubmit {
+                },
+                onSubmit: {
                     if isNew {
                         if !text.trimmingCharacters(in: .whitespaces).isEmpty {
                             let descriptor = FetchDescriptor<TaskItem>()
@@ -81,28 +98,25 @@ struct TaskRowView: View {
                                 t.order = i
                             }
                             
-                            // Immediately focus the new row
                             focusedTaskId = newTask.id
                         }
                     }
-                }
-                .onChange(of: focusedTaskId) { oldId, newId in
-                    if oldId == task.id && newId != task.id { // Just lost focus
-                        if isNew {
-                            if !text.trimmingCharacters(in: .whitespaces).isEmpty {
-                                let newTask = TaskItem(text: text, intervalType: listTitle)
-                                modelContext.insert(newTask)
-                                text = ""
-                            }
-                        } else {
-                            if text.trimmingCharacters(in: .whitespaces).isEmpty {
-                                task.deletedAt = Date()
-                            } else {
-                                task.text = text
+                },
+                onDeleteEmpty: {
+                    if !isNew {
+                        let descriptor = FetchDescriptor<TaskItem>()
+                        if let all = try? modelContext.fetch(descriptor) {
+                            let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+                            if let idx = sorted.firstIndex(where: { $0.id == task.id }), idx > 0 {
+                                focusedTaskId = sorted[idx - 1].id
                             }
                         }
+                        task.deletedAt = Date()
                     }
-                }
+                },
+                fontSize: fontSize,
+                placeholder: isNew ? "Add task..." : ""
+            )
             
             if !isNew {
                 Button(action: {
