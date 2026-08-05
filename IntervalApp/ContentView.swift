@@ -179,6 +179,7 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            iCloudSyncManager.shared.start(context: modelContext)
             migrationManager.checkMigrations()
             cleanupOldTasks()
         }
@@ -189,6 +190,8 @@ struct ContentView: View {
         for task in completedTasks {
             modelContext.delete(task)
         }
+        try? modelContext.save()
+        iCloudSyncManager.shared.pushToiCloud(context: modelContext)
     }
     
     private func clearDeletedTasks() {
@@ -196,6 +199,8 @@ struct ContentView: View {
         for task in deletedTasks {
             modelContext.delete(task)
         }
+        try? modelContext.save()
+        iCloudSyncManager.shared.pushToiCloud(context: modelContext)
     }
     
     private func cleanupOldTasks() {
