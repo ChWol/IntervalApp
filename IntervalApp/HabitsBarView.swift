@@ -105,6 +105,12 @@ struct HabitsBarView: View {
                             RoundedRectangle(cornerRadius: 6)
                                 .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                         )
+                        .onExitCommand {
+                            withAnimation {
+                                isAdding = false
+                                newHabitText = ""
+                            }
+                        }
                     }
                     
                     if habits.isEmpty && !isAdding {
