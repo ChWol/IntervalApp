@@ -12,6 +12,7 @@ struct TaskListView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 15) {
             // Category Header: Drop here to place at top of list
             Text(title.uppercased())
                 .font(.system(size: 10, weight: .light, design: .default))
