@@ -72,9 +72,9 @@ class iCloudSyncManager: ObservableObject {
         // Synchronize store
         NSUbiquitousKeyValueStore.default.synchronize()
         
-        // Perform initial pull & push
-        pullFromiCloud(context: context)
+        // Push local tasks first to publish any existing entries to iCloud
         pushToiCloud(context: context)
+        pullFromiCloud(context: context)
     }
     
     func pushToiCloud(context: ModelContext) {
@@ -112,15 +112,14 @@ class iCloudSyncManager: ObservableObject {
         
         // 1. Process Tasks
         if let tasksData = store.data(forKey: "cloud_tasks"),
-           let cloudTasks = try? JSONDecoder().decode([TaskDTO].self, from: tasksData) {
+           let cloudTasks = try? JSONDecoder().decode([TaskDTO].self, from: tasksData),
+           !cloudTasks.isEmpty {
             
             let descriptor = FetchDescriptor<TaskItem>()
             let existingTasks = (try? context.fetch(descriptor)) ?? []
             let existingDict = Dictionary(uniqueKeysWithValues: existingTasks.map { ($0.id, $0) })
             
-            var cloudIds = Set<String>()
             for dto in cloudTasks {
-                cloudIds.insert(dto.id)
                 if let existing = existingDict[dto.id] {
                     existing.text = dto.text
                     existing.completed = dto.completed
@@ -139,26 +138,18 @@ class iCloudSyncManager: ObservableObject {
                     context.insert(newTask)
                 }
             }
-            
-            // Remove local tasks not in cloud
-            for task in existingTasks {
-                if !cloudIds.contains(task.id) {
-                    context.delete(task)
-                }
-            }
         }
         
         // 2. Process Habits
         if let habitsData = store.data(forKey: "cloud_habits"),
-           let cloudHabits = try? JSONDecoder().decode([HabitDTO].self, from: habitsData) {
+           let cloudHabits = try? JSONDecoder().decode([HabitDTO].self, from: habitsData),
+           !cloudHabits.isEmpty {
             
             let descriptor = FetchDescriptor<HabitItem>()
             let existingHabits = (try? context.fetch(descriptor)) ?? []
             let existingDict = Dictionary(uniqueKeysWithValues: existingHabits.map { ($0.id, $0) })
             
-            var cloudIds = Set<String>()
             for dto in cloudHabits {
-                cloudIds.insert(dto.id)
                 if let existing = existingDict[dto.id] {
                     existing.text = dto.text
                     existing.frequency = dto.frequency
@@ -171,12 +162,6 @@ class iCloudSyncManager: ObservableObject {
                     newHabit.streak = dto.streak
                     newHabit.lastCompletedDate = dto.lastCompletedDate
                     context.insert(newHabit)
-                }
-            }
-            
-            for habit in existingHabits {
-                if !cloudIds.contains(habit.id) {
-                    context.delete(habit)
                 }
             }
         }
