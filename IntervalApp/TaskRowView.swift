@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import Combine
 
 struct TaskRowView: View {
     @Bindable var task: TaskItem
