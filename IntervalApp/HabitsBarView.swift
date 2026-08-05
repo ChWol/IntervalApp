@@ -12,6 +12,7 @@ struct HabitsBarView: View {
     @State private var isAdding: Bool = false
     @State private var selectedFrequency: String = "Daily"
     @State private var hoveredHabitId: String? = nil
+    @FocusState private var isInputFocused: Bool
     
     private var sortedHabits: [HabitItem] {
         let incomplete = habits.filter { !$0.isCompletedCurrentPeriod }.sorted { $0.order < $1.order }
@@ -39,7 +40,14 @@ struct HabitsBarView: View {
                     }
                     
                     if !isAdding {
-                        Button(action: { withAnimation { isAdding = true } }) {
+                        Button(action: {
+                            withAnimation {
+                                isAdding = true
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                isInputFocused = true
+                            }
+                        }) {
                             Image(systemName: "plus")
                                 .font(.system(size: 11, weight: .light))
                                 .foregroundColor(.gray)
@@ -84,6 +92,12 @@ struct HabitsBarView: View {
                                 .textFieldStyle(.plain)
                                 .font(.system(size: 12, weight: .light))
                                 .frame(width: 120)
+                                .focused($isInputFocused)
+                                .onAppear {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                        isInputFocused = true
+                                    }
+                                }
                             
                             Button(action: createHabit) {
                                 Image(systemName: "checkmark")
