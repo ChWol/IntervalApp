@@ -38,12 +38,15 @@ struct CustomTextField: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSTextField, context: Context) {
-        if nsView.stringValue != text {
-            nsView.stringValue = text
-        }
-        nsView.font = .systemFont(ofSize: fontSize, weight: .light)
-        
         let currentlyFocused = (nsView.window?.firstResponder == nsView.currentEditor() && nsView.currentEditor() != nil)
+        
+        if !currentlyFocused {
+            if nsView.stringValue != text {
+                nsView.stringValue = text
+            }
+        }
+        
+        nsView.font = .systemFont(ofSize: fontSize, weight: .light)
         
         if isFocused && !currentlyFocused {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {

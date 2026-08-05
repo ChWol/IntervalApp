@@ -63,7 +63,6 @@ struct TaskRowView: View {
                     .foregroundColor(.secondary)
                     .strikethrough(true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(height: fontSize * 1.5)
             } else {
                 CustomTextField(
                 text: $text,
@@ -151,6 +150,7 @@ struct TaskRowView: View {
                 }
                 .buttonStyle(.plain)
                 .opacity((focusedTaskId == task.id || isHovering) ? 1 : 0)
+                .padding(.trailing, 10)
             }
         }
         .contentShape(Rectangle())
