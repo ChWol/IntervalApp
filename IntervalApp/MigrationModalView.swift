@@ -23,23 +23,30 @@ struct MigrationModalView: View {
                 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 10) {
-                        ForEach(tasks) { task in
-                            Button(action: {
-                                if selectedTaskIds.contains(task.id) {
-                                    selectedTaskIds.remove(task.id)
-                                } else {
-                                    selectedTaskIds.insert(task.id)
+                        if tasks.isEmpty {
+                            Text("No incomplete tasks to transfer.")
+                                .font(.system(size: 13, weight: .light))
+                                .foregroundColor(.secondary)
+                                .padding(.vertical, 10)
+                        } else {
+                            ForEach(tasks) { task in
+                                Button(action: {
+                                    if selectedTaskIds.contains(task.id) {
+                                        selectedTaskIds.remove(task.id)
+                                    } else {
+                                        selectedTaskIds.insert(task.id)
+                                    }
+                                }) {
+                                    HStack {
+                                        Image(systemName: selectedTaskIds.contains(task.id) ? "checkmark.circle.fill" : "circle")
+                                            .foregroundColor(selectedTaskIds.contains(task.id) ? .primary : .secondary)
+                                        Text(task.text)
+                                            .fontWeight(.light)
+                                        Spacer()
+                                    }
                                 }
-                            }) {
-                                HStack {
-                                    Image(systemName: selectedTaskIds.contains(task.id) ? "checkmark.circle.fill" : "circle")
-                                        .foregroundColor(selectedTaskIds.contains(task.id) ? .primary : .secondary)
-                                    Text(task.text)
-                                        .fontWeight(.light)
-                                    Spacer()
-                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -72,9 +79,6 @@ struct MigrationModalView: View {
         }
         .onAppear {
             selectedTaskIds = Set(tasks.map { $0.id })
-            if tasks.isEmpty {
-                onSkip()
-            }
         }
     }
 }

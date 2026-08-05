@@ -164,6 +164,46 @@ struct ContentView: View {
                     }
                 )
             }
+            
+            // Simulation Toolbar
+            VStack {
+                Spacer()
+                HStack(spacing: 8) {
+                    Text("SIMULATE:")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .tracking(1)
+                    
+                    Group {
+                        Button("Hour") {
+                            migrationManager.triggerSimulatedMigration(source: "1 Hour", dest: "1 Day")
+                        }
+                        Button("Day") {
+                            migrationManager.triggerSimulatedMigration(source: "1 Day", dest: "1 Week")
+                        }
+                        Button("Week") {
+                            migrationManager.triggerSimulatedMigration(source: "1 Week", dest: "1 Month")
+                        }
+                        Button("Month") {
+                            migrationManager.triggerSimulatedMigration(source: "1 Month", dest: "1 Year")
+                        }
+                        Button("Year") {
+                            migrationManager.triggerSimulatedMigration(source: "1 Year", dest: "1 Year")
+                        }
+                    }
+                    .font(.system(size: 11, weight: .light))
+                    .buttonStyle(.plain)
+                    .foregroundColor(.primary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule()
+                        .fill(colorScheme == .dark ? Color(white: 0.15) : Color(white: 0.95))
+                        .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
+                )
+                .padding(.bottom, 16)
+            }
         }
         .onAppear {
             migrationManager.checkMigrations()

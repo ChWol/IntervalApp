@@ -71,6 +71,10 @@ class MigrationManager: ObservableObject {
         advanceQueue()
     }
     
+    func triggerSimulatedMigration(source: String, dest: String) {
+        currentMigration = Migration(source: source, dest: dest)
+    }
+    
     func skipMigration() {
         advanceQueue()
     }
@@ -79,6 +83,8 @@ class MigrationManager: ObservableObject {
         if !migrationQueue.isEmpty {
             migrationQueue.removeFirst()
             currentMigration = migrationQueue.first
+        } else {
+            currentMigration = nil
         }
     }
 }
