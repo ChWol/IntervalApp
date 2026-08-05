@@ -10,12 +10,56 @@ struct TaskRowView: View {
     @Binding var focusedTaskId: String?
     
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject private var dragState = DragState.shared
     @State private var text: String = ""
     @State private var isHovering: Bool = false
     @State private var isCheckmarkHovering: Bool = false
     @State private var localCompleted: Bool = false
     
+    private var isDragged: Bool {
+        !isNew && dragState.draggedTask?.id == task.id
+    }
+    
     var body: some View {
+        Group {
+            if isDragged {
+                // Grey placeholder showing where the item will land
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.gray.opacity(colorScheme == .dark ? 0.15 : 0.08))
+                    .frame(height: max(fontSize * 1.2, 24))
+            } else {
+                rowContent
+            }
+        }
+        .onDrag {
+            dragState.draggedTask = task
+            return NSItemProvider(object: task.id as NSString)
+        } preview: {
+            // Floating card preview
+            HStack(spacing: 10) {
+                Text("–")
+                    .font(.system(size: 14, weight: .light))
+                    .foregroundColor(.secondary)
+                Text(task.text)
+                    .font(.system(size: 14, weight: .light))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.ultraThinMaterial)
+                    .shadow(color: .black.opacity(0.18), radius: 10, y: 3)
+            )
+        }
+        .onDrop(of: [.text], delegate: TaskDropDelegate(item: task, context: modelContext))
+    }
+    
+    // MARK: - Normal Row Content
+    
+    private var rowContent: some View {
         HStack(alignment: .center, spacing: 15) {
             if !isNew {
                 Button(action: {
@@ -65,82 +109,79 @@ struct TaskRowView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 CustomTextField(
-                text: $text,
-                isFocused: focusedTaskId == task.id,
-                onFocusChanged: { focused in
-                    if focused {
-                        focusedTaskId = task.id
-                    } else {
-                        if focusedTaskId == task.id {
-                            focusedTaskId = nil
+                    text: $text,
+                    isFocused: focusedTaskId == task.id,
+                    onFocusChanged: { focused in
+                        if focused {
+                            focusedTaskId = task.id
+                        } else {
+                            if focusedTaskId == task.id {
+                                focusedTaskId = nil
+                            }
+                            if isNew {
+                                if !text.trimmingCharacters(in: .whitespaces).isEmpty {
+                                    let newTask = TaskItem(text: text, intervalType: listTitle)
+                                    modelContext.insert(newTask)
+                                    text = ""
+                                }
+                            } else {
+                                if text.trimmingCharacters(in: .whitespaces).isEmpty {
+                                    task.deletedAt = Date()
+                                } else {
+                                    task.text = text
+                                }
+                            }
                         }
+                    },
+                    onSubmit: {
                         if isNew {
                             if !text.trimmingCharacters(in: .whitespaces).isEmpty {
-                                let newTask = TaskItem(text: text, intervalType: listTitle)
-                                modelContext.insert(newTask)
+                                let descriptor = FetchDescriptor<TaskItem>()
+                                if let all = try? modelContext.fetch(descriptor) {
+                                    let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+                                    let newTask = TaskItem(text: text, intervalType: listTitle, order: (sorted.last?.order ?? 0) + 1)
+                                    modelContext.insert(newTask)
+                                }
                                 text = ""
                             }
                         } else {
-                            if text.trimmingCharacters(in: .whitespaces).isEmpty {
-                                task.deletedAt = Date()
-                            } else {
-                                task.text = text
+                            task.text = text
+                            
+                            let descriptor = FetchDescriptor<TaskItem>()
+                            if let all = try? modelContext.fetch(descriptor) {
+                                var sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+                                let newTask = TaskItem(text: "", intervalType: listTitle, order: task.order)
+                                modelContext.insert(newTask)
+                                
+                                if let idx = sorted.firstIndex(where: { $0.id == task.id }) {
+                                    sorted.insert(newTask, at: idx + 1)
+                                } else {
+                                    sorted.append(newTask)
+                                }
+                                
+                                for (i, t) in sorted.enumerated() {
+                                    t.order = i
+                                }
+                                
+                                focusedTaskId = newTask.id
                             }
                         }
-                    }
-                },
-                onSubmit: {
-                    if isNew {
-                        if !text.trimmingCharacters(in: .whitespaces).isEmpty {
+                    },
+                    onDeleteEmpty: {
+                        if !isNew {
                             let descriptor = FetchDescriptor<TaskItem>()
                             if let all = try? modelContext.fetch(descriptor) {
                                 let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
-                                let newTask = TaskItem(text: text, intervalType: listTitle, order: (sorted.last?.order ?? 0) + 1)
-                                modelContext.insert(newTask)
+                                if let idx = sorted.firstIndex(where: { $0.id == task.id }), idx > 0 {
+                                    focusedTaskId = sorted[idx - 1].id
+                                }
                             }
-                            text = ""
+                            task.deletedAt = Date()
                         }
-                    } else {
-                        // Save current text before creating the new row
-                        task.text = text
-                        
-                        let descriptor = FetchDescriptor<TaskItem>()
-                        if let all = try? modelContext.fetch(descriptor) {
-                            var sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
-                            let newTask = TaskItem(text: "", intervalType: listTitle, order: task.order)
-                            modelContext.insert(newTask)
-                            
-                            if let idx = sorted.firstIndex(where: { $0.id == task.id }) {
-                                sorted.insert(newTask, at: idx + 1)
-                            } else {
-                                sorted.append(newTask)
-                            }
-                            
-                            for (i, t) in sorted.enumerated() {
-                                t.order = i
-                            }
-                            
-                            // Set focus immediately — CustomTextField handles deferred focus
-                            // if the new row's NSView isn't in a window yet
-                            focusedTaskId = newTask.id
-                        }
-                    }
-                },
-                onDeleteEmpty: {
-                    if !isNew {
-                        let descriptor = FetchDescriptor<TaskItem>()
-                        if let all = try? modelContext.fetch(descriptor) {
-                            let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
-                            if let idx = sorted.firstIndex(where: { $0.id == task.id }), idx > 0 {
-                                focusedTaskId = sorted[idx - 1].id
-                            }
-                        }
-                        task.deletedAt = Date()
-                    }
-                },
-                fontSize: fontSize,
-                placeholder: isNew ? "Add task..." : ""
-            )
+                    },
+                    fontSize: fontSize,
+                    placeholder: isNew ? "Add task..." : ""
+                )
             }
             
             if !isNew {
@@ -170,18 +211,17 @@ struct TaskRowView: View {
                 focusedTaskId = task.id
             }
         }
-        .onDrag {
-            DragState.shared.draggedTask = task
-            return NSItemProvider(object: task.id as NSString)
-        }
-        .onDrop(of: [.text], delegate: TaskDropDelegate(item: task, context: modelContext))
     }
 }
 
-class DragState {
+// MARK: - Drag State
+
+class DragState: ObservableObject {
     static let shared = DragState()
-    var draggedTask: TaskItem?
+    @Published var draggedTask: TaskItem?
 }
+
+// MARK: - Drop Delegates
 
 struct TaskDropDelegate: DropDelegate {
     let item: TaskItem
@@ -190,21 +230,22 @@ struct TaskDropDelegate: DropDelegate {
     func dropEntered(info: DropInfo) {
         guard let draggedItem = DragState.shared.draggedTask else { return }
         if draggedItem.id != item.id {
-            draggedItem.intervalType = item.intervalType
-            
-            // Recalculate orders cleanly to prevent duplicate/skipped orders
-            let descriptor = FetchDescriptor<TaskItem>()
-            guard let allTasks = try? context.fetch(descriptor) else { return }
-            var sorted = allTasks.filter { $0.intervalType == item.intervalType && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
-            
-            if let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) {
-                sorted.insert(draggedItem, at: targetIdx)
-            } else {
-                sorted.append(draggedItem)
-            }
-            
-            for (i, t) in sorted.enumerated() {
-                t.order = i
+            withAnimation(.easeInOut(duration: 0.2)) {
+                draggedItem.intervalType = item.intervalType
+                
+                let descriptor = FetchDescriptor<TaskItem>()
+                guard let allTasks = try? context.fetch(descriptor) else { return }
+                var sorted = allTasks.filter { $0.intervalType == item.intervalType && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
+                
+                if let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) {
+                    sorted.insert(draggedItem, at: targetIdx)
+                } else {
+                    sorted.append(draggedItem)
+                }
+                
+                for (i, t) in sorted.enumerated() {
+                    t.order = i
+                }
             }
         }
     }
@@ -214,7 +255,9 @@ struct TaskDropDelegate: DropDelegate {
     }
     
     func performDrop(info: DropInfo) -> Bool {
-        DragState.shared.draggedTask = nil
+        withAnimation(.easeInOut(duration: 0.15)) {
+            DragState.shared.draggedTask = nil
+        }
         return true
     }
 }
