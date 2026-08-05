@@ -3,6 +3,10 @@ import SwiftData
 import UniformTypeIdentifiers
 import Combine
 
+extension UTType {
+    static let taskItem = UTType(exportedAs: "com.intervalapp.taskitem", conformingTo: .data)
+}
+
 struct TaskRowView: View {
     @Bindable var task: TaskItem
     let fontSize: CGFloat
@@ -41,12 +45,28 @@ struct TaskRowView: View {
             dragState.draggedTask = task
             dragState.targetIntervalType = listTitle
             dragState.targetFontSize = fontSize
-            return NSItemProvider(object: task.id as NSString)
+            return NSItemProvider(item: task.id as NSString, typeIdentifier: UTType.taskItem.identifier)
         } preview: {
-            // Invisible system preview to suppress system bitmap & fly-away to right animation
-            Color.clear.frame(width: 1, height: 1)
+            let activeFontSize = dragState.targetFontSize
+            let displayText = task.text.isEmpty ? (text.isEmpty ? "Task" : text) : task.text
+            HStack(spacing: 12) {
+                Text("–")
+                    .font(.system(size: activeFontSize * 0.8, weight: .light))
+                    .foregroundColor(.secondary)
+                Text(displayText)
+                    .font(.system(size: activeFontSize, weight: .light))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, max(8, activeFontSize * 0.4))
+            .padding(.vertical, max(4, activeFontSize * 0.2))
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+                    .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
+            )
         }
-        .onDrop(of: [.text], delegate: TaskDropDelegate(item: task, sectionFontSize: fontSize, context: modelContext))
+        .onDrop(of: [.taskItem], delegate: TaskDropDelegate(item: task, sectionFontSize: fontSize, context: modelContext))
         .onChange(of: text) { _, newValue in
             if !isNew && !newValue.isEmpty {
                 task.text = newValue
