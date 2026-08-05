@@ -48,15 +48,30 @@ struct ContentView: View {
                                     ForEach(displayed) { task in
                                         BinRowView(task: task, fontSize: 14.0)
                                     }
-                                    if completedTasks.count > 10 {
-                                        Button(action: { withAnimation { showAllCompleted.toggle() } }) {
-                                            Text(showAllCompleted ? "Show Less" : "Show More (\(completedTasks.count - 10))")
+                                    HStack {
+                                        if completedTasks.count > 10 {
+                                            Button(action: { withAnimation { showAllCompleted.toggle() } }) {
+                                                Text(showAllCompleted ? "Show Less" : "Show More (\(completedTasks.count - 10))")
+                                                    .font(.system(size: 12, weight: .light))
+                                                    .foregroundColor(.gray)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Button(action: {
+                                            withAnimation {
+                                                clearCompletedTasks()
+                                            }
+                                        }) {
+                                            Text("Clear All")
                                                 .font(.system(size: 12, weight: .light))
                                                 .foregroundColor(.gray)
                                         }
                                         .buttonStyle(.plain)
-                                        .padding(.top, 5)
                                     }
+                                    .padding(.top, 5)
                                 }
                                 .padding(.top, 10)
                                 .padding(.leading, 5)
@@ -84,15 +99,30 @@ struct ContentView: View {
                                     ForEach(displayed) { task in
                                         BinRowView(task: task, fontSize: 14.0)
                                     }
-                                    if deletedTasks.count > 10 {
-                                        Button(action: { withAnimation { showAllDeleted.toggle() } }) {
-                                            Text(showAllDeleted ? "Show Less" : "Show More (\(deletedTasks.count - 10))")
+                                    HStack {
+                                        if deletedTasks.count > 10 {
+                                            Button(action: { withAnimation { showAllDeleted.toggle() } }) {
+                                                Text(showAllDeleted ? "Show Less" : "Show More (\(deletedTasks.count - 10))")
+                                                    .font(.system(size: 12, weight: .light))
+                                                    .foregroundColor(.gray)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Button(action: {
+                                            withAnimation {
+                                                clearDeletedTasks()
+                                            }
+                                        }) {
+                                            Text("Clear All")
                                                 .font(.system(size: 12, weight: .light))
                                                 .foregroundColor(.gray)
                                         }
                                         .buttonStyle(.plain)
-                                        .padding(.top, 5)
                                     }
+                                    .padding(.top, 5)
                                 }
                                 .padding(.top, 10)
                                 .padding(.leading, 5)
@@ -138,6 +168,20 @@ struct ContentView: View {
         .onAppear {
             migrationManager.checkMigrations()
             cleanupOldTasks()
+        }
+    }
+    
+    private func clearCompletedTasks() {
+        let completedTasks = allTasks.filter { $0.completed && $0.deletedAt == nil }
+        for task in completedTasks {
+            modelContext.delete(task)
+        }
+    }
+    
+    private func clearDeletedTasks() {
+        let deletedTasks = allTasks.filter { $0.deletedAt != nil }
+        for task in deletedTasks {
+            modelContext.delete(task)
         }
     }
     
