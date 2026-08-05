@@ -5,7 +5,7 @@ class NoHighlightTextField: NSTextField {
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
         if let editor = currentEditor() as? NSTextView {
-            editor.setSelectedRange(NSRange(location: string.count, length: 0))
+            editor.setSelectedRange(NSRange(location: editor.string.count, length: 0))
         }
         return result
     }
