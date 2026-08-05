@@ -230,7 +230,36 @@ struct TaskRowView: View {
 
 class DragState: ObservableObject {
     static let shared = DragState()
-    @Published var draggedTask: TaskItem?
+    @Published var draggedTask: TaskItem? {
+        didSet {
+            if draggedTask != nil {
+                startMonitoring()
+            }
+        }
+    }
+    
+    private var monitor: Any?
+    
+    private func startMonitoring() {
+        if monitor == nil {
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
+                DispatchQueue.main.async {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        self?.draggedTask = nil
+                    }
+                }
+                self?.stopMonitoring()
+                return event
+            }
+        }
+    }
+    
+    private func stopMonitoring() {
+        if let m = monitor {
+            NSEvent.removeMonitor(m)
+            monitor = nil
+        }
+    }
 }
 
 // MARK: - Drop Delegates
