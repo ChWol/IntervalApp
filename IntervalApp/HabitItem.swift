@@ -3,12 +3,12 @@ import SwiftData
 
 @Model
 final class HabitItem {
-    var id: String
-    var text: String
-    var frequency: String // "Daily" or "Weekly"
-    var streak: Int
-    var lastCompletedDate: Date?
-    var order: Int
+    var id: String = UUID().uuidString
+    var text: String = ""
+    var frequency: String = "Daily"
+    var streak: Int = 0
+    var lastCompletedDate: Date? = nil
+    var order: Int = 0
     
     init(text: String, frequency: String = "Daily", order: Int = 0) {
         self.id = UUID().uuidString
