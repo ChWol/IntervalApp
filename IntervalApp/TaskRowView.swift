@@ -19,6 +19,7 @@ struct TaskRowView: View {
                 Button(action: {
                     withAnimation {
                         task.completed.toggle()
+                        task.completedAt = task.completed ? Date() : nil
                     }
                 }) {
                     Text("–")
@@ -46,6 +47,12 @@ struct TaskRowView: View {
                             text = ""
                         }
                     } else {
+                        let descriptor = FetchDescriptor<TaskItem>()
+                        if let all = try? modelContext.fetch(descriptor) {
+                            for t in all where t.intervalType == listTitle && t.order > task.order {
+                                t.order += 1
+                            }
+                        }
                         let newTask = TaskItem(text: "", intervalType: listTitle, order: task.order + 1)
                         modelContext.insert(newTask)
                     }
@@ -60,7 +67,7 @@ struct TaskRowView: View {
                             }
                         } else {
                             if text.trimmingCharacters(in: .whitespaces).isEmpty {
-                                modelContext.delete(task)
+                                task.deletedAt = Date()
                             } else {
                                 task.text = text
                             }
@@ -70,7 +77,9 @@ struct TaskRowView: View {
             
             if !isNew {
                 Button(action: {
-                    modelContext.delete(task)
+                    withAnimation {
+                        task.deletedAt = Date()
+                    }
                 }) {
                     Image(systemName: "xmark")
                         .font(.system(size: fontSize * 0.4))
@@ -80,6 +89,7 @@ struct TaskRowView: View {
                 .opacity((isFocused || isHovering) ? 1 : 0)
             }
         }
+        .contentShape(Rectangle())
         .onHover { hovering in
             isHovering = hovering
         }

@@ -9,6 +9,8 @@ final class TaskItem {
     var createdAt: Date = Date()
     var intervalType: String = ""
     var order: Int = 0
+    var deletedAt: Date? = nil
+    var completedAt: Date? = nil
 
     init(text: String, intervalType: String, order: Int = 0) {
         self.id = UUID().uuidString
@@ -17,5 +19,7 @@ final class TaskItem {
         self.createdAt = Date()
         self.intervalType = intervalType
         self.order = order
+        self.deletedAt = nil
+        self.completedAt = nil
     }
 }

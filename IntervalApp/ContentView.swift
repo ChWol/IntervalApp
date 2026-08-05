@@ -8,6 +8,9 @@ struct ContentView: View {
     
     @StateObject private var migrationManager = MigrationManager()
     
+    @State private var isCompletedExpanded = false
+    @State private var isDeletedExpanded = false
+    
     let intervals = [
         ("1 Hour", 45.0),
         ("1 Day", 30.0),
@@ -26,9 +29,49 @@ struct ContentView: View {
                         TaskListView(
                             title: interval.0,
                             fontSize: interval.1,
-                            tasks: allTasks.filter { $0.intervalType == interval.0 }.sorted { $0.order < $1.order }
+                            tasks: allTasks.filter { $0.intervalType == interval.0 && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
                         )
                     }
+                    
+                    // Bin and Completed Lists
+                    VStack(alignment: .leading, spacing: 20) {
+                        let completedTasks = allTasks.filter { $0.completed && $0.deletedAt == nil }
+                        if !completedTasks.isEmpty {
+                            DisclosureGroup(isExpanded: $isCompletedExpanded) {
+                                VStack(alignment: .leading, spacing: 15) {
+                                    ForEach(completedTasks) { task in
+                                        BinRowView(task: task, fontSize: 14.0)
+                                    }
+                                }
+                                .padding(.top, 10)
+                                .padding(.leading, 5)
+                            } label: {
+                                Text("COMPLETED (30 DAYS)")
+                                    .font(.system(size: 10, weight: .light, design: .default))
+                                    .tracking(2.0)
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                        
+                        let deletedTasks = allTasks.filter { $0.deletedAt != nil }
+                        if !deletedTasks.isEmpty {
+                            DisclosureGroup(isExpanded: $isDeletedExpanded) {
+                                VStack(alignment: .leading, spacing: 15) {
+                                    ForEach(deletedTasks) { task in
+                                        BinRowView(task: task, fontSize: 14.0)
+                                    }
+                                }
+                                .padding(.top, 10)
+                                .padding(.leading, 5)
+                            } label: {
+                                Text("RECENTLY DELETED (30 DAYS)")
+                                    .font(.system(size: 10, weight: .light, design: .default))
+                                    .tracking(2.0)
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                    }
+                    .padding(.top, 20)
                 }
                 .padding(40)
             }
@@ -53,6 +96,18 @@ struct ContentView: View {
         }
         .onAppear {
             migrationManager.checkMigrations()
+            cleanupOldTasks()
+        }
+    }
+    
+    private func cleanupOldTasks() {
+        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
+        for task in allTasks {
+            if let deletedAt = task.deletedAt, deletedAt < thirtyDaysAgo {
+                modelContext.delete(task)
+            } else if let completedAt = task.completedAt, completedAt < thirtyDaysAgo {
+                modelContext.delete(task)
+            }
         }
     }
 }
