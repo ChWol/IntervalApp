@@ -1,5 +1,7 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
+import Combine
 
 struct HabitsBarView: View {
     @Environment(\.modelContext) private var modelContext
@@ -11,10 +13,16 @@ struct HabitsBarView: View {
     @State private var selectedFrequency: String = "Daily"
     @State private var hoveredHabitId: String? = nil
     
+    private var sortedHabits: [HabitItem] {
+        let incomplete = habits.filter { !$0.isCompletedCurrentPeriod }.sorted { $0.order < $1.order }
+        let completed = habits.filter { $0.isCompletedCurrentPeriod }.sorted { $0.order < $1.order }
+        return incomplete + completed
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("RITUALS")
+                Text("HABITS")
                     .font(.system(size: 10, weight: .light, design: .default))
                     .tracking(2.0)
                     .foregroundColor(.gray)
@@ -26,7 +34,7 @@ struct HabitsBarView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "plus")
                                 .font(.system(size: 9))
-                            Text("New Ritual")
+                            Text("New Habit")
                                 .font(.system(size: 10, weight: .light))
                         }
                         .foregroundColor(.gray)
@@ -38,18 +46,43 @@ struct HabitsBarView: View {
             // Habits Chips Container
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    ForEach(habits) { habit in
+                    ForEach(sortedHabits) { habit in
                         HabitChipView(habit: habit, hoveredHabitId: $hoveredHabitId)
+                            .onDrag {
+                                HabitDragState.shared.draggedHabit = habit
+                                return NSItemProvider(object: habit.id as NSString)
+                            }
+                            .onDrop(of: [.data], delegate: HabitDropDelegate(item: habit, context: modelContext))
                     }
                     
                     if isAdding {
                         HStack(spacing: 8) {
-                            Picker("", selection: $selectedFrequency) {
-                                Text("Daily").tag("Daily")
-                                Text("Weekly").tag("Weekly")
+                            // Minimalist Daily | Weekly Toggle
+                            HStack(spacing: 6) {
+                                Button("daily") {
+                                    withAnimation { selectedFrequency = "Daily" }
+                                }
+                                .foregroundColor(selectedFrequency == "Daily" ? .primary : .secondary)
+                                .font(.system(size: 10, weight: selectedFrequency == "Daily" ? .medium : .light))
+                                .buttonStyle(.plain)
+                                
+                                Text("|")
+                                    .font(.system(size: 9))
+                                    .foregroundColor(.gray.opacity(0.4))
+                                
+                                Button("weekly") {
+                                    withAnimation { selectedFrequency = "Weekly" }
+                                }
+                                .foregroundColor(selectedFrequency == "Weekly" ? .primary : .secondary)
+                                .font(.system(size: 10, weight: selectedFrequency == "Weekly" ? .medium : .light))
+                                .buttonStyle(.plain)
                             }
-                            .pickerStyle(.segmented)
-                            .frame(width: 110)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule()
+                                    .fill(Color.gray.opacity(colorScheme == .dark ? 0.18 : 0.1))
+                            )
                             
                             TextField("Habit name...", text: $newHabitText, onCommit: createHabit)
                                 .textFieldStyle(.plain)
@@ -79,7 +112,7 @@ struct HabitsBarView: View {
                     }
                     
                     if habits.isEmpty && !isAdding {
-                        Text("No rituals added yet. Click + New Ritual to set daily or weekly habits.")
+                        Text("No habits added yet. Click + New Habit to set daily or weekly routines.")
                             .font(.system(size: 12, weight: .light))
                             .foregroundColor(.gray)
                     }
@@ -110,11 +143,18 @@ struct HabitsBarView: View {
     }
 }
 
+// MARK: - Habit Chip Component
+
 struct HabitChipView: View {
     @Bindable var habit: HabitItem
     @Binding var hoveredHabitId: String?
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject private var dragState = HabitDragState.shared
+    
+    private var isDragged: Bool {
+        dragState.draggedHabit?.id == habit.id
+    }
     
     var body: some View {
         let isDone = habit.isCompletedCurrentPeriod
@@ -131,10 +171,11 @@ struct HabitChipView: View {
                         .foregroundColor(isDone ? .secondary : .primary)
                         .strikethrough(isDone)
                     
-                    if habit.streak > 0 {
+                    // Streak badge is only displayed when NOT completed
+                    if habit.streak > 0 && !isDone {
                         Text("\(habit.streak)\(habit.frequency == "Daily" ? "d" : "w")")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundColor(isDone ? .secondary : .primary)
+                            .foregroundColor(.secondary)
                             .padding(.horizontal, 4)
                             .padding(.vertical, 1)
                             .background(
@@ -161,13 +202,14 @@ struct HabitChipView: View {
             RoundedRectangle(cornerRadius: 6)
                 .fill(isDone ? Color.gray.opacity(colorScheme == .dark ? 0.12 : 0.06) : Color.gray.opacity(colorScheme == .dark ? 0.2 : 0.1))
         )
+        .opacity(isDragged ? 0.3 : 1.0)
         .onHover { hovering in
             hoveredHabitId = hovering ? habit.id : nil
         }
     }
     
     private func toggleCompletion() {
-        withAnimation(.easeInOut(duration: 0.15)) {
+        withAnimation(.easeInOut(duration: 0.2)) {
             if habit.isCompletedCurrentPeriod {
                 habit.streak = max(0, habit.streak - 1)
                 habit.lastCompletedDate = nil
@@ -184,5 +226,50 @@ struct HabitChipView: View {
             modelContext.delete(habit)
             try? modelContext.save()
         }
+    }
+}
+
+// MARK: - Habit Drag & Drop Reordering
+
+class HabitDragState: ObservableObject {
+    static let shared = HabitDragState()
+    @Published var draggedHabit: HabitItem?
+}
+
+struct HabitDropDelegate: DropDelegate {
+    let item: HabitItem
+    let context: ModelContext
+
+    func dropEntered(info: DropInfo) {
+        guard let draggedItem = HabitDragState.shared.draggedHabit else { return }
+        if draggedItem.id != item.id {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                let descriptor = FetchDescriptor<HabitItem>()
+                guard let allHabits = try? context.fetch(descriptor) else { return }
+                var sorted = allHabits.sorted { $0.order < $1.order }
+                
+                if let sourceIdx = sorted.firstIndex(where: { $0.id == draggedItem.id }),
+                   let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) {
+                    let moved = sorted.remove(at: sourceIdx)
+                    sorted.insert(moved, at: targetIdx)
+                }
+                
+                for (i, h) in sorted.enumerated() {
+                    h.order = i
+                }
+                try? context.save()
+            }
+        }
+    }
+    
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        return DropProposal(operation: .move)
+    }
+    
+    func performDrop(info: DropInfo) -> Bool {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            HabitDragState.shared.draggedHabit = nil
+        }
+        return true
     }
 }
