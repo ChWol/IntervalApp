@@ -120,10 +120,9 @@ struct TaskRowView: View {
                                 t.order = i
                             }
                             
-                            // Delay focus to let SwiftUI create the new row's view
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                focusedTaskId = newTask.id
-                            }
+                            // Set focus immediately — CustomTextField handles deferred focus
+                            // if the new row's NSView isn't in a window yet
+                            focusedTaskId = newTask.id
                         }
                     }
                 },
@@ -167,7 +166,7 @@ struct TaskRowView: View {
             if !isNew {
                 text = task.text
             }
-            if !isNew && task.text.isEmpty && focusedTaskId == nil {
+            if !isNew && task.text.isEmpty {
                 focusedTaskId = task.id
             }
         }

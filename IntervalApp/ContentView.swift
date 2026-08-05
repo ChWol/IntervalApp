@@ -51,7 +51,7 @@ struct ContentView: View {
                                         Button(action: { withAnimation { showAllCompleted.toggle() } }) {
                                             Text(showAllCompleted ? "Show Less" : "Show More (\(completedTasks.count - 10))")
                                                 .font(.system(size: 12, weight: .light))
-                                                .foregroundColor(.accentColor)
+                                                .foregroundColor(.gray)
                                         }
                                         .buttonStyle(.plain)
                                         .padding(.top, 5)
@@ -87,7 +87,7 @@ struct ContentView: View {
                                         Button(action: { withAnimation { showAllDeleted.toggle() } }) {
                                             Text(showAllDeleted ? "Show Less" : "Show More (\(deletedTasks.count - 10))")
                                                 .font(.system(size: 12, weight: .light))
-                                                .foregroundColor(.accentColor)
+                                                .foregroundColor(.gray)
                                         }
                                         .buttonStyle(.plain)
                                         .padding(.top, 5)

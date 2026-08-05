@@ -2,12 +2,25 @@ import SwiftUI
 import AppKit
 
 class NoHighlightTextField: NSTextField {
+    var pendingFocus: Bool = false
+
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
         if let editor = currentEditor() as? NSTextView {
             editor.setSelectedRange(NSRange(location: editor.string.count, length: 0))
         }
         return result
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window != nil && pendingFocus {
+            pendingFocus = false
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.window?.makeFirstResponder(self)
+            }
+        }
     }
 }
 
@@ -41,14 +54,12 @@ struct CustomTextField: NSViewRepresentable {
     func updateNSView(_ nsView: NoHighlightTextField, context: Context) {
         let c = context.coordinator
 
-        // Always keep callbacks fresh so closures capture latest state
+        // Always keep callbacks fresh
         c.onFocusChanged = onFocusChanged
         c.onSubmit = onSubmit
         c.onDeleteEmpty = onDeleteEmpty
 
-        // While the user is actively typing, do NOT touch the NSTextField at all.
-        // Setting stringValue or calling makeFirstResponder while AppKit's field
-        // editor is active destroys the editing session and produces a beep.
+        // While editing, don't touch the text field at all
         if c.isEditing {
             return
         }
@@ -58,11 +69,21 @@ struct CustomTextField: NSViewRepresentable {
             nsView.stringValue = text
         }
 
-        // Acquire focus only if we don't already have it
+        // Handle focus
         if isFocused && nsView.currentEditor() == nil {
-            DispatchQueue.main.async {
-                nsView.window?.makeFirstResponder(nsView)
+            if nsView.window != nil {
+                DispatchQueue.main.async {
+                    // Double-check we still need focus
+                    if nsView.currentEditor() == nil {
+                        nsView.window?.makeFirstResponder(nsView)
+                    }
+                }
+            } else {
+                // View isn't in a window yet — defer until it is
+                nsView.pendingFocus = true
             }
+        } else if !isFocused {
+            nsView.pendingFocus = false
         }
     }
 
@@ -93,7 +114,6 @@ struct CustomTextField: NSViewRepresentable {
 
         func controlTextDidEndEditing(_ obj: Notification) {
             isEditing = false
-            // Final sync of text on editing end as safety net
             if let tf = obj.object as? NSTextField {
                 textBinding.wrappedValue = tf.stringValue
             }
