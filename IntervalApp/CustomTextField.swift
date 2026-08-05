@@ -38,34 +38,27 @@ struct CustomTextField: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSTextField, context: Context) {
-        // Sync coordinator's parent to the latest SwiftUI struct
         context.coordinator.parent = self
         
-        let currentlyFocused = (nsView.window?.firstResponder == nsView.currentEditor() && nsView.currentEditor() != nil)
+        let isEditing = nsView.currentEditor() != nil
         
-        if !currentlyFocused {
+        // Only sync text OUT to the view if the user is NOT actively typing.
+        // Syncing it while typing destroys the field editor and blocks input with a beep!
+        if !isEditing {
             if nsView.stringValue != text {
                 nsView.stringValue = text
             }
         }
         
-        let desiredFont = NSFont.systemFont(ofSize: fontSize, weight: .light)
-        if nsView.font != desiredFont {
-            nsView.font = desiredFont
-        }
-        
-        if isFocused && !currentlyFocused {
+        if isFocused && !isEditing {
             DispatchQueue.main.async {
-                if let window = nsView.window {
-                    window.makeFirstResponder(nsView)
-                } else {
-                    // Try again shortly if the view hasn't been added to the window yet
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        nsView.window?.makeFirstResponder(nsView)
-                    }
+                nsView.window?.makeFirstResponder(nsView)
+                // Backup attempt to grab focus in case view wasn't in hierarchy yet
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    nsView.window?.makeFirstResponder(nsView)
                 }
             }
-        } else if !isFocused && currentlyFocused {
+        } else if !isFocused && isEditing {
             DispatchQueue.main.async {
                 nsView.window?.makeFirstResponder(nil)
             }
