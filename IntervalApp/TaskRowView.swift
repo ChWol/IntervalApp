@@ -176,7 +176,11 @@ struct TaskRowView: View {
                                     t.order = i
                                 }
                                 
-                                focusedTaskId = newTask.id
+                                try? modelContext.save()
+                                
+                                DispatchQueue.main.async {
+                                    focusedTaskId = newTask.id
+                                }
                             }
                         }
                     },
@@ -219,9 +223,6 @@ struct TaskRowView: View {
         .onAppear {
             if !isNew {
                 text = task.text
-            }
-            if !isNew && task.text.isEmpty {
-                focusedTaskId = task.id
             }
         }
     }

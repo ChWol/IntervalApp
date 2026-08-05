@@ -9,48 +9,96 @@ struct MigrationModalView: View {
     @State private var selectedTaskIds: Set<String> = []
     @Environment(\.colorScheme) private var colorScheme
     
+    private var modalTitle: String {
+        switch (migration.source, migration.dest) {
+        case ("1 Day", "1 Hour"):
+            let formatter = DateFormatter()
+            formatter.dateFormat = "HH:00"
+            let timeString = formatter.string(from: Date())
+            return "It's \(timeString)!"
+        case ("1 Week", "1 Day"):
+            return "It's a new day – let's get it on!"
+        case ("1 Month", "1 Week"):
+            return "Fresh start into the next week – let's do some planning!"
+        case ("1 Year", "1 Month"):
+            return "Time to reflect on your yearly goals!"
+        case ("1 Year", "1 Year"):
+            return "Happy New Year!"
+        default:
+            return "Migrate Tasks"
+        }
+    }
+    
+    private var modalSubtitle: String {
+        switch (migration.source, migration.dest) {
+        case ("1 Day", "1 Hour"):
+            return "Want to move any of these tasks to your next hour's focus?"
+        case ("1 Week", "1 Day"):
+            return "Let's plan the day! What should be your top goals based on what you planned for the week?"
+        case ("1 Month", "1 Week"):
+            return "What should be the top goals for the week based on what you planned for the month?"
+        case ("1 Year", "1 Month"):
+            return "What should this month be about? Select items from your 1 Year list to focus on this month."
+        case ("1 Year", "1 Year"):
+            return "New year, new you? What should we plan for the year? Take some time to set your goals."
+        default:
+            return "Would you like to transfer these tasks?"
+        }
+    }
+    
     var body: some View {
         ZStack {
-            Color.black.opacity(0.4).ignoresSafeArea()
+            // Darkened/greyed out backdrop for strong modal focus
+            Color.black.opacity(0.75).ignoresSafeArea()
             
             VStack(alignment: .leading, spacing: 20) {
-                Text("Migrate Tasks?")
+                Text(modalTitle)
                     .font(.title)
                     .fontWeight(.light)
                 
-                Text("A new \(migration.dest.lowercased()) has begun. Would you like to move these incomplete tasks from your \(migration.source) list to your new \(migration.dest) list?")
+                Text(modalSubtitle)
+                    .font(.system(size: 14, weight: .light))
                     .foregroundColor(.secondary)
+                    .lineSpacing(4)
                 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 10) {
-                        if tasks.isEmpty {
-                            Text("No incomplete tasks to transfer.")
-                                .font(.system(size: 13, weight: .light))
-                                .foregroundColor(.secondary)
-                                .padding(.vertical, 10)
-                        } else {
-                            ForEach(tasks) { task in
-                                Button(action: {
-                                    if selectedTaskIds.contains(task.id) {
-                                        selectedTaskIds.remove(task.id)
-                                    } else {
-                                        selectedTaskIds.insert(task.id)
+                if migration.source == "1 Year" && migration.dest == "1 Year" {
+                    // Special 1 Year goal setting prompt
+                    Text("Use your 1 Year list in the app to set your new goals.")
+                        .font(.system(size: 13, weight: .light))
+                        .foregroundColor(.secondary)
+                        .padding(.vertical, 10)
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 10) {
+                            if tasks.isEmpty {
+                                Text("No incomplete tasks available to transfer.")
+                                    .font(.system(size: 13, weight: .light))
+                                    .foregroundColor(.secondary)
+                                    .padding(.vertical, 10)
+                            } else {
+                                ForEach(tasks) { task in
+                                    Button(action: {
+                                        if selectedTaskIds.contains(task.id) {
+                                            selectedTaskIds.remove(task.id)
+                                        } else {
+                                            selectedTaskIds.insert(task.id)
+                                        }
+                                    }) {
+                                        HStack {
+                                            Image(systemName: selectedTaskIds.contains(task.id) ? "checkmark.circle.fill" : "circle")
+                                                .foregroundColor(selectedTaskIds.contains(task.id) ? .primary : .secondary)
+                                            Text(task.text)
+                                                .fontWeight(.light)
+                                            Spacer()
+                                        }
                                     }
-                                }) {
-                                    HStack {
-                                        Image(systemName: selectedTaskIds.contains(task.id) ? "checkmark.circle.fill" : "circle")
-                                            .foregroundColor(selectedTaskIds.contains(task.id) ? .primary : .secondary)
-                                        Text(task.text)
-                                            .fontWeight(.light)
-                                        Spacer()
-                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                     }
+                    .frame(maxHeight: 250)
                 }
-                .frame(maxHeight: 250)
                 
                 HStack {
                     Spacer()
@@ -78,7 +126,8 @@ struct MigrationModalView: View {
             .padding(20)
         }
         .onAppear {
-            selectedTaskIds = Set(tasks.map { $0.id })
+            // By default, NONE should be selected yet
+            selectedTaskIds = []
         }
     }
 }

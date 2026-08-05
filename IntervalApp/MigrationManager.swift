@@ -14,50 +14,49 @@ class MigrationManager: ObservableObject {
     func checkMigrations() {
         let defaults = UserDefaults.standard
         let now = Date()
-        
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let currentDay = formatter.string(from: now)
-        
         let cal = Calendar.current
-        let week = cal.component(.weekOfYear, from: now)
-        let year = cal.component(.yearForWeekOfYear, from: now)
-        let currentWeek = "\(year)-W\(week)"
         
-        formatter.dateFormat = "yyyy-MM"
-        let currentMonth = formatter.string(from: now)
+        let currentHour = cal.component(.hour, from: now)
+        let currentDay = cal.component(.day, from: now)
+        let currentMonth = cal.component(.month, from: now)
+        let currentYear = cal.component(.year, from: now)
+        let currentWeek = cal.component(.weekOfYear, from: now)
         
-        formatter.dateFormat = "yyyy"
-        let currentYear = formatter.string(from: now)
+        let lastHour = defaults.object(forKey: "lastHour") as? Int
+        let lastDay = defaults.object(forKey: "lastDay") as? Int
+        let lastMonth = defaults.object(forKey: "lastMonth") as? Int
+        let lastYear = defaults.object(forKey: "lastYear") as? Int
+        let lastWeek = defaults.object(forKey: "lastWeek") as? Int
         
-        var queue: [Migration] = []
+        var pendingMigration: Migration? = nil
         
-        if let lastYear = defaults.string(forKey: "lastYear"), lastYear != currentYear {
-            queue.append(Migration(source: "1 Year", dest: "1 Year"))
+        // Priority order (only trigger ONCE even if multiple intervals passed)
+        if let ly = lastYear, ly != currentYear {
+            pendingMigration = Migration(source: "1 Year", dest: "1 Year")
+        } else if let lm = lastMonth, lm != currentMonth {
+            pendingMigration = Migration(source: "1 Year", dest: "1 Month")
+        } else if let lw = lastWeek, lw != currentWeek {
+            pendingMigration = Migration(source: "1 Month", dest: "1 Week")
+        } else if let ld = lastDay, ld != currentDay {
+            pendingMigration = Migration(source: "1 Week", dest: "1 Day")
+        } else if let lh = lastHour, lh != currentHour {
+            pendingMigration = Migration(source: "1 Day", dest: "1 Hour")
         }
-        if let lastMonth = defaults.string(forKey: "lastMonth"), lastMonth != currentMonth {
-            queue.append(Migration(source: "1 Year", dest: "1 Month"))
-        }
-        if let lastWeek = defaults.string(forKey: "lastWeek"), lastWeek != currentWeek {
-            queue.append(Migration(source: "1 Month", dest: "1 Week"))
-        }
-        if let lastDay = defaults.string(forKey: "lastDay"), lastDay != currentDay {
-            queue.append(Migration(source: "1 Week", dest: "1 Day"))
-        }
         
-        defaults.set(currentYear, forKey: "lastYear")
-        defaults.set(currentMonth, forKey: "lastMonth")
-        defaults.set(currentWeek, forKey: "lastWeek")
+        // Save latest state
+        defaults.set(currentHour, forKey: "lastHour")
         defaults.set(currentDay, forKey: "lastDay")
+        defaults.set(currentWeek, forKey: "lastWeek")
+        defaults.set(currentMonth, forKey: "lastMonth")
+        defaults.set(currentYear, forKey: "lastYear")
         
-        if !queue.isEmpty {
-            self.migrationQueue = queue
-            self.currentMigration = queue.first
+        if let migration = pendingMigration {
+            self.currentMigration = migration
         }
     }
     
     func executeMigration(migration: Migration, selectedTaskIds: Set<String>, allTasks: [TaskItem], context: ModelContext) {
-        let sourceTasks = allTasks.filter { $0.intervalType == migration.source }
+        let sourceTasks = allTasks.filter { $0.intervalType == migration.source && !$0.completed && $0.deletedAt == nil }
         
         for task in sourceTasks {
             if selectedTaskIds.contains(task.id) {
@@ -68,7 +67,7 @@ class MigrationManager: ObservableObject {
         }
         
         try? context.save()
-        advanceQueue()
+        currentMigration = nil
     }
     
     func triggerSimulatedMigration(source: String, dest: String) {
@@ -76,15 +75,6 @@ class MigrationManager: ObservableObject {
     }
     
     func skipMigration() {
-        advanceQueue()
-    }
-    
-    private func advanceQueue() {
-        if !migrationQueue.isEmpty {
-            migrationQueue.removeFirst()
-            currentMigration = migrationQueue.first
-        } else {
-            currentMigration = nil
-        }
+        currentMigration = nil
     }
 }

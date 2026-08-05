@@ -176,16 +176,16 @@ struct ContentView: View {
                     
                     Group {
                         Button("Hour") {
-                            migrationManager.triggerSimulatedMigration(source: "1 Hour", dest: "1 Day")
+                            migrationManager.triggerSimulatedMigration(source: "1 Day", dest: "1 Hour")
                         }
                         Button("Day") {
-                            migrationManager.triggerSimulatedMigration(source: "1 Day", dest: "1 Week")
+                            migrationManager.triggerSimulatedMigration(source: "1 Week", dest: "1 Day")
                         }
                         Button("Week") {
-                            migrationManager.triggerSimulatedMigration(source: "1 Week", dest: "1 Month")
+                            migrationManager.triggerSimulatedMigration(source: "1 Month", dest: "1 Week")
                         }
                         Button("Month") {
-                            migrationManager.triggerSimulatedMigration(source: "1 Month", dest: "1 Year")
+                            migrationManager.triggerSimulatedMigration(source: "1 Year", dest: "1 Month")
                         }
                         Button("Year") {
                             migrationManager.triggerSimulatedMigration(source: "1 Year", dest: "1 Year")
