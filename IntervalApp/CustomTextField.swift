@@ -38,6 +38,9 @@ struct CustomTextField: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSTextField, context: Context) {
+        // Sync coordinator's parent to the latest SwiftUI struct
+        context.coordinator.parent = self
+        
         let currentlyFocused = (nsView.window?.firstResponder == nsView.currentEditor() && nsView.currentEditor() != nil)
         
         if !currentlyFocused {
@@ -46,11 +49,21 @@ struct CustomTextField: NSViewRepresentable {
             }
         }
         
-        nsView.font = .systemFont(ofSize: fontSize, weight: .light)
+        let desiredFont = NSFont.systemFont(ofSize: fontSize, weight: .light)
+        if nsView.font != desiredFont {
+            nsView.font = desiredFont
+        }
         
         if isFocused && !currentlyFocused {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                nsView.window?.makeFirstResponder(nsView)
+            DispatchQueue.main.async {
+                if let window = nsView.window {
+                    window.makeFirstResponder(nsView)
+                } else {
+                    // Try again shortly if the view hasn't been added to the window yet
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        nsView.window?.makeFirstResponder(nsView)
+                    }
+                }
             }
         } else if !isFocused && currentlyFocused {
             DispatchQueue.main.async {
