@@ -56,11 +56,16 @@ class MigrationManager: ObservableObject {
     }
     
     func executeMigration(migration: Migration, selectedTaskIds: Set<String>, allTasks: [TaskItem], context: ModelContext) {
+        let destTasks = allTasks.filter { $0.intervalType == migration.dest && !$0.completed && $0.deletedAt == nil }
+        var maxOrder = (destTasks.map { $0.order }.max() ?? -1) + 1
+        
         let sourceTasks = allTasks.filter { $0.intervalType == migration.source && !$0.completed && $0.deletedAt == nil }
         
         for task in sourceTasks {
             if selectedTaskIds.contains(task.id) {
                 task.intervalType = migration.dest
+                task.order = maxOrder
+                maxOrder += 1
             } else if migration.source == migration.dest {
                 context.delete(task)
             }

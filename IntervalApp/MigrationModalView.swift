@@ -4,10 +4,16 @@ struct MigrationModalView: View {
     let migration: Migration
     let tasks: [TaskItem]
     let onMigrate: (Set<String>) -> Void
+    let onCommitGoals: ([String]) -> Void
     let onSkip: () -> Void
     
     @State private var selectedTaskIds: Set<String> = []
+    @State private var yearGoals: [String] = ["", "", ""]
     @Environment(\.colorScheme) private var colorScheme
+    
+    private var isYearReset: Bool {
+        migration.source == "1 Year" && migration.dest == "1 Year"
+    }
     
     private var modalTitle: String {
         switch (migration.source, migration.dest) {
@@ -61,12 +67,40 @@ struct MigrationModalView: View {
                     .foregroundColor(.secondary)
                     .lineSpacing(4)
                 
-                if migration.source == "1 Year" && migration.dest == "1 Year" {
-                    // Special 1 Year goal setting prompt
-                    Text("Use your 1 Year list in the app to set your new goals.")
-                        .font(.system(size: 13, weight: .light))
-                        .foregroundColor(.secondary)
-                        .padding(.vertical, 10)
+                if isYearReset {
+                    // Integrated typing list for New Year goal setting
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(0..<yearGoals.count, id: \.self) { idx in
+                                HStack(spacing: 12) {
+                                    Text("–")
+                                        .font(.system(size: 14, weight: .light))
+                                        .foregroundColor(.secondary)
+                                    TextField("Goal #\(idx + 1)...", text: $yearGoals[idx])
+                                        .textFieldStyle(.plain)
+                                        .font(.system(size: 14, weight: .light))
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(colorScheme == .dark ? Color(white: 0.12) : Color(white: 0.96))
+                                )
+                            }
+                            
+                            Button(action: { yearGoals.append("") }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "plus")
+                                    Text("Add Another Goal")
+                                }
+                                .font(.system(size: 12, weight: .light))
+                                .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.top, 4)
+                        }
+                    }
+                    .frame(maxHeight: 250)
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 10) {
@@ -108,13 +142,26 @@ struct MigrationModalView: View {
                         .padding(.vertical, 8)
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary, lineWidth: 1))
                     
-                    Button("Migrate") { onMigrate(selectedTaskIds) }
+                    if isYearReset {
+                        Button("Commit") {
+                            let validGoals = yearGoals.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+                            onCommitGoals(validGoals)
+                        }
                         .buttonStyle(.plain)
-                        .padding(.horizontal, 15)
+                        .padding(.horizontal, 18)
                         .padding(.vertical, 8)
                         .background(Color.primary)
                         .foregroundColor(Color(colorScheme == .dark ? .black : .white))
                         .cornerRadius(8)
+                    } else {
+                        Button("Migrate") { onMigrate(selectedTaskIds) }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 8)
+                            .background(Color.primary)
+                            .foregroundColor(Color(colorScheme == .dark ? .black : .white))
+                            .cornerRadius(8)
+                    }
                 }
                 .padding(.top, 10)
             }
@@ -126,7 +173,6 @@ struct MigrationModalView: View {
             .padding(20)
         }
         .onAppear {
-            // By default, NONE should be selected yet
             selectedTaskIds = []
         }
     }

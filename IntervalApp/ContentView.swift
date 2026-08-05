@@ -150,7 +150,7 @@ struct ContentView: View {
             if let migration = migrationManager.currentMigration {
                 MigrationModalView(
                     migration: migration,
-                    tasks: allTasks.filter { $0.intervalType == migration.source && !$0.completed },
+                    tasks: allTasks.filter { $0.intervalType == migration.source && !$0.completed && $0.deletedAt == nil },
                     onMigrate: { selectedTaskIds in
                         migrationManager.executeMigration(
                             migration: migration,
@@ -158,6 +158,17 @@ struct ContentView: View {
                             allTasks: allTasks,
                             context: modelContext
                         )
+                    },
+                    onCommitGoals: { goals in
+                        let yearTasks = allTasks.filter { $0.intervalType == "1 Year" && !$0.completed && $0.deletedAt == nil }
+                        var maxOrder = (yearTasks.map { $0.order }.max() ?? -1) + 1
+                        for goal in goals {
+                            let newTask = TaskItem(text: goal, intervalType: "1 Year", order: maxOrder)
+                            modelContext.insert(newTask)
+                            maxOrder += 1
+                        }
+                        try? modelContext.save()
+                        migrationManager.currentMigration = nil
                     },
                     onSkip: {
                         migrationManager.skipMigration()
