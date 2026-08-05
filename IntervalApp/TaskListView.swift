@@ -20,7 +20,7 @@ struct TaskListView: View {
                 .foregroundColor(.gray)
                 .padding(.bottom, 5)
                 .contentShape(Rectangle())
-                .onDrop(of: [.taskItem], delegate: TaskListHeaderDropDelegate(listTitle: title, sectionFontSize: fontSize, context: modelContext))
+                .onDrop(of: [.data], delegate: TaskListHeaderDropDelegate(listTitle: title, sectionFontSize: fontSize, context: modelContext))
             
             ForEach(tasks) { task in
                 TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title, focusedTaskId: $focusedTaskId)
@@ -34,7 +34,7 @@ struct TaskListView: View {
             Color.clear
                 .frame(height: 25)
                 .contentShape(Rectangle())
-                .onDrop(of: [.taskItem], delegate: TaskListBottomDropDelegate(listTitle: title, sectionFontSize: fontSize, context: modelContext))
+                .onDrop(of: [.data], delegate: TaskListBottomDropDelegate(listTitle: title, sectionFontSize: fontSize, context: modelContext))
         }
         .padding(.bottom, 10)
         .overlay(

@@ -3,10 +3,6 @@ import SwiftData
 import UniformTypeIdentifiers
 import Combine
 
-extension UTType {
-    static let taskItem = UTType(exportedAs: "com.intervalapp.taskitem", conformingTo: .data)
-}
-
 struct TaskRowView: View {
     @Bindable var task: TaskItem
     let fontSize: CGFloat
@@ -45,7 +41,7 @@ struct TaskRowView: View {
             dragState.draggedTask = task
             dragState.targetIntervalType = listTitle
             dragState.targetFontSize = fontSize
-            return NSItemProvider(item: task.id as NSString, typeIdentifier: UTType.taskItem.identifier)
+            return NSItemProvider(item: task.id as NSString, typeIdentifier: UTType.data.identifier)
         } preview: {
             let activeFontSize = dragState.targetFontSize
             let displayText = task.text.isEmpty ? (text.isEmpty ? "Task" : text) : task.text
@@ -66,7 +62,7 @@ struct TaskRowView: View {
                     .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
             )
         }
-        .onDrop(of: [.taskItem], delegate: TaskDropDelegate(item: task, sectionFontSize: fontSize, context: modelContext))
+        .onDrop(of: [.data], delegate: TaskDropDelegate(item: task, sectionFontSize: fontSize, context: modelContext))
         .onChange(of: text) { _, newValue in
             if !isNew && !newValue.isEmpty {
                 task.text = newValue
