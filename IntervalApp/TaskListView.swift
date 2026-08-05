@@ -12,7 +12,6 @@ struct TaskListView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
             // Category Header: Drop here to place at top of list
             Text(title.uppercased())
                 .font(.system(size: 10, weight: .light, design: .default))
@@ -20,7 +19,7 @@ struct TaskListView: View {
                 .foregroundColor(.gray)
                 .padding(.bottom, 5)
                 .contentShape(Rectangle())
-                .onDrop(of: [.text], delegate: TaskListHeaderDropDelegate(listTitle: title, context: modelContext))
+                .onDrop(of: [.text], delegate: TaskListHeaderDropDelegate(listTitle: title, sectionFontSize: fontSize, context: modelContext))
             
             ForEach(tasks) { task in
                 TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title, focusedTaskId: $focusedTaskId)
@@ -34,7 +33,7 @@ struct TaskListView: View {
             Color.clear
                 .frame(height: 25)
                 .contentShape(Rectangle())
-                .onDrop(of: [.text], delegate: TaskListBottomDropDelegate(listTitle: title, context: modelContext))
+                .onDrop(of: [.text], delegate: TaskListBottomDropDelegate(listTitle: title, sectionFontSize: fontSize, context: modelContext))
         }
         .padding(.bottom, 10)
         .overlay(
@@ -50,11 +49,15 @@ struct TaskListView: View {
 
 struct TaskListHeaderDropDelegate: DropDelegate {
     let listTitle: String
+    let sectionFontSize: CGFloat
     let context: ModelContext
 
     func dropEntered(info: DropInfo) {
         guard let draggedItem = DragState.shared.draggedTask else { return }
         withAnimation(.easeInOut(duration: 0.2)) {
+            DragState.shared.targetIntervalType = listTitle
+            DragState.shared.targetFontSize = sectionFontSize
+            
             draggedItem.intervalType = listTitle
             
             let descriptor = FetchDescriptor<TaskItem>()
@@ -75,7 +78,7 @@ struct TaskListHeaderDropDelegate: DropDelegate {
     
     func performDrop(info: DropInfo) -> Bool {
         withAnimation(.easeInOut(duration: 0.15)) {
-            DragState.shared.draggedTask = nil
+            DragState.shared.reset()
         }
         return true
     }
@@ -83,11 +86,15 @@ struct TaskListHeaderDropDelegate: DropDelegate {
 
 struct TaskListBottomDropDelegate: DropDelegate {
     let listTitle: String
+    let sectionFontSize: CGFloat
     let context: ModelContext
 
     func dropEntered(info: DropInfo) {
         guard let draggedItem = DragState.shared.draggedTask else { return }
         withAnimation(.easeInOut(duration: 0.2)) {
+            DragState.shared.targetIntervalType = listTitle
+            DragState.shared.targetFontSize = sectionFontSize
+            
             draggedItem.intervalType = listTitle
             
             let descriptor = FetchDescriptor<TaskItem>()
@@ -108,7 +115,7 @@ struct TaskListBottomDropDelegate: DropDelegate {
     
     func performDrop(info: DropInfo) -> Bool {
         withAnimation(.easeInOut(duration: 0.15)) {
-            DragState.shared.draggedTask = nil
+            DragState.shared.reset()
         }
         return true
     }

@@ -35,33 +35,34 @@ struct TaskRowView: View {
                 .opacity(isDragged ? 0 : 1)
         }
         .onDrag {
-            // Ensure task.text is flushed before drag starts
             if !isNew && !text.isEmpty {
                 task.text = text
             }
             dragState.draggedTask = task
+            dragState.targetIntervalType = listTitle
+            dragState.targetFontSize = fontSize
             return NSItemProvider(object: task.id as NSString)
         } preview: {
-            // Optimized minimal floating preview card
+            let activeFontSize = dragState.targetFontSize
             let displayText = task.text.isEmpty ? (text.isEmpty ? "Task" : text) : task.text
             HStack(spacing: 12) {
                 Text("–")
-                    .font(.system(size: fontSize * 0.8, weight: .light))
+                    .font(.system(size: activeFontSize * 0.8, weight: .light))
                     .foregroundColor(.secondary)
                 Text(displayText)
-                    .font(.system(size: fontSize, weight: .light))
+                    .font(.system(size: activeFontSize, weight: .light))
                     .foregroundColor(.primary)
                     .lineLimit(1)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, max(8, activeFontSize * 0.4))
+            .padding(.vertical, max(4, activeFontSize * 0.2))
             .background(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
                     .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
             )
         }
-        .onDrop(of: [.text], delegate: TaskDropDelegate(item: task, context: modelContext))
+        .onDrop(of: [.text], delegate: TaskDropDelegate(item: task, sectionFontSize: fontSize, context: modelContext))
         .onChange(of: text) { _, newValue in
             if !isNew && !newValue.isEmpty {
                 task.text = newValue
@@ -230,6 +231,7 @@ struct TaskRowView: View {
 
 class DragState: ObservableObject {
     static let shared = DragState()
+    
     @Published var draggedTask: TaskItem? {
         didSet {
             if draggedTask != nil {
@@ -237,18 +239,25 @@ class DragState: ObservableObject {
             }
         }
     }
+    @Published var targetIntervalType: String?
+    @Published var targetFontSize: CGFloat = 20.0
     
     private var monitor: Any?
+    
+    func reset() {
+        draggedTask = nil
+        targetIntervalType = nil
+        stopMonitoring()
+    }
     
     private func startMonitoring() {
         if monitor == nil {
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
                 DispatchQueue.main.async {
                     withAnimation(.easeInOut(duration: 0.15)) {
-                        self?.draggedTask = nil
+                        self?.reset()
                     }
                 }
-                self?.stopMonitoring()
                 return event
             }
         }
@@ -266,12 +275,17 @@ class DragState: ObservableObject {
 
 struct TaskDropDelegate: DropDelegate {
     let item: TaskItem
+    let sectionFontSize: CGFloat
     let context: ModelContext
 
     func dropEntered(info: DropInfo) {
         guard let draggedItem = DragState.shared.draggedTask else { return }
-        if draggedItem.id != item.id {
-            withAnimation(.easeInOut(duration: 0.2)) {
+        
+        withAnimation(.easeInOut(duration: 0.2)) {
+            DragState.shared.targetIntervalType = item.intervalType
+            DragState.shared.targetFontSize = sectionFontSize
+            
+            if draggedItem.id != item.id {
                 draggedItem.intervalType = item.intervalType
                 
                 let descriptor = FetchDescriptor<TaskItem>()
@@ -297,7 +311,7 @@ struct TaskDropDelegate: DropDelegate {
     
     func performDrop(info: DropInfo) -> Bool {
         withAnimation(.easeInOut(duration: 0.15)) {
-            DragState.shared.draggedTask = nil
+            DragState.shared.reset()
         }
         return true
     }
