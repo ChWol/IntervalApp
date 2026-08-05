@@ -25,10 +25,18 @@ struct TaskRowView: View {
     var body: some View {
         Group {
             if isDragged {
-                // Grey placeholder showing where the item will land
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.gray.opacity(colorScheme == .dark ? 0.15 : 0.08))
-                    .frame(height: max(fontSize * 1.2, 24))
+                // Minimalist insertion slot indicator
+                HStack(alignment: .center, spacing: 15) {
+                    Text("–")
+                        .font(.system(size: fontSize * 0.8, weight: .light))
+                        .foregroundColor(.secondary)
+                        .opacity(0.3)
+                    
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.2))
+                        .frame(height: 1)
+                }
+                .frame(height: max(fontSize * 1.2, 24))
             } else {
                 rowContent
             }
