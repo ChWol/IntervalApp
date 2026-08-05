@@ -1,80 +1,58 @@
-//
-//  ContentView.swift
-//  IntervalApp
-//
-//  Created by Christopher Wolters on 8/5/26.
-//
-
 import SwiftUI
 import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
-
+    @Environment(\.colorScheme) private var colorScheme
+    @Query(sort: \TaskItem.order) private var allTasks: [TaskItem]
+    
+    @StateObject private var migrationManager = MigrationManager()
+    
+    let intervals = [
+        ("1 Hour", 45.0),
+        ("1 Day", 30.0),
+        ("1 Week", 20.0),
+        ("1 Month", 14.0),
+        ("1 Year", 11.0)
+    ]
+    
     var body: some View {
-        NavigationViewWrapper {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+        ZStack {
+            Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
+            
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 40) {
+                    ForEach(intervals, id: \.0) { interval in
+                        TaskListView(
+                            title: interval.0,
+                            fontSize: interval.1,
+                            tasks: allTasks.filter { $0.intervalType == interval.0 }.sorted { $0.order < $1.order }
+                        )
                     }
                 }
-                .onDelete(perform: deleteItems)
+                .padding(40)
             }
-#if os(macOS)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-#endif
-            .toolbar {
-#if os(iOS)
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-#endif
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+            
+            if let migration = migrationManager.currentMigration {
+                MigrationModalView(
+                    migration: migration,
+                    tasks: allTasks.filter { $0.intervalType == migration.source && !$0.completed },
+                    onMigrate: { selectedTaskIds in
+                        migrationManager.executeMigration(
+                            migration: migration,
+                            selectedTaskIds: selectedTaskIds,
+                            allTasks: allTasks,
+                            context: modelContext
+                        )
+                    },
+                    onSkip: {
+                        migrationManager.skipMigration()
                     }
-                }
+                )
             }
         }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
+        .onAppear {
+            migrationManager.checkMigrations()
         }
     }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
-        }
-    }
-}
-
-fileprivate struct NavigationViewWrapper<Content: View>: View {
-    let content: () -> Content
-
-    var body: some View {
-#if os(macOS)
-        NavigationSplitView {
-            content()
-        } detail: {
-            Text("Select an item")
-        }
-#else
-        content()
-#endif
-    }
-}
-
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }
