@@ -23,47 +23,50 @@ struct TaskRowView: View {
     }
     
     var body: some View {
-        Group {
+        ZStack {
             if isDragged {
-                // Minimalist insertion slot indicator
-                HStack(alignment: .center, spacing: 15) {
-                    Text("–")
-                        .font(.system(size: fontSize * 0.8, weight: .light))
-                        .foregroundColor(.secondary)
-                        .opacity(0.3)
-                    
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.2))
-                        .frame(height: 1)
-                }
-                .frame(height: max(fontSize * 1.2, 24))
-            } else {
-                rowContent
+                // Sleek grey box placeholder for the insertion slot
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(colorScheme == .dark ? 0.15 : 0.08))
+                    .frame(height: max(fontSize * 1.2, 24))
             }
+            
+            rowContent
+                .opacity(isDragged ? 0 : 1)
         }
         .onDrag {
+            // Ensure task.text is flushed before drag starts
+            if !isNew && !text.isEmpty {
+                task.text = text
+            }
             dragState.draggedTask = task
             return NSItemProvider(object: task.id as NSString)
         } preview: {
-            // Floating card preview
-            HStack(spacing: 10) {
+            // Optimized minimal floating preview card
+            let displayText = task.text.isEmpty ? (text.isEmpty ? "Task" : text) : task.text
+            HStack(spacing: 12) {
                 Text("–")
-                    .font(.system(size: 14, weight: .light))
+                    .font(.system(size: fontSize * 0.8, weight: .light))
                     .foregroundColor(.secondary)
-                Text(task.text)
-                    .font(.system(size: 14, weight: .light))
+                Text(displayText)
+                    .font(.system(size: fontSize, weight: .light))
                     .foregroundColor(.primary)
                     .lineLimit(1)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.ultraThinMaterial)
-                    .shadow(color: .black.opacity(0.18), radius: 10, y: 3)
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+                    .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
             )
         }
         .onDrop(of: [.text], delegate: TaskDropDelegate(item: task, context: modelContext))
+        .onChange(of: text) { _, newValue in
+            if !isNew && !newValue.isEmpty {
+                task.text = newValue
+            }
+        }
     }
     
     // MARK: - Normal Row Content
