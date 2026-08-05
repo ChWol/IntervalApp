@@ -70,8 +70,8 @@ struct ContentView: View {
                                         withAnimation { isCompletedExpanded.toggle() }
                                     }
                             }
-                            .onChange(of: isCompletedExpanded) { expanded in
-                                if !expanded { showAllCompleted = false }
+                            .onChange(of: isCompletedExpanded) { _, newValue in
+                                if !newValue { showAllCompleted = false }
                             }
                         }
                         
@@ -106,8 +106,8 @@ struct ContentView: View {
                                         withAnimation { isDeletedExpanded.toggle() }
                                     }
                             }
-                            .onChange(of: isDeletedExpanded) { expanded in
-                                if !expanded { showAllDeleted = false }
+                            .onChange(of: isDeletedExpanded) { _, newValue in
+                                if !newValue { showAllDeleted = false }
                             }
                         }
                     }

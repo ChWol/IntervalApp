@@ -101,6 +101,9 @@ struct TaskRowView: View {
                             text = ""
                         }
                     } else {
+                        // Save current text before creating the new row
+                        task.text = text
+                        
                         let descriptor = FetchDescriptor<TaskItem>()
                         if let all = try? modelContext.fetch(descriptor) {
                             var sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
@@ -117,7 +120,10 @@ struct TaskRowView: View {
                                 t.order = i
                             }
                             
-                            focusedTaskId = newTask.id
+                            // Delay focus to let SwiftUI create the new row's view
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                focusedTaskId = newTask.id
+                            }
                         }
                     }
                 },

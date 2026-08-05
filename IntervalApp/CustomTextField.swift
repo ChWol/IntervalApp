@@ -20,83 +20,94 @@ struct CustomTextField: NSViewRepresentable {
     var fontSize: CGFloat
     var placeholder: String
 
-    func makeNSView(context: Context) -> NSTextField {
-        let textField = NoHighlightTextField()
-        textField.isBordered = false
-        textField.drawsBackground = false
-        textField.focusRingType = .none
-        textField.font = .systemFont(ofSize: fontSize, weight: .light)
-        textField.placeholderString = placeholder
-        textField.delegate = context.coordinator
-        textField.cell?.focusRingType = .none
-        return textField
-    }
-    
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSTextField, context: Context) -> CGSize? {
-        let size = nsView.intrinsicContentSize
-        return CGSize(width: proposal.width ?? size.width, height: size.height)
+    func makeNSView(context: Context) -> NoHighlightTextField {
+        let tf = NoHighlightTextField()
+        tf.isBordered = false
+        tf.drawsBackground = false
+        tf.focusRingType = .none
+        tf.font = .systemFont(ofSize: fontSize, weight: .light)
+        tf.placeholderString = placeholder
+        tf.delegate = context.coordinator
+        tf.cell?.focusRingType = .none
+        tf.stringValue = text
+        return tf
     }
 
-    func updateNSView(_ nsView: NSTextField, context: Context) {
-        context.coordinator.parent = self
-        
-        let isEditing = nsView.currentEditor() != nil
-        
-        // Only sync text OUT to the view if the user is NOT actively typing.
-        // Syncing it while typing destroys the field editor and blocks input with a beep!
-        if !isEditing {
-            if nsView.stringValue != text {
-                nsView.stringValue = text
-            }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NoHighlightTextField, context: Context) -> CGSize? {
+        let s = nsView.intrinsicContentSize
+        return CGSize(width: proposal.width ?? s.width, height: s.height)
+    }
+
+    func updateNSView(_ nsView: NoHighlightTextField, context: Context) {
+        let c = context.coordinator
+
+        // Always keep callbacks fresh so closures capture latest state
+        c.onFocusChanged = onFocusChanged
+        c.onSubmit = onSubmit
+        c.onDeleteEmpty = onDeleteEmpty
+
+        // While the user is actively typing, do NOT touch the NSTextField at all.
+        // Setting stringValue or calling makeFirstResponder while AppKit's field
+        // editor is active destroys the editing session and produces a beep.
+        if c.isEditing {
+            return
         }
-        
-        if isFocused && !isEditing {
+
+        // Sync text only when not editing
+        if nsView.stringValue != text {
+            nsView.stringValue = text
+        }
+
+        // Acquire focus only if we don't already have it
+        if isFocused && nsView.currentEditor() == nil {
             DispatchQueue.main.async {
                 nsView.window?.makeFirstResponder(nsView)
-                // Backup attempt to grab focus in case view wasn't in hierarchy yet
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    nsView.window?.makeFirstResponder(nsView)
-                }
-            }
-        } else if !isFocused && isEditing {
-            DispatchQueue.main.async {
-                nsView.window?.makeFirstResponder(nil)
             }
         }
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(self)
+        Coordinator(textBinding: $text)
     }
 
     class Coordinator: NSObject, NSTextFieldDelegate {
-        var parent: CustomTextField
+        var textBinding: Binding<String>
+        var onFocusChanged: ((Bool) -> Void)?
+        var onSubmit: (() -> Void)?
+        var onDeleteEmpty: (() -> Void)?
+        var isEditing: Bool = false
 
-        init(_ parent: CustomTextField) {
-            self.parent = parent
+        init(textBinding: Binding<String>) {
+            self.textBinding = textBinding
         }
 
         func controlTextDidChange(_ obj: Notification) {
-            if let textField = obj.object as? NSTextField {
-                parent.text = textField.stringValue
-            }
+            guard let tf = obj.object as? NSTextField else { return }
+            textBinding.wrappedValue = tf.stringValue
         }
 
         func controlTextDidBeginEditing(_ obj: Notification) {
-            parent.onFocusChanged(true)
+            isEditing = true
+            onFocusChanged?(true)
         }
 
         func controlTextDidEndEditing(_ obj: Notification) {
-            parent.onFocusChanged(false)
+            isEditing = false
+            // Final sync of text on editing end as safety net
+            if let tf = obj.object as? NSTextField {
+                textBinding.wrappedValue = tf.stringValue
+            }
+            onFocusChanged?(false)
         }
 
-        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
-            if commandSelector == #selector(NSResponder.insertNewline(_:)) {
-                parent.onSubmit()
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy sel: Selector) -> Bool {
+            if sel == #selector(NSResponder.insertNewline(_:)) {
+                onSubmit?()
                 return true
-            } else if commandSelector == #selector(NSResponder.deleteBackward(_:)) {
-                if parent.text.isEmpty {
-                    parent.onDeleteEmpty()
+            }
+            if sel == #selector(NSResponder.deleteBackward(_:)) {
+                if textBinding.wrappedValue.isEmpty {
+                    onDeleteEmpty?()
                     return true
                 }
             }
