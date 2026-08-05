@@ -6,6 +6,7 @@ struct TaskListView: View {
     let title: String
     let fontSize: CGFloat
     let tasks: [TaskItem]
+    @FocusState.Binding var focusedTaskId: String?
     
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
@@ -19,11 +20,11 @@ struct TaskListView: View {
                 .padding(.bottom, 5)
             
             ForEach(tasks) { task in
-                TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title)
+                TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title, focusedTaskId: $focusedTaskId)
             }
             
             if tasks.isEmpty {
-                TaskRowView(task: TaskItem(text: "", intervalType: title), fontSize: fontSize, isNew: true, listTitle: title)
+                TaskRowView(task: TaskItem(text: "", intervalType: title), fontSize: fontSize, isNew: true, listTitle: title, focusedTaskId: $focusedTaskId)
             }
         }
         .padding(.bottom, 30)

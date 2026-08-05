@@ -10,6 +10,7 @@ struct ContentView: View {
     
     @State private var isCompletedExpanded = false
     @State private var isDeletedExpanded = false
+    @FocusState private var focusedTaskId: String?
     
     let intervals = [
         ("1 Hour", 45.0),
@@ -29,7 +30,8 @@ struct ContentView: View {
                         TaskListView(
                             title: interval.0,
                             fontSize: interval.1,
-                            tasks: allTasks.filter { $0.intervalType == interval.0 && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+                            tasks: allTasks.filter { $0.intervalType == interval.0 && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order },
+                            focusedTaskId: $focusedTaskId
                         )
                     }
                     
@@ -64,7 +66,7 @@ struct ContentView: View {
                                 .padding(.top, 10)
                                 .padding(.leading, 5)
                             } label: {
-                                Text("RECENTLY DELETED (30 DAYS)")
+                                Text("RECENTLY DELETED")
                                     .font(.system(size: 10, weight: .light, design: .default))
                                     .tracking(2.0)
                                     .foregroundColor(.gray)

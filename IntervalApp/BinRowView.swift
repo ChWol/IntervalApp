@@ -6,27 +6,27 @@ struct BinRowView: View {
     let fontSize: CGFloat
     
     var body: some View {
-        HStack(alignment: .center, spacing: 15) {
-            Button(action: {
-                withAnimation {
-                    task.deletedAt = nil
-                    task.completed = false
-                    task.completedAt = nil
-                }
-            }) {
+        Button(action: {
+            withAnimation {
+                task.deletedAt = nil
+                task.completed = false
+                task.completedAt = nil
+            }
+        }) {
+            HStack(alignment: .center, spacing: 15) {
                 Image(systemName: "arrow.uturn.backward")
                     .font(.system(size: fontSize * 0.8, weight: .light))
                     .foregroundColor(.secondary)
+                
+                Text(task.text)
+                    .font(.system(size: fontSize, weight: .light))
+                    .foregroundColor(.secondary)
+                    .strikethrough(task.completed)
+                
+                Spacer()
             }
-            .buttonStyle(.plain)
-            
-            Text(task.text)
-                .font(.system(size: fontSize, weight: .light))
-                .foregroundColor(.secondary)
-                .strikethrough(task.completed)
-            
-            Spacer()
+            .contentShape(Rectangle())
         }
-        .contentShape(Rectangle())
+        .buttonStyle(.plain)
     }
 }
