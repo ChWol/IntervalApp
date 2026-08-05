@@ -12,7 +12,7 @@ struct ContentView: View {
     @State private var isDeletedExpanded = false
     @State private var showAllCompleted = false
     @State private var showAllDeleted = false
-    @FocusState private var focusedTaskId: String?
+    @State private var focusedTaskId: String?
     
     let intervals = [
         ("1 Hour", 45.0),

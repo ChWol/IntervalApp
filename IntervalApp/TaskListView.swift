@@ -6,7 +6,7 @@ struct TaskListView: View {
     let title: String
     let fontSize: CGFloat
     let tasks: [TaskItem]
-    @FocusState.Binding var focusedTaskId: String?
+    @Binding var focusedTaskId: String?
     
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme

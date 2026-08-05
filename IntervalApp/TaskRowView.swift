@@ -7,7 +7,7 @@ struct TaskRowView: View {
     let fontSize: CGFloat
     let isNew: Bool
     let listTitle: String
-    @FocusState.Binding var focusedTaskId: String?
+    @Binding var focusedTaskId: String?
     
     @Environment(\.modelContext) private var modelContext
     @State private var text: String = ""
