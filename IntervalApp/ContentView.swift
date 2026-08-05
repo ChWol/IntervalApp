@@ -29,6 +29,8 @@ struct ContentView: View {
             
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 40) {
+                    HabitsBarView()
+                    
                     ForEach(intervals, id: \.0) { interval in
                         TaskListView(
                             title: interval.0,
