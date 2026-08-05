@@ -10,6 +10,8 @@ struct ContentView: View {
     
     @State private var isCompletedExpanded = false
     @State private var isDeletedExpanded = false
+    @State private var showAllCompleted = false
+    @State private var showAllDeleted = false
     @FocusState private var focusedTaskId: String?
     
     let intervals = [
@@ -37,30 +39,58 @@ struct ContentView: View {
                     
                     // Bin and Completed Lists
                     VStack(alignment: .leading, spacing: 20) {
-                        let completedTasks = allTasks.filter { $0.completed && $0.deletedAt == nil }
+                        let completedTasks = allTasks.filter { $0.completed && $0.deletedAt == nil }.sorted { ($0.completedAt ?? Date()) > ($1.completedAt ?? Date()) }
                         if !completedTasks.isEmpty {
                             DisclosureGroup(isExpanded: $isCompletedExpanded) {
                                 VStack(alignment: .leading, spacing: 15) {
-                                    ForEach(completedTasks) { task in
+                                    let displayed = showAllCompleted ? completedTasks : Array(completedTasks.prefix(10))
+                                    ForEach(displayed) { task in
                                         BinRowView(task: task, fontSize: 14.0)
+                                    }
+                                    if completedTasks.count > 10 {
+                                        Button(action: { withAnimation { showAllCompleted.toggle() } }) {
+                                            Text(showAllCompleted ? "Show Less" : "Show More (\(completedTasks.count - 10))")
+                                                .font(.system(size: 12, weight: .light))
+                                                .foregroundColor(.accentColor)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .padding(.top, 5)
                                     }
                                 }
                                 .padding(.top, 10)
                                 .padding(.leading, 5)
                             } label: {
-                                Text("COMPLETED (30 DAYS)")
+                                Text("COMPLETED")
                                     .font(.system(size: 10, weight: .light, design: .default))
                                     .tracking(2.0)
                                     .foregroundColor(.gray)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        withAnimation { isCompletedExpanded.toggle() }
+                                    }
+                            }
+                            .onChange(of: isCompletedExpanded) { expanded in
+                                if !expanded { showAllCompleted = false }
                             }
                         }
                         
-                        let deletedTasks = allTasks.filter { $0.deletedAt != nil }
+                        let deletedTasks = allTasks.filter { $0.deletedAt != nil }.sorted { ($0.deletedAt ?? Date()) > ($1.deletedAt ?? Date()) }
                         if !deletedTasks.isEmpty {
                             DisclosureGroup(isExpanded: $isDeletedExpanded) {
                                 VStack(alignment: .leading, spacing: 15) {
-                                    ForEach(deletedTasks) { task in
+                                    let displayed = showAllDeleted ? deletedTasks : Array(deletedTasks.prefix(10))
+                                    ForEach(displayed) { task in
                                         BinRowView(task: task, fontSize: 14.0)
+                                    }
+                                    if deletedTasks.count > 10 {
+                                        Button(action: { withAnimation { showAllDeleted.toggle() } }) {
+                                            Text(showAllDeleted ? "Show Less" : "Show More (\(deletedTasks.count - 10))")
+                                                .font(.system(size: 12, weight: .light))
+                                                .foregroundColor(.accentColor)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .padding(.top, 5)
                                     }
                                 }
                                 .padding(.top, 10)
@@ -70,6 +100,14 @@ struct ContentView: View {
                                     .font(.system(size: 10, weight: .light, design: .default))
                                     .tracking(2.0)
                                     .foregroundColor(.gray)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        withAnimation { isDeletedExpanded.toggle() }
+                                    }
+                            }
+                            .onChange(of: isDeletedExpanded) { expanded in
+                                if !expanded { showAllDeleted = false }
                             }
                         }
                     }

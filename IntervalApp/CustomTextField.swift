@@ -1,6 +1,16 @@
 import SwiftUI
 import AppKit
 
+class NoHighlightTextField: NSTextField {
+    override func becomeFirstResponder() -> Bool {
+        let result = super.becomeFirstResponder()
+        if let editor = currentEditor() as? NSTextView {
+            editor.setSelectedRange(NSRange(location: string.count, length: 0))
+        }
+        return result
+    }
+}
+
 struct CustomTextField: NSViewRepresentable {
     @Binding var text: String
     var isFocused: Bool
@@ -11,17 +21,14 @@ struct CustomTextField: NSViewRepresentable {
     var placeholder: String
 
     func makeNSView(context: Context) -> NSTextField {
-        let textField = NSTextField()
+        let textField = NoHighlightTextField()
         textField.isBordered = false
         textField.drawsBackground = false
         textField.focusRingType = .none
         textField.font = .systemFont(ofSize: fontSize, weight: .light)
         textField.placeholderString = placeholder
         textField.delegate = context.coordinator
-        
-        // Remove the default focus ring completely
         textField.cell?.focusRingType = .none
-        
         return textField
     }
     
@@ -36,15 +43,15 @@ struct CustomTextField: NSViewRepresentable {
         }
         nsView.font = .systemFont(ofSize: fontSize, weight: .light)
         
-        DispatchQueue.main.async {
-            if isFocused {
-                if nsView.window?.firstResponder != nsView.currentEditor() {
-                    nsView.window?.makeFirstResponder(nsView)
-                }
-            } else {
-                if nsView.window?.firstResponder == nsView.currentEditor() {
-                    nsView.window?.makeFirstResponder(nil)
-                }
+        let currentlyFocused = (nsView.window?.firstResponder == nsView.currentEditor() && nsView.currentEditor() != nil)
+        
+        if isFocused && !currentlyFocused {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                nsView.window?.makeFirstResponder(nsView)
+            }
+        } else if !isFocused && currentlyFocused {
+            DispatchQueue.main.async {
+                nsView.window?.makeFirstResponder(nil)
             }
         }
     }
@@ -68,13 +75,6 @@ struct CustomTextField: NSViewRepresentable {
 
         func controlTextDidBeginEditing(_ obj: Notification) {
             parent.onFocusChanged(true)
-            
-            // Wait for AppKit to finish its default select-all behavior, then jump to the end
-            if let textField = obj.object as? NSTextField, let editor = textField.currentEditor() as? NSTextView {
-                DispatchQueue.main.async {
-                    editor.setSelectedRange(NSRange(location: editor.string.count, length: 0))
-                }
-            }
         }
 
         func controlTextDidEndEditing(_ obj: Notification) {

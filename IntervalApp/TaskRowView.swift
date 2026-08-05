@@ -13,39 +13,59 @@ struct TaskRowView: View {
     @State private var text: String = ""
     @State private var isHovering: Bool = false
     @State private var isCheckmarkHovering: Bool = false
+    @State private var localCompleted: Bool = false
     
     var body: some View {
         HStack(alignment: .center, spacing: 15) {
             if !isNew {
                 Button(action: {
-                    withAnimation {
-                        task.completed.toggle()
-                        task.completedAt = task.completed ? Date() : nil
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        localCompleted = true
                     }
-                }) {
-                    Group {
-                        if isCheckmarkHovering {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: fontSize * 0.8, weight: .light))
-                                .foregroundColor(.primary)
-                        } else {
-                            Text("–")
-                                .font(.system(size: fontSize * 0.8, weight: .light))
-                                .foregroundColor(task.completed ? .primary : .secondary)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        withAnimation {
+                            task.completed = true
+                            task.completedAt = Date()
                         }
                     }
+                }) {
+                    ZStack {
+                        Text("–")
+                            .font(.system(size: fontSize * 0.8, weight: .light))
+                            .foregroundColor(localCompleted ? .primary : .secondary)
+                            .opacity(isCheckmarkHovering ? 0 : 1)
+                            .rotationEffect(.degrees(isCheckmarkHovering ? -90 : 0))
+                        
+                        Image(systemName: "checkmark")
+                            .font(.system(size: fontSize * 0.8, weight: .light))
+                            .foregroundColor(.primary)
+                            .opacity(isCheckmarkHovering ? 1 : 0)
+                            .scaleEffect(isCheckmarkHovering ? 1 : 0.5)
+                    }
+                    .frame(width: 15, alignment: .center)
                 }
                 .buttonStyle(.plain)
                 .onHover { hovering in
-                    isCheckmarkHovering = hovering
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        isCheckmarkHovering = hovering
+                    }
                 }
             } else {
                 Text("–")
                     .font(.system(size: fontSize * 0.8, weight: .light))
+                    .frame(width: 15, alignment: .center)
                     .opacity(0)
             }
             
-            CustomTextField(
+            if localCompleted {
+                Text(task.text)
+                    .font(.system(size: fontSize, weight: .light))
+                    .foregroundColor(.secondary)
+                    .strikethrough(true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: fontSize * 1.5)
+            } else {
+                CustomTextField(
                 text: $text,
                 isFocused: focusedTaskId == task.id,
                 onFocusChanged: { focused in
@@ -117,6 +137,7 @@ struct TaskRowView: View {
                 fontSize: fontSize,
                 placeholder: isNew ? "Add task..." : ""
             )
+            }
             
             if !isNew {
                 Button(action: {
