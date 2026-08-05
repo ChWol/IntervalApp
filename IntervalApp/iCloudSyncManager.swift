@@ -69,6 +69,37 @@ class iCloudSyncManager: ObservableObject {
             }
             .store(in: &cancellables)
         
+        // Listen for app becoming active in foreground
+        #if os(macOS)
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self, let context = self.modelContext else { return }
+                NSUbiquitousKeyValueStore.default.synchronize()
+                self.pullFromiCloud(context: context)
+            }
+            .store(in: &cancellables)
+        #else
+        NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self, let context = self.modelContext else { return }
+                NSUbiquitousKeyValueStore.default.synchronize()
+                self.pullFromiCloud(context: context)
+            }
+            .store(in: &cancellables)
+        #endif
+        
+        // Periodic sync timer (every 3 seconds)
+        Timer.publish(every: 3.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self = self, let context = self.modelContext else { return }
+                NSUbiquitousKeyValueStore.default.synchronize()
+                self.pullFromiCloud(context: context)
+            }
+            .store(in: &cancellables)
+        
         // Synchronize store
         NSUbiquitousKeyValueStore.default.synchronize()
         
