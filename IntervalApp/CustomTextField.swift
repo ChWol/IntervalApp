@@ -1,4 +1,4 @@
-import SwiftUI
+#if os(macOS)
 import AppKit
 
 class NoHighlightTextField: NSTextField {
@@ -54,32 +54,26 @@ struct CustomTextField: NSViewRepresentable {
     func updateNSView(_ nsView: NoHighlightTextField, context: Context) {
         let c = context.coordinator
 
-        // Always keep callbacks fresh
         c.onFocusChanged = onFocusChanged
         c.onSubmit = onSubmit
         c.onDeleteEmpty = onDeleteEmpty
 
-        // While editing, don't touch the text field at all
         if c.isEditing {
             return
         }
 
-        // Sync text only when not editing
         if nsView.stringValue != text {
             nsView.stringValue = text
         }
 
-        // Handle focus
         if isFocused && nsView.currentEditor() == nil {
             if nsView.window != nil {
                 DispatchQueue.main.async {
-                    // Double-check we still need focus
                     if nsView.currentEditor() == nil {
                         nsView.window?.makeFirstResponder(nsView)
                     }
                 }
             } else {
-                // View isn't in a window yet — defer until it is
                 nsView.pendingFocus = true
             }
         } else if !isFocused {
@@ -135,3 +129,38 @@ struct CustomTextField: NSViewRepresentable {
         }
     }
 }
+#else
+import UIKit
+
+struct CustomTextField: View {
+    @Binding var text: String
+    var isFocused: Bool
+    var onFocusChanged: (Bool) -> Void
+    var onSubmit: () -> Void
+    var onDeleteEmpty: () -> Void
+    var fontSize: CGFloat
+    var placeholder: String
+    
+    @FocusState private var fieldFocused: Bool
+    
+    var body: some View {
+        TextField(placeholder, text: $text)
+            .font(.system(size: fontSize, weight: .light))
+            .focused($fieldFocused)
+            .onSubmit {
+                onSubmit()
+            }
+            .onChange(of: isFocused) { _, newValue in
+                fieldFocused = newValue
+            }
+            .onChange(of: fieldFocused) { _, newValue in
+                onFocusChanged(newValue)
+            }
+            .onAppear {
+                if isFocused {
+                    fieldFocused = true
+                }
+            }
+    }
+}
+#endif

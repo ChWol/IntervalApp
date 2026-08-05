@@ -255,6 +255,7 @@ class DragState: ObservableObject {
     }
     
     private func startMonitoring() {
+        #if os(macOS)
         if monitor == nil {
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDragged, .leftMouseUp]) { [weak self] event in
                 guard let self = self else { return event }
@@ -277,13 +278,16 @@ class DragState: ObservableObject {
                 return event
             }
         }
+        #endif
     }
     
     private func stopMonitoring() {
+        #if os(macOS)
         if let m = monitor {
             NSEvent.removeMonitor(m)
             monitor = nil
         }
+        #endif
     }
 }
 
