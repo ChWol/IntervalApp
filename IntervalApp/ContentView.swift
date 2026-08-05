@@ -7,6 +7,7 @@ struct ContentView: View {
     @Query(sort: \TaskItem.order) private var allTasks: [TaskItem]
     
     @StateObject private var migrationManager = MigrationManager()
+    @ObservedObject private var dragState = DragState.shared
     
     @State private var isCompletedExpanded = false
     @State private var isDeletedExpanded = false
@@ -132,6 +133,31 @@ struct ContentView: View {
                         migrationManager.skipMigration()
                     }
                 )
+            }
+            
+            // Floating Drag Overlay (Custom live SwiftUI drag preview that morphs size across sections)
+            if let draggedTask = dragState.draggedTask {
+                let activeFontSize = dragState.targetFontSize
+                HStack(spacing: 12) {
+                    Text("–")
+                        .font(.system(size: activeFontSize * 0.8, weight: .light))
+                        .foregroundColor(.secondary)
+                    Text(draggedTask.text)
+                        .font(.system(size: activeFontSize, weight: .light))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, max(8, activeFontSize * 0.4))
+                .padding(.vertical, max(4, activeFontSize * 0.2))
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+                        .shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 3)
+                )
+                .position(dragState.dragPosition)
+                .allowsHitTesting(false)
+                .animation(.spring(response: 0.25, dampingFraction: 0.75), value: dragState.targetFontSize)
+                .transition(.opacity)
             }
         }
         .onAppear {

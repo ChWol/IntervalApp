@@ -43,24 +43,8 @@ struct TaskRowView: View {
             dragState.targetFontSize = fontSize
             return NSItemProvider(object: task.id as NSString)
         } preview: {
-            let activeFontSize = dragState.targetFontSize
-            let displayText = task.text.isEmpty ? (text.isEmpty ? "Task" : text) : task.text
-            HStack(spacing: 12) {
-                Text("–")
-                    .font(.system(size: activeFontSize * 0.8, weight: .light))
-                    .foregroundColor(.secondary)
-                Text(displayText)
-                    .font(.system(size: activeFontSize, weight: .light))
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, max(8, activeFontSize * 0.4))
-            .padding(.vertical, max(4, activeFontSize * 0.2))
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
-                    .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
-            )
+            // Invisible system preview to suppress system bitmap & fly-away to right animation
+            Color.clear.frame(width: 1, height: 1)
         }
         .onDrop(of: [.text], delegate: TaskDropDelegate(item: task, sectionFontSize: fontSize, context: modelContext))
         .onChange(of: text) { _, newValue in
@@ -236,9 +220,12 @@ class DragState: ObservableObject {
         didSet {
             if draggedTask != nil {
                 startMonitoring()
+            } else {
+                stopMonitoring()
             }
         }
     }
+    @Published var dragPosition: CGPoint = .zero
     @Published var targetIntervalType: String?
     @Published var targetFontSize: CGFloat = 20.0
     
@@ -252,10 +239,22 @@ class DragState: ObservableObject {
     
     private func startMonitoring() {
         if monitor == nil {
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
-                DispatchQueue.main.async {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        self?.reset()
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDragged, .leftMouseUp]) { [weak self] event in
+                guard let self = self else { return event }
+                
+                if event.type == .leftMouseUp {
+                    DispatchQueue.main.async {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            self.reset()
+                        }
+                    }
+                } else if event.type == .leftMouseDragged {
+                    if let window = event.window {
+                        let loc = event.locationInWindow
+                        let flippedY = window.frame.height - loc.y
+                        DispatchQueue.main.async {
+                            self.dragPosition = CGPoint(x: loc.x, y: flippedY)
+                        }
                     }
                 }
                 return event
