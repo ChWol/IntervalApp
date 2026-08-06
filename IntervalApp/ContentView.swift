@@ -15,8 +15,7 @@ struct ContentView: View {
     @State private var showAllCompleted = false
     @State private var showAllDeleted = false
     @State private var focusedTaskId: String?
-    @State private var showSyncSetup = false
-    @State private var syncKeyInput = ""
+    @State private var showAuthSheet = false
     
     let intervals = [
         ("1 Hour", 45.0),
@@ -182,19 +181,21 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            if syncManager.isConfigured {
+            if syncManager.isAuthenticated {
                 syncManager.start(context: modelContext)
             } else {
-                showSyncSetup = true
+                showAuthSheet = true
             }
             migrationManager.checkMigrations()
             cleanupOldTasks()
         }
-        .sheet(isPresented: $showSyncSetup) {
-            SyncSetupView(syncKeyInput: $syncKeyInput) {
-                syncManager.configure(syncKey: syncKeyInput)
+        .sheet(isPresented: $showAuthSheet) {
+            AuthView()
+        }
+        .onChange(of: syncManager.isAuthenticated) { _, authenticated in
+            if authenticated {
+                showAuthSheet = false
                 syncManager.start(context: modelContext)
-                showSyncSetup = false
             }
         }
     }
