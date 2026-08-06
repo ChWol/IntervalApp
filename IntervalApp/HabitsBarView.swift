@@ -280,6 +280,7 @@ struct HabitDropDelegate: DropDelegate {
                     h.order = i
                 }
                 try? context.save()
+                SupabaseSyncManager.shared.push()
             }
         }
     }

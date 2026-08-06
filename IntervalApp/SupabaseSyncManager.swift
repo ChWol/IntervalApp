@@ -347,6 +347,14 @@ class SupabaseSyncManager: ObservableObject {
             let descriptor = FetchDescriptor<TaskItem>()
             let existingTasks = (try? context.fetch(descriptor)) ?? []
             let existingDict = Dictionary(uniqueKeysWithValues: existingTasks.map { ($0.id, $0) })
+            let remoteTaskIds = Set(remoteTasks.map { $0.id })
+            
+            // Delete local tasks that no longer exist on remote
+            for existing in existingTasks {
+                if !remoteTaskIds.contains(existing.id) {
+                    context.delete(existing)
+                }
+            }
             
             for dto in remoteTasks {
                 if let existing = existingDict[dto.id] {
@@ -374,6 +382,14 @@ class SupabaseSyncManager: ObservableObject {
             let descriptor = FetchDescriptor<HabitItem>()
             let existingHabits = (try? context.fetch(descriptor)) ?? []
             let existingDict = Dictionary(uniqueKeysWithValues: existingHabits.map { ($0.id, $0) })
+            let remoteHabitIds = Set(remoteHabits.map { $0.id })
+            
+            // Delete local habits that no longer exist on remote
+            for existing in existingHabits {
+                if !remoteHabitIds.contains(existing.id) {
+                    context.delete(existing)
+                }
+            }
             
             for dto in remoteHabits {
                 if let existing = existingDict[dto.id] {

@@ -83,6 +83,8 @@ struct TaskRowView: View {
                         withAnimation {
                             task.completed = true
                             task.completedAt = Date()
+                            try? modelContext.save()
+                            SupabaseSyncManager.shared.push()
                         }
                     }
                 }) {
@@ -136,6 +138,8 @@ struct TaskRowView: View {
                                     let newTask = TaskItem(text: text, intervalType: listTitle)
                                     modelContext.insert(newTask)
                                     text = ""
+                                    try? modelContext.save()
+                                    SupabaseSyncManager.shared.push()
                                 }
                             } else {
                                 if text.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -143,6 +147,8 @@ struct TaskRowView: View {
                                 } else {
                                     task.text = text
                                 }
+                                try? modelContext.save()
+                                SupabaseSyncManager.shared.push()
                             }
                         }
                     },
@@ -156,6 +162,8 @@ struct TaskRowView: View {
                                     modelContext.insert(newTask)
                                 }
                                 text = ""
+                                try? modelContext.save()
+                                SupabaseSyncManager.shared.push()
                             }
                         } else {
                             task.text = text
@@ -177,6 +185,7 @@ struct TaskRowView: View {
                                 }
                                 
                                 try? modelContext.save()
+                                SupabaseSyncManager.shared.push()
                                 
                                 DispatchQueue.main.async {
                                     focusedTaskId = newTask.id
@@ -194,6 +203,8 @@ struct TaskRowView: View {
                                 }
                             }
                             task.deletedAt = Date()
+                            try? modelContext.save()
+                            SupabaseSyncManager.shared.push()
                         }
                     },
                     fontSize: fontSize,
@@ -205,6 +216,8 @@ struct TaskRowView: View {
                 Button(action: {
                     withAnimation {
                         task.deletedAt = Date()
+                        try? modelContext.save()
+                        SupabaseSyncManager.shared.push()
                     }
                 }) {
                     Image(systemName: "xmark")
@@ -321,6 +334,9 @@ struct TaskDropDelegate: DropDelegate {
                 for (i, t) in sorted.enumerated() {
                     t.order = i
                 }
+                
+                try? context.save()
+                SupabaseSyncManager.shared.push()
             }
         }
     }

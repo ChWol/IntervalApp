@@ -61,17 +61,23 @@ class MigrationManager: ObservableObject {
         
         let sourceTasks = allTasks.filter { $0.intervalType == migration.source && !$0.completed && $0.deletedAt == nil }
         
+        var hardDeletedIds: [String] = []
         for task in sourceTasks {
             if selectedTaskIds.contains(task.id) {
                 task.intervalType = migration.dest
                 task.order = maxOrder
                 maxOrder += 1
             } else if migration.source == migration.dest {
+                hardDeletedIds.append(task.id)
                 context.delete(task)
             }
         }
         
         try? context.save()
+        SupabaseSyncManager.shared.push()
+        if !hardDeletedIds.isEmpty {
+            SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: hardDeletedIds)
+        }
         currentMigration = nil
     }
     

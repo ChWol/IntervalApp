@@ -190,6 +190,7 @@ struct ContentView: View {
                             maxOrder += 1
                         }
                         try? modelContext.save()
+                        SupabaseSyncManager.shared.push()
                         migrationManager.currentMigration = nil
                     },
                     onSkip: {
