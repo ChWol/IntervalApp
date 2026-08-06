@@ -69,6 +69,8 @@ class SupabaseSyncManager: ObservableObject {
     @Published var userEmail: String? = nil
     @Published var authError: String? = nil
     @Published var isLoading: Bool = false
+    @Published var isSyncing: Bool = false
+    @Published var lastSyncedAt: Date? = nil
     
     var isConfigured: Bool { isAuthenticated }
     
@@ -84,7 +86,10 @@ class SupabaseSyncManager: ObservableObject {
     
     private var modelContext: ModelContext?
     private var cancellables = Set<AnyCancellable>()
-    private var hasPendingPush = false
+    private var isPushing: Bool = false
+    private var isPulling: Bool = false
+    private var pendingPushRequested: Bool = false
+    private var debounceTimer: AnyCancellable?
     
     // MARK: - Robust Date Handling
     
@@ -280,7 +285,7 @@ class SupabaseSyncManager: ObservableObject {
             .store(in: &cancellables)
         #endif
         
-        // Polling every 15 seconds
+        // Periodic background poll every 15 seconds
         Timer.publish(every: 15.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
@@ -296,19 +301,14 @@ class SupabaseSyncManager: ObservableObject {
         }
     }
     
-    @Published var isSyncing: Bool = false
-    @Published var lastSyncedAt: Date? = nil
-    
-    private var debounceTimer: AnyCancellable?
-
-    /// Fire-and-forget instant push
+    /// Instant push call (fire and forget)
     func push() {
         guard isAuthenticated else { return }
         debounceTimer?.cancel()
         Task { @MainActor in await pushToSupabase() }
     }
     
-    /// Debounced push for rapid typing (pushes 400ms after last keystroke)
+    /// Debounced push (400ms delay while typing)
     func pushDebounced() {
         guard isAuthenticated else { return }
         debounceTimer?.cancel()
@@ -345,19 +345,25 @@ class SupabaseSyncManager: ObservableObject {
     // MARK: - Push to Supabase
     
     private func pushToSupabase() async {
-        if isSyncing {
-            hasPendingPush = true
+        if isPushing {
+            pendingPushRequested = true
             return
         }
         guard isAuthenticated, let context = modelContext, let uid = userId else { return }
+        
+        isPushing = true
         isSyncing = true
         defer {
-            isSyncing = false
-            if hasPendingPush {
-                hasPendingPush = false
+            isPushing = false
+            isSyncing = isPulling
+            if pendingPushRequested {
+                pendingPushRequested = false
                 Task { @MainActor in await pushToSupabase() }
             }
         }
+        
+        // Ensure local context saves before fetching objects for push
+        try? context.save()
         
         // Push tasks
         let taskDescriptor = FetchDescriptor<TaskItem>()
@@ -408,9 +414,17 @@ class SupabaseSyncManager: ObservableObject {
     // MARK: - Pull from Supabase
     
     private func pullFromSupabase() async {
-        guard !isSyncing, isAuthenticated, let context = modelContext else { return }
+        if isPulling { return }
+        guard isAuthenticated, let context = modelContext else { return }
+        
+        isPulling = true
         isSyncing = true
-        defer { isSyncing = false }
+        defer {
+            isPulling = false
+            isSyncing = isPushing
+        }
+        
+        var needsFollowupPush = false
         
         // Pull tasks
         if let remoteTasks: [SupabaseTaskDTO] = await fetch(table: "tasks") {
@@ -429,8 +443,8 @@ class SupabaseSyncManager: ObservableObject {
             for dto in remoteTasks {
                 let remoteUpdatedAt = Self.parseDate(dto.updated_at) ?? Date.distantPast
                 if let existing = existingDict[dto.id] {
-                    // Update if remote is newer or equal
                     if remoteUpdatedAt >= existing.updatedAt {
+                        // Remote is newer or equal: update local object
                         existing.text = dto.text
                         existing.completed = dto.completed
                         existing.intervalType = dto.interval_type
@@ -439,6 +453,9 @@ class SupabaseSyncManager: ObservableObject {
                         existing.deletedAt = Self.parseDate(dto.deleted_at)
                         existing.completedAt = Self.parseDate(dto.completed_at)
                         existing.updatedAt = remoteUpdatedAt
+                    } else {
+                        // Local is newer than remote! Unpushed local change exists
+                        needsFollowupPush = true
                     }
                 } else {
                     let newTask = TaskItem(text: dto.text, intervalType: dto.interval_type, order: dto.order)
@@ -478,6 +495,8 @@ class SupabaseSyncManager: ObservableObject {
                         existing.order = dto.order
                         existing.deletedAt = Self.parseDate(dto.deleted_at)
                         existing.updatedAt = remoteUpdatedAt
+                    } else {
+                        needsFollowupPush = true
                     }
                 } else {
                     let newHabit = HabitItem(text: dto.text, frequency: dto.frequency, order: dto.order)
@@ -492,6 +511,10 @@ class SupabaseSyncManager: ObservableObject {
         }
         
         try? context.save()
+        
+        if needsFollowupPush {
+            push()
+        }
     }
     
     // MARK: - HTTP Helpers (with auto-refresh on 401)
@@ -502,7 +525,7 @@ class SupabaseSyncManager: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("resolution=merge-duplicates", forHTTPHeaderField: "Prefer")
+        request.setValue("resolution=merge-duplicates,return=representation", forHTTPHeaderField: "Prefer")
         request.httpBody = try? JSONEncoder().encode(items)
         
         guard let (data, response) = await authenticatedRequest(request) else { return }
