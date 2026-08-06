@@ -29,7 +29,7 @@ struct AuthErrorResponse: Codable {
     }
 }
 
-// MARK: - Supabase DTOs
+// MARK: - Supabase DTOs (for decoding)
 
 struct SupabaseTaskDTO: Codable {
     let id: String
@@ -298,7 +298,7 @@ class SupabaseSyncManager: ObservableObject {
             }
             .store(in: &cancellables)
         
-        // Initial sync: refresh token if needed, then push + pull
+        // Initial sync
         Task {
             if refreshToken != nil {
                 _ = await refreshAccessToken()
@@ -374,51 +374,51 @@ class SupabaseSyncManager: ObservableObject {
         let pushTimestamp = Date()
         let pushDateString = Self.formatDate(pushTimestamp)
         
-        // Push tasks
+        // Push tasks using explicit dictionary payloads (guarantees key symmetry for PostgREST PGRST102)
         let taskDescriptor = FetchDescriptor<TaskItem>()
         let tasks = (try? context.fetch(taskDescriptor)) ?? []
         
-        let taskDTOs = tasks.map { task -> SupabaseTaskDTO in
+        let taskPayload: [[String: Any]] = tasks.map { task in
             task.updatedAt = pushTimestamp
-            return SupabaseTaskDTO(
-                id: task.id,
-                text: task.text,
-                completed: task.completed,
-                created_at: Self.formatDate(task.createdAt),
-                interval_type: task.intervalType,
-                order: task.order,
-                deleted_at: task.deletedAt.map { Self.formatDate($0) },
-                completed_at: task.completedAt.map { Self.formatDate($0) },
-                user_id: uid,
-                updated_at: pushDateString
-            )
+            return [
+                "id": task.id,
+                "text": task.text,
+                "completed": task.completed,
+                "created_at": Self.formatDate(task.createdAt),
+                "interval_type": task.intervalType,
+                "order": task.order,
+                "deleted_at": task.deletedAt.map { Self.formatDate($0) } ?? NSNull(),
+                "completed_at": task.completedAt.map { Self.formatDate($0) } ?? NSNull(),
+                "user_id": uid,
+                "updated_at": pushDateString
+            ]
         }
         
-        if !taskDTOs.isEmpty {
-            await upsert(table: "tasks", items: taskDTOs)
+        if !taskPayload.isEmpty {
+            await upsertPayload(table: "tasks", payload: taskPayload)
         }
         
-        // Push habits
+        // Push habits using explicit dictionary payloads
         let habitDescriptor = FetchDescriptor<HabitItem>()
         let habits = (try? context.fetch(habitDescriptor)) ?? []
         
-        let habitDTOs = habits.map { habit -> SupabaseHabitDTO in
+        let habitPayload: [[String: Any]] = habits.map { habit in
             habit.updatedAt = pushTimestamp
-            return SupabaseHabitDTO(
-                id: habit.id,
-                text: habit.text,
-                frequency: habit.frequency,
-                streak: habit.streak,
-                last_completed_date: habit.lastCompletedDate.map { Self.formatDate($0) },
-                order: habit.order,
-                deleted_at: habit.deletedAt.map { Self.formatDate($0) },
-                user_id: uid,
-                updated_at: pushDateString
-            )
+            return [
+                "id": habit.id,
+                "text": habit.text,
+                "frequency": habit.frequency,
+                "streak": habit.streak,
+                "last_completed_date": habit.lastCompletedDate.map { Self.formatDate($0) } ?? NSNull(),
+                "order": habit.order,
+                "deleted_at": habit.deletedAt.map { Self.formatDate($0) } ?? NSNull(),
+                "user_id": uid,
+                "updated_at": pushDateString
+            ]
         }
         
-        if !habitDTOs.isEmpty {
-            await upsert(table: "habits", items: habitDTOs)
+        if !habitPayload.isEmpty {
+            await upsertPayload(table: "habits", payload: habitPayload)
         }
         
         try? context.save()
@@ -468,7 +468,6 @@ class SupabaseSyncManager: ObservableObject {
                         existing.completedAt = Self.parseDate(dto.completed_at)
                         existing.updatedAt = remoteUpdatedAt
                     } else if existing.updatedAt.timeIntervalSince(remoteUpdatedAt) > 3.0 {
-                        // Local was modified significantly after remote
                         needsFollowupPush = true
                     }
                 } else {
@@ -534,14 +533,21 @@ class SupabaseSyncManager: ObservableObject {
     
     // MARK: - HTTP Helpers (with auto-refresh on 401)
     
-    private func upsert<T: Encodable>(table: String, items: [T]) async {
+    private func upsertPayload(table: String, payload: [[String: Any]]) async {
         guard let url = URL(string: "\(supabaseURL)/rest/v1/\(table)?on_conflict=id") else { return }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("resolution=merge-duplicates,return=representation", forHTTPHeaderField: "Prefer")
-        request.httpBody = try? JSONEncoder().encode(items)
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        } catch {
+            print("[Supabase] Serialization error for \(table): \(error)")
+            self.lastError = "Serialization error: \(error.localizedDescription)"
+            return
+        }
         
         guard let (data, response) = await authenticatedRequest(request) else { return }
         if let httpResp = response as? HTTPURLResponse, httpResp.statusCode >= 400 {
@@ -549,6 +555,8 @@ class SupabaseSyncManager: ObservableObject {
             let msg = "Upsert \(table) error (HTTP \(httpResp.statusCode)): \(body)"
             print("[Supabase] \(msg)")
             self.lastError = msg
+        } else {
+            self.lastError = nil
         }
     }
     
