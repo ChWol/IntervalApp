@@ -32,10 +32,10 @@ struct TaskRowView: View {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         swipeOffset = 0
-                        task.deletedAt = Date()
-                        task.updatedAt = Date()
+                        let taskId = task.id
+                        modelContext.delete(task)
                         try? modelContext.save()
-                        SupabaseSyncManager.shared.push()
+                        SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: [taskId])
                     }
                 }) {
                     Image(systemName: "trash")
@@ -45,8 +45,8 @@ struct TaskRowView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .opacity(min(1.0, max(0.0, Double(-swipeOffset) / 25.0)))
-                .scaleEffect(min(1.0, max(0.6, Double(-swipeOffset) / 45.0)))
+                .opacity(min(1.0, max(0.0, Double(-swipeOffset) / 20.0)))
+                .scaleEffect(min(1.0, max(0.6, Double(-swipeOffset) / 40.0)))
                 .padding(.trailing, 4)
             }
             #endif
@@ -64,9 +64,10 @@ struct TaskRowView: View {
             }
             .background(Color(colorScheme == .dark ? .black : .white))
             .offset(x: swipeOffset)
+            .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.85), value: swipeOffset)
             #if os(iOS)
             .gesture(
-                DragGesture(minimumDistance: 10, coordinateSpace: .local)
+                DragGesture(minimumDistance: 12, coordinateSpace: .local)
                     .onChanged { gesture in
                         if !isNew {
                             let translation = gesture.translation.width
@@ -91,6 +92,7 @@ struct TaskRowView: View {
             )
             #endif
         }
+        #if os(macOS)
         .onDrag {
             if !isNew && !text.isEmpty {
                 task.text = text
@@ -120,6 +122,7 @@ struct TaskRowView: View {
             )
         }
         .onDrop(of: [UTType.data], delegate: TaskDropDelegate(item: task, sectionFontSize: fontSize, context: modelContext))
+        #endif
     }
     
     // MARK: - Normal Row Content with Dash & Checkmark Transition
@@ -196,10 +199,10 @@ struct TaskRowView: View {
                                 if !isNew {
                                     let trimmed = text.trimmingCharacters(in: .whitespaces)
                                     if trimmed.isEmpty {
-                                        task.deletedAt = Date()
-                                        task.updatedAt = Date()
+                                        let taskId = task.id
+                                        modelContext.delete(task)
                                         try? modelContext.save()
-                                        SupabaseSyncManager.shared.push()
+                                        SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: [taskId])
                                     } else if task.text != trimmed {
                                         task.text = trimmed
                                         task.updatedAt = Date()
@@ -233,10 +236,10 @@ struct TaskRowView: View {
                             } else {
                                 let trimmed = text.trimmingCharacters(in: .whitespaces)
                                 if trimmed.isEmpty {
-                                    task.deletedAt = Date()
-                                    task.updatedAt = Date()
+                                    let taskId = task.id
+                                    modelContext.delete(task)
                                     try? modelContext.save()
-                                    SupabaseSyncManager.shared.push()
+                                    SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: [taskId])
                                 } else {
                                     task.text = trimmed
                                     task.updatedAt = Date()
@@ -278,10 +281,10 @@ struct TaskRowView: View {
                                         focusedTaskId = sorted[idx - 1].id
                                     }
                                 }
-                                task.deletedAt = Date()
-                                task.updatedAt = Date()
+                                let taskId = task.id
+                                modelContext.delete(task)
                                 try? modelContext.save()
-                                SupabaseSyncManager.shared.push()
+                                SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: [taskId])
                             }
                         },
                         fontSize: fontSize,
@@ -293,10 +296,10 @@ struct TaskRowView: View {
             if !isNew {
                 Button(action: {
                     withAnimation {
-                        task.deletedAt = Date()
-                        task.updatedAt = Date()
+                        let taskId = task.id
+                        modelContext.delete(task)
                         try? modelContext.save()
-                        SupabaseSyncManager.shared.push()
+                        SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: [taskId])
                     }
                 }) {
                     Image(systemName: "xmark")

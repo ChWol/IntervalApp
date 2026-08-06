@@ -75,7 +75,7 @@ struct ContentView: View {
                                             Button(action: { withAnimation { showAllCompleted.toggle() } }) {
                                                 Text(showAllCompleted ? "Show Less" : "Show More (\(completedTasks.count - 10))")
                                                     .font(.system(size: 12, weight: .light))
-                                                    .foregroundColor(.gray)
+                                                    .foregroundColor(.secondary)
                                             }
                                             .buttonStyle(.plain)
                                         }
@@ -89,7 +89,7 @@ struct ContentView: View {
                                         }) {
                                             Text("Clear All")
                                                 .font(.system(size: 12, weight: .light))
-                                                .foregroundColor(.gray)
+                                                .foregroundColor(.secondary)
                                         }
                                         .buttonStyle(.plain)
                                     }
@@ -101,13 +101,14 @@ struct ContentView: View {
                                 Text("COMPLETED")
                                     .font(.system(size: 10, weight: .light, design: .default))
                                     .tracking(2.0)
-                                    .foregroundColor(.gray)
+                                    .foregroundColor(.secondary)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .contentShape(Rectangle())
                                     .onTapGesture {
                                         withAnimation { isCompletedExpanded.toggle() }
                                     }
                             }
+                            .tint(.secondary)
                             .onChange(of: isCompletedExpanded) { _, newValue in
                                 if !newValue { showAllCompleted = false }
                             }
@@ -126,7 +127,7 @@ struct ContentView: View {
                                             Button(action: { withAnimation { showAllDeleted.toggle() } }) {
                                                 Text(showAllDeleted ? "Show Less" : "Show More (\(deletedTasks.count - 10))")
                                                     .font(.system(size: 12, weight: .light))
-                                                    .foregroundColor(.gray)
+                                                    .foregroundColor(.secondary)
                                             }
                                             .buttonStyle(.plain)
                                         }
@@ -140,7 +141,7 @@ struct ContentView: View {
                                         }) {
                                             Text("Clear All")
                                                 .font(.system(size: 12, weight: .light))
-                                                .foregroundColor(.gray)
+                                                .foregroundColor(.secondary)
                                         }
                                         .buttonStyle(.plain)
                                     }
@@ -152,13 +153,14 @@ struct ContentView: View {
                                 Text("RECENTLY DELETED")
                                     .font(.system(size: 10, weight: .light, design: .default))
                                     .tracking(2.0)
-                                    .foregroundColor(.gray)
+                                    .foregroundColor(.secondary)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .contentShape(Rectangle())
                                     .onTapGesture {
                                         withAnimation { isDeletedExpanded.toggle() }
                                     }
                             }
+                            .tint(.secondary)
                             .onChange(of: isDeletedExpanded) { _, newValue in
                                 if !newValue { showAllDeleted = false }
                             }
