@@ -29,7 +29,7 @@ struct ContentView: View {
             mainAppView
                 .onAppear {
                     syncManager.start(context: modelContext)
-                    migrationManager.checkMigrations()
+                    migrationManager.startMonitoring(allTasks: allTasks)
                     cleanupOldTasks()
                 }
         } else {
@@ -251,7 +251,7 @@ struct ContentView: View {
                         migrationManager.currentMigration = nil
                     },
                     onSkip: {
-                        migrationManager.skipMigration()
+                        migrationManager.skipMigration(allTasks: allTasks)
                     }
                 )
             }

@@ -19,7 +19,7 @@ struct MigrationModalView: View {
         switch (migration.source, migration.dest) {
         case ("1 Day", "1 Hour"):
             let formatter = DateFormatter()
-            formatter.dateFormat = "HH:00"
+            formatter.dateFormat = "HH:mm"
             let timeString = formatter.string(from: Date())
             return "It's \(timeString)!"
         case ("1 Week", "1 Day"):
@@ -38,6 +38,9 @@ struct MigrationModalView: View {
     private var modalSubtitle: String {
         switch (migration.source, migration.dest) {
         case ("1 Day", "1 Hour"):
+            if migration.isFirstHourOfDay {
+                return "Womit wollen wir heute beginnen? Select tasks from your 1 Day list to focus on first."
+            }
             return "Want to move any of these tasks to your next hour's focus?"
         case ("1 Week", "1 Day"):
             return "Let's plan the day! What should be your top goals based on what you planned for the week?"

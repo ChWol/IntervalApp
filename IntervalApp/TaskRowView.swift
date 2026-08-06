@@ -165,10 +165,18 @@ struct TaskRowView: View {
                                     let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
                                     let newTask = TaskItem(text: text, intervalType: listTitle, order: (sorted.last?.order ?? 0) + 1)
                                     modelContext.insert(newTask)
+                                    
+                                    let nextTask = TaskItem(text: "", intervalType: listTitle, order: newTask.order + 1)
+                                    modelContext.insert(nextTask)
+                                    
+                                    try? modelContext.save()
+                                    SupabaseSyncManager.shared.push()
+                                    
+                                    text = ""
+                                    DispatchQueue.main.async {
+                                        focusedTaskId = nextTask.id
+                                    }
                                 }
-                                text = ""
-                                try? modelContext.save()
-                                SupabaseSyncManager.shared.push()
                             }
                         } else {
                             task.text = text
@@ -231,12 +239,14 @@ struct TaskRowView: View {
                     }
                 }) {
                     Image(systemName: "xmark")
-                        .font(.system(size: fontSize * 0.4))
+                        .font(.system(size: max(fontSize * 0.4, 11), weight: .light))
                         .foregroundColor(.secondary)
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .opacity((focusedTaskId == task.id || isHovering) ? 1 : 0)
-                .padding(.trailing, 10)
+                .padding(.trailing, 6)
             }
         }
         .contentShape(Rectangle())
