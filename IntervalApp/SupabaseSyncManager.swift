@@ -269,6 +269,18 @@ class SupabaseSyncManager: ObservableObject {
         Task { @MainActor in await pushToSupabase() }
     }
     
+    /// Delete items from Supabase (call when hard-deleting locally)
+    func deleteRemote(table: String, ids: [String]) {
+        guard isAuthenticated, !ids.isEmpty else { return }
+        Task { @MainActor in
+            let idList = ids.joined(separator: ",")
+            guard let url = URL(string: "\(supabaseURL)/rest/v1/\(table)?id=in.(\(idList))") else { return }
+            var request = URLRequest(url: url)
+            request.httpMethod = "DELETE"
+            _ = await authenticatedRequest(request)
+        }
+    }
+    
     // MARK: - Push to Supabase
     
     private func pushToSupabase() async {

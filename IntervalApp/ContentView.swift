@@ -15,7 +15,6 @@ struct ContentView: View {
     @State private var showAllCompleted = false
     @State private var showAllDeleted = false
     @State private var focusedTaskId: String?
-    @State private var showAuthSheet = false
     
     let intervals = [
         ("1 Hour", 45.0),
@@ -26,6 +25,25 @@ struct ContentView: View {
     ]
     
     var body: some View {
+        if syncManager.isAuthenticated {
+            mainAppView
+                .onAppear {
+                    syncManager.start(context: modelContext)
+                    migrationManager.checkMigrations()
+                    cleanupOldTasks()
+                }
+        } else {
+            AuthView()
+                .onAppear {
+                    syncManager.start(context: modelContext)
+                }
+        }
+    }
+    
+    // MARK: - Main App View
+    
+    @ViewBuilder
+    private var mainAppView: some View {
         ZStack {
             Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
             
@@ -180,52 +198,44 @@ struct ContentView: View {
                 )
             }
         }
-        .onAppear {
-            if syncManager.isAuthenticated {
-                syncManager.start(context: modelContext)
-            } else {
-                showAuthSheet = true
-            }
-            migrationManager.checkMigrations()
-            cleanupOldTasks()
-        }
-        .sheet(isPresented: $showAuthSheet) {
-            AuthView()
-        }
-        .onChange(of: syncManager.isAuthenticated) { _, authenticated in
-            if authenticated {
-                showAuthSheet = false
-                syncManager.start(context: modelContext)
-            }
-        }
     }
+    
+    // MARK: - Actions
     
     private func clearCompletedTasks() {
         let completedTasks = allTasks.filter { $0.completed && $0.deletedAt == nil }
+        let ids = completedTasks.map { $0.id }
         for task in completedTasks {
             modelContext.delete(task)
         }
         try? modelContext.save()
-        SupabaseSyncManager.shared.push()
+        SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: ids)
     }
     
     private func clearDeletedTasks() {
         let deletedTasks = allTasks.filter { $0.deletedAt != nil }
+        let ids = deletedTasks.map { $0.id }
         for task in deletedTasks {
             modelContext.delete(task)
         }
         try? modelContext.save()
-        SupabaseSyncManager.shared.push()
+        SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: ids)
     }
     
     private func cleanupOldTasks() {
         let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
+        var idsToDelete: [String] = []
         for task in allTasks {
             if let deletedAt = task.deletedAt, deletedAt < thirtyDaysAgo {
+                idsToDelete.append(task.id)
                 modelContext.delete(task)
             } else if let completedAt = task.completedAt, completedAt < thirtyDaysAgo {
+                idsToDelete.append(task.id)
                 modelContext.delete(task)
             }
+        }
+        if !idsToDelete.isEmpty {
+            SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: idsToDelete)
         }
     }
 }

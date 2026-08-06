@@ -243,9 +243,10 @@ struct HabitChipView: View {
     
     private func deleteHabit() {
         withAnimation {
+            let habitId = habit.id
             modelContext.delete(habit)
             try? modelContext.save()
-            SupabaseSyncManager.shared.push()
+            SupabaseSyncManager.shared.deleteRemote(table: "habits", ids: [habitId])
         }
     }
 }
