@@ -276,7 +276,10 @@ class SupabaseSyncManager: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self = self else { return }
-                Task { @MainActor in await self.pullFromSupabase() }
+                Task { @MainActor in
+                    await self.pushToSupabase()
+                    await self.pullFromSupabase()
+                }
             }
             .store(in: &cancellables)
         #else
@@ -284,17 +287,23 @@ class SupabaseSyncManager: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self = self else { return }
-                Task { @MainActor in await self.pullFromSupabase() }
+                Task { @MainActor in
+                    await self.pushToSupabase()
+                    await self.pullFromSupabase()
+                }
             }
             .store(in: &cancellables)
         #endif
         
-        // Background poll every 10 seconds
+        // Background poll every 10 seconds — always push before pull to prevent overwriting local edits
         Timer.publish(every: 10.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
-                Task { @MainActor in await self.pullFromSupabase() }
+                Task { @MainActor in
+                    await self.pushToSupabase()
+                    await self.pullFromSupabase()
+                }
             }
             .store(in: &cancellables)
         
@@ -320,7 +329,7 @@ class SupabaseSyncManager: ObservableObject {
         guard isAuthenticated else { return }
         debounceTimer?.cancel()
         debounceTimer = Just(())
-            .delay(for: .milliseconds(400), scheduler: RunLoop.main)
+            .delay(for: .milliseconds(600), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self = self else { return }
                 Task { @MainActor in await self.pushToSupabase() }
@@ -330,7 +339,7 @@ class SupabaseSyncManager: ObservableObject {
     /// Manual sync trigger (Push + Pull)
     @discardableResult
     func triggerManualSync() async -> Bool {
-        guard isAuthenticated, let context = modelContext else { return false }
+        guard isAuthenticated, let _ = modelContext else { return false }
         lastError = nil
         await pushToSupabase()
         await pullFromSupabase()
@@ -532,7 +541,15 @@ class SupabaseSyncManager: ObservableObject {
                 }
             }
             
+            var habitIdsToCleanUp: [String] = []
+            
             for dto in remoteHabits {
+                // Ignore empty remote habits
+                if dto.text.trimmingCharacters(in: .whitespaces).isEmpty {
+                    habitIdsToCleanUp.append(dto.id)
+                    continue
+                }
+                
                 let remoteUpdatedAt = Self.parseDate(dto.updated_at) ?? Date.distantPast
                 if let existing = existingDict[dto.id] {
                     if remoteUpdatedAt >= existing.updatedAt.addingTimeInterval(-1.5) {
@@ -547,6 +564,12 @@ class SupabaseSyncManager: ObservableObject {
                         needsFollowupPush = true
                     }
                 } else {
+                    // If remote habit is soft-deleted but not present locally, do NOT re-create it
+                    if dto.deleted_at != nil {
+                        habitIdsToCleanUp.append(dto.id)
+                        continue
+                    }
+                    
                     let newHabit = HabitItem(text: dto.text, frequency: dto.frequency, order: dto.order)
                     newHabit.id = dto.id
                     newHabit.streak = dto.streak
@@ -555,6 +578,10 @@ class SupabaseSyncManager: ObservableObject {
                     newHabit.updatedAt = remoteUpdatedAt
                     context.insert(newHabit)
                 }
+            }
+            
+            if !habitIdsToCleanUp.isEmpty {
+                deleteRemote(table: "habits", ids: habitIdsToCleanUp)
             }
         }
         

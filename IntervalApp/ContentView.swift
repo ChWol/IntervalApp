@@ -268,16 +268,29 @@ struct ContentView: View {
     
     private func clearCompletedTasks() {
         let completedTasks = allTasks.filter { $0.completed && $0.deletedAt == nil }
+        guard !completedTasks.isEmpty else { return }
         let ids = completedTasks.map { $0.id }
+        // First soft-delete so any concurrent pull won't re-create them
+        let now = Date()
         for task in completedTasks {
-            modelContext.delete(task)
+            task.deletedAt = now
+            task.updatedAt = now
         }
         try? modelContext.save()
-        SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: ids)
+        // Push soft-deletes to Supabase, then hard-delete locally and remotely
+        SupabaseSyncManager.shared.push()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
+            for task in completedTasks {
+                modelContext.delete(task)
+            }
+            try? modelContext.save()
+            SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: ids)
+        }
     }
     
     private func clearDeletedTasks() {
         let deletedTasks = allTasks.filter { $0.deletedAt != nil }
+        guard !deletedTasks.isEmpty else { return }
         let ids = deletedTasks.map { $0.id }
         for task in deletedTasks {
             modelContext.delete(task)

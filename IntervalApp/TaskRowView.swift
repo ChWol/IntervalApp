@@ -40,7 +40,7 @@ struct TaskRowView: View {
                 }) {
                     Image(systemName: "trash")
                         .font(.system(size: max(fontSize * 0.7, 13), weight: .light))
-                        .foregroundColor(.red)
+                        .foregroundColor(.secondary)
                         .frame(width: 44, height: max(fontSize * 1.4, 30))
                         .contentShape(Rectangle())
                 }
@@ -91,6 +91,14 @@ struct TaskRowView: View {
                     }
             )
             #endif
+        }
+        .onChange(of: focusedTaskId) { _, _ in
+            // Auto-retract swipe when user focuses another task
+            if swipeOffset != 0 {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
+                    swipeOffset = 0
+                }
+            }
         }
         #if os(macOS)
         .onDrag {
@@ -320,6 +328,24 @@ struct TaskRowView: View {
         .onAppear {
             if !isNew {
                 text = task.text
+            }
+        }
+        .onDisappear {
+            // Flush any pending text edits immediately when scrolling off-screen
+            if !isNew && text != task.text {
+                let trimmed = text.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty {
+                    task.text = trimmed
+                    task.updatedAt = Date()
+                    try? modelContext.save()
+                    SupabaseSyncManager.shared.push()
+                }
+            }
+        }
+        .onChange(of: task.text) { _, newText in
+            // Pick up remote changes from pull sync
+            if !isNew && text != newText {
+                text = newText
             }
         }
         .onChange(of: text) { _, newText in
