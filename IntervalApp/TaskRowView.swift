@@ -25,7 +25,32 @@ struct TaskRowView: View {
     }
     
     var body: some View {
-        ZStack {
+        ZStack(alignment: .trailing) {
+            #if os(iOS)
+            // Permanent background action layer (Trash icon button revealed dynamically on drag)
+            if !isNew {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        swipeOffset = 0
+                        task.deletedAt = Date()
+                        task.updatedAt = Date()
+                        try? modelContext.save()
+                        SupabaseSyncManager.shared.push()
+                    }
+                }) {
+                    Image(systemName: "trash")
+                        .font(.system(size: max(fontSize * 0.7, 13), weight: .light))
+                        .foregroundColor(.red)
+                        .frame(width: 44, height: max(fontSize * 1.4, 30))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .opacity(min(1.0, max(0.0, Double(-swipeOffset) / 25.0)))
+                .scaleEffect(min(1.0, max(0.6, Double(-swipeOffset) / 45.0)))
+                .padding(.trailing, 4)
+            }
+            #endif
+            
             ZStack {
                 if isDragged {
                     // Sleek grey box placeholder for the insertion slot
@@ -34,53 +59,29 @@ struct TaskRowView: View {
                         .frame(height: max(fontSize * 1.2, 24))
                 }
                 
-                HStack(alignment: .center, spacing: 0) {
-                    rowContent
-                        .opacity(isDragged ? 0 : 1)
-                    
-                    #if os(iOS)
-                    // Revealed Trash Can Icon Button when swiped left
-                    if swipeOffset < 0 && !isNew {
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                swipeOffset = 0
-                                task.deletedAt = Date()
-                                task.updatedAt = Date()
-                                try? modelContext.save()
-                                SupabaseSyncManager.shared.push()
-                            }
-                        }) {
-                            Image(systemName: "trash")
-                                .font(.system(size: max(fontSize * 0.7, 13), weight: .light))
-                                .foregroundColor(.red)
-                                .frame(width: 44, height: max(fontSize * 1.4, 30))
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
-                    }
-                    #endif
-                }
+                rowContent
+                    .opacity(isDragged ? 0 : 1)
             }
+            .background(Color(colorScheme == .dark ? .black : .white))
             .offset(x: swipeOffset)
             #if os(iOS)
             .gesture(
-                DragGesture(minimumDistance: 15, coordinateSpace: .local)
+                DragGesture(minimumDistance: 10, coordinateSpace: .local)
                     .onChanged { gesture in
                         if !isNew {
-                            // Only allow swiping to the LEFT
-                            if gesture.translation.width < 0 {
-                                swipeOffset = max(gesture.translation.width, -60)
+                            let translation = gesture.translation.width
+                            if translation < 0 {
+                                swipeOffset = max(translation, -65)
                             } else if swipeOffset < 0 {
-                                swipeOffset = min(0, -60 + gesture.translation.width)
+                                swipeOffset = min(0, -50 + translation)
                             }
                         }
                     }
                     .onEnded { gesture in
                         if !isNew {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                if gesture.translation.width < -30 || swipeOffset < -30 {
-                                    swipeOffset = -50 // Reveal trash icon button
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
+                                if swipeOffset < -25 {
+                                    swipeOffset = -50 // Reveal trash icon button smoothly
                                 } else {
                                     swipeOffset = 0
                                 }
