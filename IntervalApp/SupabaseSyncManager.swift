@@ -68,6 +68,7 @@ class SupabaseSyncManager: ObservableObject {
     @Published var isAuthenticated: Bool = false
     @Published var userEmail: String? = nil
     @Published var authError: String? = nil
+    @Published var lastError: String? = nil
     @Published var isLoading: Bool = false
     @Published var isSyncing: Bool = false
     @Published var lastSyncedAt: Date? = nil
@@ -91,7 +92,7 @@ class SupabaseSyncManager: ObservableObject {
     private var pendingPushRequested: Bool = false
     private var debounceTimer: AnyCancellable?
     
-    // MARK: - Robust Date Handling
+    // MARK: - Date Formatting & Parsing
     
     private static func formatDate(_ date: Date) -> String {
         let f = ISO8601DateFormatter()
@@ -214,6 +215,9 @@ class SupabaseSyncManager: ObservableObject {
         isAuthenticated = false
         cancellables.removeAll()
         UserDefaults.standard.removeObject(forKey: "sb_user_email")
+        UserDefaults.standard.removeObject(forKey: "sb_access_token")
+        UserDefaults.standard.removeObject(forKey: "sb_refresh_token")
+        UserDefaults.standard.removeObject(forKey: "sb_user_id")
     }
     
     private func handleAuthSuccess(_ response: AuthResponse, email: String) {
@@ -285,8 +289,8 @@ class SupabaseSyncManager: ObservableObject {
             .store(in: &cancellables)
         #endif
         
-        // Periodic background poll every 15 seconds
-        Timer.publish(every: 15.0, on: .main, in: .common)
+        // Background poll every 10 seconds
+        Timer.publish(every: 10.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
@@ -294,8 +298,11 @@ class SupabaseSyncManager: ObservableObject {
             }
             .store(in: &cancellables)
         
-        // Initial sync: push local items first, then pull remote updates
+        // Initial sync: refresh token if needed, then push + pull
         Task {
+            if refreshToken != nil {
+                _ = await refreshAccessToken()
+            }
             await pushToSupabase()
             await pullFromSupabase()
         }
@@ -308,7 +315,7 @@ class SupabaseSyncManager: ObservableObject {
         Task { @MainActor in await pushToSupabase() }
     }
     
-    /// Debounced push (400ms delay while typing)
+    /// Debounced push for rapid typing (pushes 400ms after last keystroke)
     func pushDebounced() {
         guard isAuthenticated else { return }
         debounceTimer?.cancel()
@@ -324,6 +331,7 @@ class SupabaseSyncManager: ObservableObject {
     @discardableResult
     func triggerManualSync() async -> Bool {
         guard isAuthenticated, let context = modelContext else { return false }
+        lastError = nil
         await pushToSupabase()
         await pullFromSupabase()
         lastSyncedAt = Date()
@@ -362,15 +370,17 @@ class SupabaseSyncManager: ObservableObject {
             }
         }
         
-        // Ensure local context saves before fetching objects for push
         try? context.save()
+        let pushTimestamp = Date()
+        let pushDateString = Self.formatDate(pushTimestamp)
         
         // Push tasks
         let taskDescriptor = FetchDescriptor<TaskItem>()
         let tasks = (try? context.fetch(taskDescriptor)) ?? []
         
-        let taskDTOs = tasks.map { task in
-            SupabaseTaskDTO(
+        let taskDTOs = tasks.map { task -> SupabaseTaskDTO in
+            task.updatedAt = pushTimestamp
+            return SupabaseTaskDTO(
                 id: task.id,
                 text: task.text,
                 completed: task.completed,
@@ -380,7 +390,7 @@ class SupabaseSyncManager: ObservableObject {
                 deleted_at: task.deletedAt.map { Self.formatDate($0) },
                 completed_at: task.completedAt.map { Self.formatDate($0) },
                 user_id: uid,
-                updated_at: Self.formatDate(task.updatedAt)
+                updated_at: pushDateString
             )
         }
         
@@ -392,8 +402,9 @@ class SupabaseSyncManager: ObservableObject {
         let habitDescriptor = FetchDescriptor<HabitItem>()
         let habits = (try? context.fetch(habitDescriptor)) ?? []
         
-        let habitDTOs = habits.map { habit in
-            SupabaseHabitDTO(
+        let habitDTOs = habits.map { habit -> SupabaseHabitDTO in
+            habit.updatedAt = pushTimestamp
+            return SupabaseHabitDTO(
                 id: habit.id,
                 text: habit.text,
                 frequency: habit.frequency,
@@ -402,13 +413,16 @@ class SupabaseSyncManager: ObservableObject {
                 order: habit.order,
                 deleted_at: habit.deletedAt.map { Self.formatDate($0) },
                 user_id: uid,
-                updated_at: Self.formatDate(habit.updatedAt)
+                updated_at: pushDateString
             )
         }
         
         if !habitDTOs.isEmpty {
             await upsert(table: "habits", items: habitDTOs)
         }
+        
+        try? context.save()
+        lastSyncedAt = Date()
     }
     
     // MARK: - Pull from Supabase
@@ -443,8 +457,8 @@ class SupabaseSyncManager: ObservableObject {
             for dto in remoteTasks {
                 let remoteUpdatedAt = Self.parseDate(dto.updated_at) ?? Date.distantPast
                 if let existing = existingDict[dto.id] {
-                    if remoteUpdatedAt >= existing.updatedAt {
-                        // Remote is newer or equal: update local object
+                    // Accept remote if remote is newer, equal, or within 1.5s tolerance
+                    if remoteUpdatedAt >= existing.updatedAt.addingTimeInterval(-1.5) {
                         existing.text = dto.text
                         existing.completed = dto.completed
                         existing.intervalType = dto.interval_type
@@ -453,8 +467,8 @@ class SupabaseSyncManager: ObservableObject {
                         existing.deletedAt = Self.parseDate(dto.deleted_at)
                         existing.completedAt = Self.parseDate(dto.completed_at)
                         existing.updatedAt = remoteUpdatedAt
-                    } else {
-                        // Local is newer than remote! Unpushed local change exists
+                    } else if existing.updatedAt.timeIntervalSince(remoteUpdatedAt) > 3.0 {
+                        // Local was modified significantly after remote
                         needsFollowupPush = true
                     }
                 } else {
@@ -487,7 +501,7 @@ class SupabaseSyncManager: ObservableObject {
             for dto in remoteHabits {
                 let remoteUpdatedAt = Self.parseDate(dto.updated_at) ?? Date.distantPast
                 if let existing = existingDict[dto.id] {
-                    if remoteUpdatedAt >= existing.updatedAt {
+                    if remoteUpdatedAt >= existing.updatedAt.addingTimeInterval(-1.5) {
                         existing.text = dto.text
                         existing.frequency = dto.frequency
                         existing.streak = dto.streak
@@ -495,7 +509,7 @@ class SupabaseSyncManager: ObservableObject {
                         existing.order = dto.order
                         existing.deletedAt = Self.parseDate(dto.deleted_at)
                         existing.updatedAt = remoteUpdatedAt
-                    } else {
+                    } else if existing.updatedAt.timeIntervalSince(remoteUpdatedAt) > 3.0 {
                         needsFollowupPush = true
                     }
                 } else {
@@ -511,6 +525,7 @@ class SupabaseSyncManager: ObservableObject {
         }
         
         try? context.save()
+        lastSyncedAt = Date()
         
         if needsFollowupPush {
             push()
@@ -531,7 +546,9 @@ class SupabaseSyncManager: ObservableObject {
         guard let (data, response) = await authenticatedRequest(request) else { return }
         if let httpResp = response as? HTTPURLResponse, httpResp.statusCode >= 400 {
             let body = String(data: data, encoding: .utf8) ?? ""
-            print("[Supabase] Upsert \(table) failed: HTTP \(httpResp.statusCode) - \(body)")
+            let msg = "Upsert \(table) error (HTTP \(httpResp.statusCode)): \(body)"
+            print("[Supabase] \(msg)")
+            self.lastError = msg
         }
     }
     
@@ -543,10 +560,20 @@ class SupabaseSyncManager: ObservableObject {
         
         guard let (data, response) = await authenticatedRequest(request) else { return nil }
         if let httpResp = response as? HTTPURLResponse, httpResp.statusCode >= 400 {
-            print("[Supabase] Fetch \(table) failed: HTTP \(httpResp.statusCode)")
+            let body = String(data: data, encoding: .utf8) ?? ""
+            let msg = "Fetch \(table) error (HTTP \(httpResp.statusCode)): \(body)"
+            print("[Supabase] \(msg)")
+            self.lastError = msg
             return nil
         }
-        return try? JSONDecoder().decode([T].self, from: data)
+        
+        do {
+            return try JSONDecoder().decode([T].self, from: data)
+        } catch {
+            print("[Supabase] Decode \(table) error: \(error)")
+            self.lastError = "Decode \(table) error: \(error.localizedDescription)"
+            return nil
+        }
     }
     
     /// Sends a request with auth headers. Automatically retries once on 401 after refreshing tokens.
@@ -569,6 +596,7 @@ class SupabaseSyncManager: ObservableObject {
             return (data, response)
         } catch {
             print("[Supabase] Request error: \(error)")
+            self.lastError = "Network error: \(error.localizedDescription)"
             return nil
         }
     }

@@ -173,7 +173,7 @@ struct ContentView: View {
             }
             
             // Minimalist Sync Indicator / Trigger in Top Right
-            VStack {
+            VStack(alignment: .trailing, spacing: 8) {
                 HStack {
                     Spacer()
                     Button(action: {
@@ -199,10 +199,32 @@ struct ContentView: View {
                     .keyboardShortcut("r", modifiers: .command)
                     .help("Manual Sync (⌘R)")
                 }
-                .padding(.top, 20)
-                .padding(.trailing, 24)
+                
+                if let err = syncManager.lastError {
+                    HStack(spacing: 8) {
+                        Text(err)
+                            .font(.system(size: 10, weight: .light))
+                            .foregroundColor(.red)
+                            .lineLimit(2)
+                        Button(action: { syncManager.lastError = nil }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.red.opacity(0.08))
+                    )
+                }
+                
                 Spacer()
             }
+            .padding(.top, 20)
+            .padding(.trailing, 24)
             
             if let migration = migrationManager.currentMigration {
                 MigrationModalView(
