@@ -9,6 +9,7 @@ final class HabitItem {
     var streak: Int = 0
     var lastCompletedDate: Date? = nil
     var order: Int = 0
+    var deletedAt: Date? = nil
     var updatedAt: Date = Date()
     
     init(text: String, frequency: String = "Daily", order: Int = 0) {
@@ -17,6 +18,7 @@ final class HabitItem {
         self.frequency = frequency
         self.streak = 0
         self.order = order
+        self.deletedAt = nil
         self.updatedAt = Date()
     }
     

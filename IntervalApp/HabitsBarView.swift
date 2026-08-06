@@ -15,8 +15,9 @@ struct HabitsBarView: View {
     @FocusState private var isInputFocused: Bool
     
     private var sortedHabits: [HabitItem] {
-        let incomplete = habits.filter { !$0.isCompletedCurrentPeriod }.sorted { $0.order < $1.order }
-        let completed = habits.filter { $0.isCompletedCurrentPeriod }.sorted { $0.order < $1.order }
+        let active = habits.filter { $0.deletedAt == nil }
+        let incomplete = active.filter { !$0.isCompletedCurrentPeriod }.sorted { $0.order < $1.order }
+        let completed = active.filter { $0.isCompletedCurrentPeriod }.sorted { $0.order < $1.order }
         return incomplete + completed
     }
     
@@ -244,10 +245,10 @@ struct HabitChipView: View {
     
     private func deleteHabit() {
         withAnimation {
-            let habitId = habit.id
-            modelContext.delete(habit)
+            habit.deletedAt = Date()
+            habit.updatedAt = Date()
             try? modelContext.save()
-            SupabaseSyncManager.shared.deleteRemote(table: "habits", ids: [habitId])
+            SupabaseSyncManager.shared.push()
         }
     }
 }

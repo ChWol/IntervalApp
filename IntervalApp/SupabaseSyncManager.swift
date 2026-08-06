@@ -51,6 +51,7 @@ struct SupabaseHabitDTO: Codable {
     let streak: Int
     let last_completed_date: String?
     let order: Int
+    let deleted_at: String?
     let user_id: String
     let updated_at: String
 }
@@ -69,7 +70,6 @@ class SupabaseSyncManager: ObservableObject {
     @Published var authError: String? = nil
     @Published var isLoading: Bool = false
     
-    // Keep isConfigured as alias for backward compat
     var isConfigured: Bool { isAuthenticated }
     
     private var accessToken: String? {
@@ -85,12 +85,47 @@ class SupabaseSyncManager: ObservableObject {
     private var modelContext: ModelContext?
     private var cancellables = Set<AnyCancellable>()
     private var isSyncing = false
+    private var hasPendingPush = false
     
-    private let dateFormatter: ISO8601DateFormatter = {
+    // MARK: - Robust Date Handling
+    
+    private static func formatDate(_ date: Date) -> String {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
+        return f.string(from: date)
+    }
+    
+    private static func parseDate(_ string: String?) -> Date? {
+        guard let string = string, !string.isEmpty else { return nil }
+        
+        let formatters: [ISO8601DateFormatter] = [
+            {
+                let f = ISO8601DateFormatter()
+                f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                return f
+            }(),
+            {
+                let f = ISO8601DateFormatter()
+                f.formatOptions = [.withInternetDateTime]
+                return f
+            }()
+        ]
+        
+        for f in formatters {
+            if let date = f.date(from: string) {
+                return date
+            }
+        }
+        
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZZZZZ"
+        if let date = df.date(from: string) { return date }
+        df.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+        if let date = df.date(from: string) { return date }
+        
+        return nil
+    }
     
     private init() {
         accessToken = UserDefaults.standard.string(forKey: "sb_access_token")
@@ -129,7 +164,6 @@ class SupabaseSyncManager: ObservableObject {
             if let authResp = try? JSONDecoder().decode(AuthResponse.self, from: data) {
                 handleAuthSuccess(authResp, email: email)
             } else {
-                // Email confirmation might be required
                 authError = "Account created! Check your email to confirm, then sign in."
             }
         } catch {
@@ -247,8 +281,8 @@ class SupabaseSyncManager: ObservableObject {
             .store(in: &cancellables)
         #endif
         
-        // Smart polling every 30 seconds (battery-friendly)
-        Timer.publish(every: 30.0, on: .main, in: .common)
+        // Polling every 15 seconds
+        Timer.publish(every: 15.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
@@ -256,15 +290,13 @@ class SupabaseSyncManager: ObservableObject {
             }
             .store(in: &cancellables)
         
-        // Initial sync
+        // Initial sync: push local items first, then pull remote updates
         Task {
             await pushToSupabase()
             await pullFromSupabase()
         }
     }
     
-    private var hasPendingPush = false
-
     /// Fire-and-forget push (call after local saves)
     func push() {
         guard isAuthenticated else { return }
@@ -309,13 +341,13 @@ class SupabaseSyncManager: ObservableObject {
                 id: task.id,
                 text: task.text,
                 completed: task.completed,
-                created_at: dateFormatter.string(from: task.createdAt),
+                created_at: Self.formatDate(task.createdAt),
                 interval_type: task.intervalType,
                 order: task.order,
-                deleted_at: task.deletedAt.map { dateFormatter.string(from: $0) },
-                completed_at: task.completedAt.map { dateFormatter.string(from: $0) },
+                deleted_at: task.deletedAt.map { Self.formatDate($0) },
+                completed_at: task.completedAt.map { Self.formatDate($0) },
                 user_id: uid,
-                updated_at: dateFormatter.string(from: task.updatedAt)
+                updated_at: Self.formatDate(task.updatedAt)
             )
         }
         
@@ -333,10 +365,11 @@ class SupabaseSyncManager: ObservableObject {
                 text: habit.text,
                 frequency: habit.frequency,
                 streak: habit.streak,
-                last_completed_date: habit.lastCompletedDate.map { dateFormatter.string(from: $0) },
+                last_completed_date: habit.lastCompletedDate.map { Self.formatDate($0) },
                 order: habit.order,
+                deleted_at: habit.deletedAt.map { Self.formatDate($0) },
                 user_id: uid,
-                updated_at: dateFormatter.string(from: habit.updatedAt)
+                updated_at: Self.formatDate(habit.updatedAt)
             )
         }
         
@@ -352,41 +385,41 @@ class SupabaseSyncManager: ObservableObject {
         isSyncing = true
         defer { isSyncing = false }
         
-        // Pull tasks (RLS filters by user_id automatically)
+        // Pull tasks
         if let remoteTasks: [SupabaseTaskDTO] = await fetch(table: "tasks") {
             let descriptor = FetchDescriptor<TaskItem>()
             let existingTasks = (try? context.fetch(descriptor)) ?? []
             let existingDict = Dictionary(uniqueKeysWithValues: existingTasks.map { ($0.id, $0) })
             let remoteTaskIds = Set(remoteTasks.map { $0.id })
             
-            // Delete local tasks that no longer exist on remote
+            // Only prune local tasks that are soft-deleted locally AND no longer exist on remote
             for existing in existingTasks {
-                if !remoteTaskIds.contains(existing.id) {
+                if existing.deletedAt != nil && !remoteTaskIds.contains(existing.id) {
                     context.delete(existing)
                 }
             }
             
             for dto in remoteTasks {
-                let remoteUpdatedAt = dateFormatter.date(from: dto.updated_at) ?? Date.distantPast
+                let remoteUpdatedAt = Self.parseDate(dto.updated_at) ?? Date.distantPast
                 if let existing = existingDict[dto.id] {
-                    // Only update if remote is newer or equal
+                    // Update if remote is newer or equal
                     if remoteUpdatedAt >= existing.updatedAt {
                         existing.text = dto.text
                         existing.completed = dto.completed
                         existing.intervalType = dto.interval_type
                         existing.order = dto.order
-                        existing.createdAt = dateFormatter.date(from: dto.created_at) ?? existing.createdAt
-                        existing.deletedAt = dto.deleted_at.flatMap { dateFormatter.date(from: $0) }
-                        existing.completedAt = dto.completed_at.flatMap { dateFormatter.date(from: $0) }
+                        existing.createdAt = Self.parseDate(dto.created_at) ?? existing.createdAt
+                        existing.deletedAt = Self.parseDate(dto.deleted_at)
+                        existing.completedAt = Self.parseDate(dto.completed_at)
                         existing.updatedAt = remoteUpdatedAt
                     }
                 } else {
                     let newTask = TaskItem(text: dto.text, intervalType: dto.interval_type, order: dto.order)
                     newTask.id = dto.id
                     newTask.completed = dto.completed
-                    newTask.createdAt = dateFormatter.date(from: dto.created_at) ?? Date()
-                    newTask.deletedAt = dto.deleted_at.flatMap { dateFormatter.date(from: $0) }
-                    newTask.completedAt = dto.completed_at.flatMap { dateFormatter.date(from: $0) }
+                    newTask.createdAt = Self.parseDate(dto.created_at) ?? Date()
+                    newTask.deletedAt = Self.parseDate(dto.deleted_at)
+                    newTask.completedAt = Self.parseDate(dto.completed_at)
                     newTask.updatedAt = remoteUpdatedAt
                     context.insert(newTask)
                 }
@@ -400,29 +433,31 @@ class SupabaseSyncManager: ObservableObject {
             let existingDict = Dictionary(uniqueKeysWithValues: existingHabits.map { ($0.id, $0) })
             let remoteHabitIds = Set(remoteHabits.map { $0.id })
             
-            // Delete local habits that no longer exist on remote
+            // Only prune local habits that are soft-deleted locally AND no longer exist on remote
             for existing in existingHabits {
-                if !remoteHabitIds.contains(existing.id) {
+                if existing.deletedAt != nil && !remoteHabitIds.contains(existing.id) {
                     context.delete(existing)
                 }
             }
             
             for dto in remoteHabits {
-                let remoteUpdatedAt = dateFormatter.date(from: dto.updated_at) ?? Date.distantPast
+                let remoteUpdatedAt = Self.parseDate(dto.updated_at) ?? Date.distantPast
                 if let existing = existingDict[dto.id] {
                     if remoteUpdatedAt >= existing.updatedAt {
                         existing.text = dto.text
                         existing.frequency = dto.frequency
                         existing.streak = dto.streak
-                        existing.lastCompletedDate = dto.last_completed_date.flatMap { dateFormatter.date(from: $0) }
+                        existing.lastCompletedDate = Self.parseDate(dto.last_completed_date)
                         existing.order = dto.order
+                        existing.deletedAt = Self.parseDate(dto.deleted_at)
                         existing.updatedAt = remoteUpdatedAt
                     }
                 } else {
                     let newHabit = HabitItem(text: dto.text, frequency: dto.frequency, order: dto.order)
                     newHabit.id = dto.id
                     newHabit.streak = dto.streak
-                    newHabit.lastCompletedDate = dto.last_completed_date.flatMap { dateFormatter.date(from: $0) }
+                    newHabit.lastCompletedDate = Self.parseDate(dto.last_completed_date)
+                    newHabit.deletedAt = Self.parseDate(dto.deleted_at)
                     newHabit.updatedAt = remoteUpdatedAt
                     context.insert(newHabit)
                 }
@@ -473,7 +508,6 @@ class SupabaseSyncManager: ObservableObject {
         do {
             let (data, response) = try await URLSession.shared.data(for: req)
             
-            // If 401, try refreshing token and retry once
             if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 401 {
                 if await refreshAccessToken() {
                     req.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
