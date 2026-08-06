@@ -8,15 +8,15 @@ struct TaskRowView: View {
     let fontSize: CGFloat
     let isNew: Bool
     let listTitle: String
-    @Binding var focusedTaskId: String?
     
+    @Binding var focusedTaskId: String?
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
-    @ObservedObject private var dragState = DragState.shared
+    
     @State private var text: String = ""
     @State private var isHovering: Bool = false
-    @State private var isCheckmarkHovering: Bool = false
-    @State private var localCompleted: Bool = false
+    @State private var swipeOffset: CGFloat = 0
+    @ObservedObject private var dragState = DragState.shared
     
     private var isDragged: Bool {
         !isNew && dragState.draggedTask?.id == task.id
@@ -24,15 +24,67 @@ struct TaskRowView: View {
     
     var body: some View {
         ZStack {
-            if isDragged {
-                // Sleek grey box placeholder for the insertion slot
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.gray.opacity(colorScheme == .dark ? 0.15 : 0.08))
-                    .frame(height: max(fontSize * 1.2, 24))
+            #if os(iOS)
+            // Background reveal for swipe-to-delete on iOS
+            if swipeOffset < 0 && !isNew {
+                HStack {
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 13, weight: .light))
+                        Text("Delete")
+                            .font(.system(size: 12, weight: .light))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .frame(maxHeight: .infinity)
+                    .background(Color.red.opacity(0.85))
+                    .cornerRadius(6)
+                }
             }
+            #endif
             
-            rowContent
-                .opacity(isDragged ? 0 : 1)
+            ZStack {
+                if isDragged {
+                    // Sleek grey box placeholder for the insertion slot
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(colorScheme == .dark ? 0.15 : 0.08))
+                        .frame(height: max(fontSize * 1.2, 24))
+                }
+                
+                rowContent
+                    .opacity(isDragged ? 0 : 1)
+            }
+            .offset(x: swipeOffset)
+            #if os(iOS)
+            .gesture(
+                DragGesture(minimumDistance: 20, coordinateSpace: .local)
+                    .onChanged { gesture in
+                        if !isNew && gesture.translation.width < 0 {
+                            swipeOffset = gesture.translation.width
+                        }
+                    }
+                    .onEnded { gesture in
+                        if !isNew {
+                            if gesture.translation.width < -70 {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    swipeOffset = -400
+                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                    task.deletedAt = Date()
+                                    task.updatedAt = Date()
+                                    try? modelContext.save()
+                                    SupabaseSyncManager.shared.push()
+                                }
+                            } else {
+                                withAnimation(.spring()) {
+                                    swipeOffset = 0
+                                }
+                            }
+                        }
+                    }
+            )
+            #endif
         }
         .onDrag {
             if !isNew && !text.isEmpty {
@@ -58,102 +110,68 @@ struct TaskRowView: View {
             .padding(.vertical, max(4, activeFontSize * 0.2))
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
-                    .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
+                    .fill(colorScheme == .dark ? Color(white: 0.2) : Color(white: 0.95))
             )
         }
-        .onDrop(of: [.data], delegate: TaskDropDelegate(item: task, sectionFontSize: fontSize, context: modelContext))
-        .onChange(of: text) { _, newValue in
-            if !isNew && !newValue.isEmpty {
-                task.text = newValue
-                task.updatedAt = Date()
-                try? modelContext.save()
-                SupabaseSyncManager.shared.pushDebounced()
-            }
-        }
+        .onDrop(of: [UTType.data], delegate: TaskDropDelegate(item: task, sectionFontSize: fontSize, context: modelContext))
     }
     
-    // MARK: - Normal Row Content
-    
     private var rowContent: some View {
-        HStack(alignment: .center, spacing: 15) {
-            if !isNew {
-                Button(action: {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        localCompleted = true
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                        withAnimation {
-                            task.completed = true
-                            task.completedAt = Date()
-                            task.updatedAt = Date()
-                            try? modelContext.save()
-                            SupabaseSyncManager.shared.push()
-                        }
-                    }
-                }) {
-                    ZStack {
-                        Text("–")
-                            .font(.system(size: fontSize * 0.8, weight: .light))
-                            .foregroundColor(localCompleted ? .primary : .secondary)
-                            .opacity(isCheckmarkHovering ? 0 : 1)
-                            .rotationEffect(.degrees(isCheckmarkHovering ? -90 : 0))
-                        
-                        Image(systemName: "checkmark")
-                            .font(.system(size: fontSize * 0.8, weight: .light))
-                            .foregroundColor(.primary)
-                            .opacity(isCheckmarkHovering ? 1 : 0)
-                            .scaleEffect(isCheckmarkHovering ? 1 : 0.5)
-                    }
-                    .frame(width: 15, alignment: .center)
-                }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        isCheckmarkHovering = hovering
-                    }
-                }
-            } else {
+        HStack(alignment: .center, spacing: max(6, fontSize * 0.4)) {
+            // Dash prefix or Checkbox
+            if isNew {
                 Text("–")
                     .font(.system(size: fontSize * 0.8, weight: .light))
-                    .frame(width: 15, alignment: .center)
-                    .opacity(0)
+                    .foregroundColor(.secondary)
+            } else {
+                Button(action: {
+                    withAnimation {
+                        task.completed.toggle()
+                        task.completedAt = task.completed ? Date() : nil
+                        task.updatedAt = Date()
+                        try? modelContext.save()
+                        SupabaseSyncManager.shared.push()
+                    }
+                }) {
+                    Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: fontSize * 0.85, weight: .light))
+                        .foregroundColor(task.completed ? .secondary : .primary)
+                }
+                .buttonStyle(.plain)
             }
             
-            if localCompleted {
-                Text(task.text)
-                    .font(.system(size: fontSize, weight: .light))
-                    .foregroundColor(.secondary)
-                    .strikethrough(true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
+            // Editable Text Area
+            ZStack(alignment: .leading) {
+                if isNew && text.isEmpty {
+                    Text("Add task...")
+                        .font(.system(size: fontSize, weight: .light))
+                        .foregroundColor(.secondary.opacity(0.5))
+                }
+                
                 CustomTextField(
                     text: $text,
-                    isFocused: focusedTaskId == task.id,
+                    isFocused: focusedTaskId == (isNew ? "NEW_\(listTitle)" : task.id),
                     onFocusChanged: { focused in
                         if focused {
-                            focusedTaskId = task.id
+                            focusedTaskId = isNew ? "NEW_\(listTitle)" : task.id
                         } else {
-                            if focusedTaskId == task.id {
+                            if focusedTaskId == (isNew ? "NEW_\(listTitle)" : task.id) {
                                 focusedTaskId = nil
                             }
-                            if isNew {
-                                if !text.trimmingCharacters(in: .whitespaces).isEmpty {
-                                    let newTask = TaskItem(text: text, intervalType: listTitle)
-                                    modelContext.insert(newTask)
-                                    text = ""
+                            if !isNew {
+                                let trimmed = text.trimmingCharacters(in: .whitespaces)
+                                if trimmed.isEmpty {
+                                    // RULE 1: Soft-delete empty text entries on focus loss & push to Supabase!
+                                    task.deletedAt = Date()
+                                    task.updatedAt = Date()
                                     try? modelContext.save()
                                     SupabaseSyncManager.shared.push()
+                                } else if task.text != trimmed {
+                                    task.text = trimmed
+                                    task.updatedAt = Date()
+                                    try? modelContext.save()
+                                    SupabaseSyncManager.shared.pushDebounced()
                                 }
-                            } else {
-                                task.updatedAt = Date()
-                                if text.trimmingCharacters(in: .whitespaces).isEmpty {
-                                    task.deletedAt = Date()
-                                } else {
-                                    task.text = text
-                                }
-                                try? modelContext.save()
-                                SupabaseSyncManager.shared.push()
                             }
                         }
                     },
@@ -179,32 +197,40 @@ struct TaskRowView: View {
                                 }
                             }
                         } else {
-                            task.text = text
-                            task.updatedAt = Date()
-                            
-                            let descriptor = FetchDescriptor<TaskItem>()
-                            if let all = try? modelContext.fetch(descriptor) {
-                                var sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
-                                let newTask = TaskItem(text: "", intervalType: listTitle, order: task.order)
-                                modelContext.insert(newTask)
-                                
-                                if let idx = sorted.firstIndex(where: { $0.id == task.id }) {
-                                    sorted.insert(newTask, at: idx + 1)
-                                } else {
-                                    sorted.append(newTask)
-                                }
-                                
-                                let now = Date()
-                                for (i, t) in sorted.enumerated() {
-                                    t.order = i
-                                    t.updatedAt = now
-                                }
-                                
+                            let trimmed = text.trimmingCharacters(in: .whitespaces)
+                            if trimmed.isEmpty {
+                                task.deletedAt = Date()
+                                task.updatedAt = Date()
                                 try? modelContext.save()
                                 SupabaseSyncManager.shared.push()
+                            } else {
+                                task.text = trimmed
+                                task.updatedAt = Date()
                                 
-                                DispatchQueue.main.async {
-                                    focusedTaskId = newTask.id
+                                let descriptor = FetchDescriptor<TaskItem>()
+                                if let all = try? modelContext.fetch(descriptor) {
+                                    var sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+                                    let newTask = TaskItem(text: "", intervalType: listTitle, order: task.order)
+                                    modelContext.insert(newTask)
+                                    
+                                    if let idx = sorted.firstIndex(where: { $0.id == task.id }) {
+                                        sorted.insert(newTask, at: idx + 1)
+                                    } else {
+                                        sorted.append(newTask)
+                                    }
+                                    
+                                    let now = Date()
+                                    for (i, t) in sorted.enumerated() {
+                                        t.order = i
+                                        t.updatedAt = now
+                                    }
+                                    
+                                    try? modelContext.save()
+                                    SupabaseSyncManager.shared.push()
+                                    
+                                    DispatchQueue.main.async {
+                                        focusedTaskId = newTask.id
+                                    }
                                 }
                             }
                         }
@@ -258,6 +284,14 @@ struct TaskRowView: View {
                 text = task.text
             }
         }
+        .onChange(of: text) { _, newText in
+            if !isNew && newText != task.text {
+                task.text = newText
+                task.updatedAt = Date()
+                try? modelContext.save()
+                SupabaseSyncManager.shared.pushDebounced()
+            }
+        }
     }
 }
 
@@ -288,6 +322,16 @@ class DragState: ObservableObject {
     }
     
     private func startMonitoring() {
+        // Auto reset safety timer: if drag hangs for > 3 seconds, force reset to eliminate grey box
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            guard let self = self else { return }
+            if self.draggedTask != nil {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    self.reset()
+                }
+            }
+        }
+        
         #if os(macOS)
         if monitor == nil {
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDragged, .leftMouseUp]) { [weak self] event in
@@ -356,9 +400,6 @@ struct TaskDropDelegate: DropDelegate {
                     t.order = i
                     t.updatedAt = now
                 }
-                
-                try? context.save()
-                SupabaseSyncManager.shared.push()
             }
         }
     }
@@ -367,7 +408,17 @@ struct TaskDropDelegate: DropDelegate {
         return DropProposal(operation: .move)
     }
     
+    func dropExited(info: DropInfo) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                DragState.shared.reset()
+            }
+        }
+    }
+    
     func performDrop(info: DropInfo) -> Bool {
+        try? context.save()
+        SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
             DragState.shared.reset()
         }

@@ -168,6 +168,10 @@ struct ContentView: View {
                 }
                 .padding(40)
             }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                focusedTaskId = nil
+            }
             .refreshable {
                 await syncManager.triggerManualSync()
             }
