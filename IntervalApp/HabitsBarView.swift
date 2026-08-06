@@ -17,7 +17,9 @@ struct HabitsBarView: View {
     private var sortedHabits: [HabitItem] {
         let active = habits.filter { $0.deletedAt == nil }
         let incomplete = active.filter { !$0.isCompletedCurrentPeriod }.sorted { $0.order < $1.order }
-        let completed = active.filter { $0.isCompletedCurrentPeriod }.sorted { $0.order < $1.order }
+        let completed = active.filter { $0.isCompletedCurrentPeriod }.sorted {
+            ($0.lastCompletedDate ?? Date.distantPast) > ($1.lastCompletedDate ?? Date.distantPast)
+        }
         return incomplete + completed
     }
     

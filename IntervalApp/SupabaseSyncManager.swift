@@ -603,6 +603,9 @@ class SupabaseSyncManager: ObservableObject {
             
             return (data, response)
         } catch {
+            if let urlErr = error as? URLError, urlErr.code == .cancelled {
+                return nil
+            }
             print("[Supabase] Request error: \(error)")
             self.lastError = "Network error: \(error.localizedDescription)"
             return nil
