@@ -66,6 +66,9 @@ struct TaskRowView: View {
         .onChange(of: text) { _, newValue in
             if !isNew && !newValue.isEmpty {
                 task.text = newValue
+                task.updatedAt = Date()
+                try? modelContext.save()
+                SupabaseSyncManager.shared.pushDebounced()
             }
         }
     }

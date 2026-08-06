@@ -84,7 +84,6 @@ class SupabaseSyncManager: ObservableObject {
     
     private var modelContext: ModelContext?
     private var cancellables = Set<AnyCancellable>()
-    private var isSyncing = false
     private var hasPendingPush = false
     
     // MARK: - Robust Date Handling
@@ -297,10 +296,38 @@ class SupabaseSyncManager: ObservableObject {
         }
     }
     
-    /// Fire-and-forget push (call after local saves)
+    @Published var isSyncing: Bool = false
+    @Published var lastSyncedAt: Date? = nil
+    
+    private var debounceTimer: AnyCancellable?
+
+    /// Fire-and-forget instant push
     func push() {
         guard isAuthenticated else { return }
+        debounceTimer?.cancel()
         Task { @MainActor in await pushToSupabase() }
+    }
+    
+    /// Debounced push for rapid typing (pushes 400ms after last keystroke)
+    func pushDebounced() {
+        guard isAuthenticated else { return }
+        debounceTimer?.cancel()
+        debounceTimer = Just(())
+            .delay(for: .milliseconds(400), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                Task { @MainActor in await self.pushToSupabase() }
+            }
+    }
+    
+    /// Manual sync trigger (Push + Pull)
+    @discardableResult
+    func triggerManualSync() async -> Bool {
+        guard isAuthenticated, let context = modelContext else { return false }
+        await pushToSupabase()
+        await pullFromSupabase()
+        lastSyncedAt = Date()
+        return true
     }
     
     /// Delete items from Supabase (call when hard-deleting locally)

@@ -168,6 +168,41 @@ struct ContentView: View {
                 }
                 .padding(40)
             }
+            .refreshable {
+                await syncManager.triggerManualSync()
+            }
+            
+            // Minimalist Sync Indicator / Trigger in Top Right
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        Task { await syncManager.triggerManualSync() }
+                    }) {
+                        HStack(spacing: 6) {
+                            if syncManager.isSyncing {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 11, weight: .light))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(8)
+                        .background(
+                            Circle()
+                                .fill(Color.primary.opacity(0.04))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Manual Sync (⌘R)")
+                }
+                .padding(.top, 20)
+                .padding(.trailing, 24)
+                Spacer()
+            }
             
             if let migration = migrationManager.currentMigration {
                 MigrationModalView(
