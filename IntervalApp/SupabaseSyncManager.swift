@@ -263,6 +263,8 @@ class SupabaseSyncManager: ObservableObject {
         }
     }
     
+    private var hasPendingPush = false
+
     /// Fire-and-forget push (call after local saves)
     func push() {
         guard isAuthenticated else { return }
@@ -284,11 +286,19 @@ class SupabaseSyncManager: ObservableObject {
     // MARK: - Push to Supabase
     
     private func pushToSupabase() async {
-        guard !isSyncing, isAuthenticated, let context = modelContext, let uid = userId else { return }
+        if isSyncing {
+            hasPendingPush = true
+            return
+        }
+        guard isAuthenticated, let context = modelContext, let uid = userId else { return }
         isSyncing = true
-        defer { isSyncing = false }
-        
-        let now = dateFormatter.string(from: Date())
+        defer {
+            isSyncing = false
+            if hasPendingPush {
+                hasPendingPush = false
+                Task { @MainActor in await pushToSupabase() }
+            }
+        }
         
         // Push tasks
         let taskDescriptor = FetchDescriptor<TaskItem>()
@@ -305,7 +315,7 @@ class SupabaseSyncManager: ObservableObject {
                 deleted_at: task.deletedAt.map { dateFormatter.string(from: $0) },
                 completed_at: task.completedAt.map { dateFormatter.string(from: $0) },
                 user_id: uid,
-                updated_at: now
+                updated_at: dateFormatter.string(from: task.updatedAt)
             )
         }
         
@@ -326,7 +336,7 @@ class SupabaseSyncManager: ObservableObject {
                 last_completed_date: habit.lastCompletedDate.map { dateFormatter.string(from: $0) },
                 order: habit.order,
                 user_id: uid,
-                updated_at: now
+                updated_at: dateFormatter.string(from: habit.updatedAt)
             )
         }
         
@@ -357,14 +367,19 @@ class SupabaseSyncManager: ObservableObject {
             }
             
             for dto in remoteTasks {
+                let remoteUpdatedAt = dateFormatter.date(from: dto.updated_at) ?? Date.distantPast
                 if let existing = existingDict[dto.id] {
-                    existing.text = dto.text
-                    existing.completed = dto.completed
-                    existing.intervalType = dto.interval_type
-                    existing.order = dto.order
-                    existing.createdAt = dateFormatter.date(from: dto.created_at) ?? existing.createdAt
-                    existing.deletedAt = dto.deleted_at.flatMap { dateFormatter.date(from: $0) }
-                    existing.completedAt = dto.completed_at.flatMap { dateFormatter.date(from: $0) }
+                    // Only update if remote is newer or equal
+                    if remoteUpdatedAt >= existing.updatedAt {
+                        existing.text = dto.text
+                        existing.completed = dto.completed
+                        existing.intervalType = dto.interval_type
+                        existing.order = dto.order
+                        existing.createdAt = dateFormatter.date(from: dto.created_at) ?? existing.createdAt
+                        existing.deletedAt = dto.deleted_at.flatMap { dateFormatter.date(from: $0) }
+                        existing.completedAt = dto.completed_at.flatMap { dateFormatter.date(from: $0) }
+                        existing.updatedAt = remoteUpdatedAt
+                    }
                 } else {
                     let newTask = TaskItem(text: dto.text, intervalType: dto.interval_type, order: dto.order)
                     newTask.id = dto.id
@@ -372,6 +387,7 @@ class SupabaseSyncManager: ObservableObject {
                     newTask.createdAt = dateFormatter.date(from: dto.created_at) ?? Date()
                     newTask.deletedAt = dto.deleted_at.flatMap { dateFormatter.date(from: $0) }
                     newTask.completedAt = dto.completed_at.flatMap { dateFormatter.date(from: $0) }
+                    newTask.updatedAt = remoteUpdatedAt
                     context.insert(newTask)
                 }
             }
@@ -392,17 +408,22 @@ class SupabaseSyncManager: ObservableObject {
             }
             
             for dto in remoteHabits {
+                let remoteUpdatedAt = dateFormatter.date(from: dto.updated_at) ?? Date.distantPast
                 if let existing = existingDict[dto.id] {
-                    existing.text = dto.text
-                    existing.frequency = dto.frequency
-                    existing.streak = dto.streak
-                    existing.lastCompletedDate = dto.last_completed_date.flatMap { dateFormatter.date(from: $0) }
-                    existing.order = dto.order
+                    if remoteUpdatedAt >= existing.updatedAt {
+                        existing.text = dto.text
+                        existing.frequency = dto.frequency
+                        existing.streak = dto.streak
+                        existing.lastCompletedDate = dto.last_completed_date.flatMap { dateFormatter.date(from: $0) }
+                        existing.order = dto.order
+                        existing.updatedAt = remoteUpdatedAt
+                    }
                 } else {
                     let newHabit = HabitItem(text: dto.text, frequency: dto.frequency, order: dto.order)
                     newHabit.id = dto.id
                     newHabit.streak = dto.streak
                     newHabit.lastCompletedDate = dto.last_completed_date.flatMap { dateFormatter.date(from: $0) }
+                    newHabit.updatedAt = remoteUpdatedAt
                     context.insert(newHabit)
                 }
             }
@@ -414,7 +435,7 @@ class SupabaseSyncManager: ObservableObject {
     // MARK: - HTTP Helpers (with auto-refresh on 401)
     
     private func upsert<T: Encodable>(table: String, items: [T]) async {
-        guard let url = URL(string: "\(supabaseURL)/rest/v1/\(table)") else { return }
+        guard let url = URL(string: "\(supabaseURL)/rest/v1/\(table)?on_conflict=id") else { return }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -422,9 +443,10 @@ class SupabaseSyncManager: ObservableObject {
         request.setValue("resolution=merge-duplicates", forHTTPHeaderField: "Prefer")
         request.httpBody = try? JSONEncoder().encode(items)
         
-        guard let (_, response) = await authenticatedRequest(request) else { return }
+        guard let (data, response) = await authenticatedRequest(request) else { return }
         if let httpResp = response as? HTTPURLResponse, httpResp.statusCode >= 400 {
-            print("[Supabase] Upsert \(table) failed: HTTP \(httpResp.statusCode)")
+            let body = String(data: data, encoding: .utf8) ?? ""
+            print("[Supabase] Upsert \(table) failed: HTTP \(httpResp.statusCode) - \(body)")
         }
     }
     

@@ -236,6 +236,7 @@ struct HabitChipView: View {
                 habit.streak += 1
                 habit.lastCompletedDate = Date()
             }
+            habit.updatedAt = Date()
             try? modelContext.save()
             SupabaseSyncManager.shared.push()
         }
@@ -276,8 +277,10 @@ struct HabitDropDelegate: DropDelegate {
                     sorted.insert(moved, at: targetIdx)
                 }
                 
+                let now = Date()
                 for (i, h) in sorted.enumerated() {
                     h.order = i
+                    h.updatedAt = now
                 }
                 try? context.save()
                 SupabaseSyncManager.shared.push()

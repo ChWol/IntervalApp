@@ -9,6 +9,7 @@ final class HabitItem {
     var streak: Int = 0
     var lastCompletedDate: Date? = nil
     var order: Int = 0
+    var updatedAt: Date = Date()
     
     init(text: String, frequency: String = "Daily", order: Int = 0) {
         self.id = UUID().uuidString
@@ -16,6 +17,7 @@ final class HabitItem {
         self.frequency = frequency
         self.streak = 0
         self.order = order
+        self.updatedAt = Date()
     }
     
     var isCompletedCurrentPeriod: Bool {

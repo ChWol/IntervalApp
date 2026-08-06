@@ -83,6 +83,7 @@ struct TaskRowView: View {
                         withAnimation {
                             task.completed = true
                             task.completedAt = Date()
+                            task.updatedAt = Date()
                             try? modelContext.save()
                             SupabaseSyncManager.shared.push()
                         }
@@ -142,6 +143,7 @@ struct TaskRowView: View {
                                     SupabaseSyncManager.shared.push()
                                 }
                             } else {
+                                task.updatedAt = Date()
                                 if text.trimmingCharacters(in: .whitespaces).isEmpty {
                                     task.deletedAt = Date()
                                 } else {
@@ -167,6 +169,7 @@ struct TaskRowView: View {
                             }
                         } else {
                             task.text = text
+                            task.updatedAt = Date()
                             
                             let descriptor = FetchDescriptor<TaskItem>()
                             if let all = try? modelContext.fetch(descriptor) {
@@ -180,8 +183,10 @@ struct TaskRowView: View {
                                     sorted.append(newTask)
                                 }
                                 
+                                let now = Date()
                                 for (i, t) in sorted.enumerated() {
                                     t.order = i
+                                    t.updatedAt = now
                                 }
                                 
                                 try? modelContext.save()
@@ -203,6 +208,7 @@ struct TaskRowView: View {
                                 }
                             }
                             task.deletedAt = Date()
+                            task.updatedAt = Date()
                             try? modelContext.save()
                             SupabaseSyncManager.shared.push()
                         }
@@ -216,6 +222,7 @@ struct TaskRowView: View {
                 Button(action: {
                     withAnimation {
                         task.deletedAt = Date()
+                        task.updatedAt = Date()
                         try? modelContext.save()
                         SupabaseSyncManager.shared.push()
                     }
@@ -331,8 +338,10 @@ struct TaskDropDelegate: DropDelegate {
                     sorted.append(draggedItem)
                 }
                 
+                let now = Date()
                 for (i, t) in sorted.enumerated() {
                     t.order = i
+                    t.updatedAt = now
                 }
                 
                 try? context.save()
