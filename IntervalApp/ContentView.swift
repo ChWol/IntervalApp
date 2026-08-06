@@ -7,6 +7,7 @@ struct ContentView: View {
     @Query(sort: \TaskItem.order) private var allTasks: [TaskItem]
     
     @StateObject private var migrationManager = MigrationManager()
+    @StateObject private var syncManager = SupabaseSyncManager.shared
     @ObservedObject private var dragState = DragState.shared
     
     @State private var isCompletedExpanded = false
@@ -14,6 +15,8 @@ struct ContentView: View {
     @State private var showAllCompleted = false
     @State private var showAllDeleted = false
     @State private var focusedTaskId: String?
+    @State private var showSyncSetup = false
+    @State private var syncKeyInput = ""
     
     let intervals = [
         ("1 Hour", 45.0),
@@ -179,9 +182,20 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            iCloudSyncManager.shared.start(context: modelContext)
+            if syncManager.isConfigured {
+                syncManager.start(context: modelContext)
+            } else {
+                showSyncSetup = true
+            }
             migrationManager.checkMigrations()
             cleanupOldTasks()
+        }
+        .sheet(isPresented: $showSyncSetup) {
+            SyncSetupView(syncKeyInput: $syncKeyInput) {
+                syncManager.configure(syncKey: syncKeyInput)
+                syncManager.start(context: modelContext)
+                showSyncSetup = false
+            }
         }
     }
     
@@ -191,7 +205,7 @@ struct ContentView: View {
             modelContext.delete(task)
         }
         try? modelContext.save()
-        iCloudSyncManager.shared.pushToiCloud(context: modelContext)
+        SupabaseSyncManager.shared.push()
     }
     
     private func clearDeletedTasks() {
@@ -200,7 +214,7 @@ struct ContentView: View {
             modelContext.delete(task)
         }
         try? modelContext.save()
-        iCloudSyncManager.shared.pushToiCloud(context: modelContext)
+        SupabaseSyncManager.shared.push()
     }
     
     private func cleanupOldTasks() {

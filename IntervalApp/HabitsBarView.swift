@@ -153,7 +153,7 @@ struct HabitsBarView: View {
             let newHabit = HabitItem(text: trimmed, frequency: selectedFrequency, order: maxOrder)
             modelContext.insert(newHabit)
             try? modelContext.save()
-            iCloudSyncManager.shared.pushToiCloud(context: modelContext)
+            SupabaseSyncManager.shared.push()
             newHabitText = ""
         }
         withAnimation {
@@ -237,7 +237,7 @@ struct HabitChipView: View {
                 habit.lastCompletedDate = Date()
             }
             try? modelContext.save()
-            iCloudSyncManager.shared.pushToiCloud(context: modelContext)
+            SupabaseSyncManager.shared.push()
         }
     }
     
@@ -245,7 +245,7 @@ struct HabitChipView: View {
         withAnimation {
             modelContext.delete(habit)
             try? modelContext.save()
-            iCloudSyncManager.shared.pushToiCloud(context: modelContext)
+            SupabaseSyncManager.shared.push()
         }
     }
 }
