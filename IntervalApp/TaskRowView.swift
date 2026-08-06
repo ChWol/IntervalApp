@@ -32,10 +32,10 @@ struct TaskRowView: View {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         swipeOffset = 0
-                        let taskId = task.id
-                        modelContext.delete(task)
+                        task.deletedAt = Date()
+                        task.updatedAt = Date()
                         try? modelContext.save()
-                        SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: [taskId])
+                        SupabaseSyncManager.shared.push()
                     }
                 }) {
                     Image(systemName: "trash")
@@ -199,10 +199,10 @@ struct TaskRowView: View {
                                 if !isNew {
                                     let trimmed = text.trimmingCharacters(in: .whitespaces)
                                     if trimmed.isEmpty {
-                                        let taskId = task.id
-                                        modelContext.delete(task)
+                                        task.deletedAt = Date()
+                                        task.updatedAt = Date()
                                         try? modelContext.save()
-                                        SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: [taskId])
+                                        SupabaseSyncManager.shared.push()
                                     } else if task.text != trimmed {
                                         task.text = trimmed
                                         task.updatedAt = Date()
@@ -236,10 +236,10 @@ struct TaskRowView: View {
                             } else {
                                 let trimmed = text.trimmingCharacters(in: .whitespaces)
                                 if trimmed.isEmpty {
-                                    let taskId = task.id
-                                    modelContext.delete(task)
+                                    task.deletedAt = Date()
+                                    task.updatedAt = Date()
                                     try? modelContext.save()
-                                    SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: [taskId])
+                                    SupabaseSyncManager.shared.push()
                                 } else {
                                     task.text = trimmed
                                     task.updatedAt = Date()
@@ -281,10 +281,10 @@ struct TaskRowView: View {
                                         focusedTaskId = sorted[idx - 1].id
                                     }
                                 }
-                                let taskId = task.id
-                                modelContext.delete(task)
+                                task.deletedAt = Date()
+                                task.updatedAt = Date()
                                 try? modelContext.save()
-                                SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: [taskId])
+                                SupabaseSyncManager.shared.push()
                             }
                         },
                         fontSize: fontSize,
@@ -296,10 +296,10 @@ struct TaskRowView: View {
             if !isNew {
                 Button(action: {
                     withAnimation {
-                        let taskId = task.id
-                        modelContext.delete(task)
+                        task.deletedAt = Date()
+                        task.updatedAt = Date()
                         try? modelContext.save()
-                        SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: [taskId])
+                        SupabaseSyncManager.shared.push()
                     }
                 }) {
                     Image(systemName: "xmark")

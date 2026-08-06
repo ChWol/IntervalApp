@@ -346,7 +346,14 @@ class SupabaseSyncManager: ObservableObject {
             guard let url = URL(string: "\(supabaseURL)/rest/v1/\(table)?id=in.(\(idList))") else { return }
             var request = URLRequest(url: url)
             request.httpMethod = "DELETE"
-            _ = await authenticatedRequest(request)
+            request.setValue("return=representation", forHTTPHeaderField: "Prefer")
+            
+            guard let (data, response) = await authenticatedRequest(request) else { return }
+            if let httpResp = response as? HTTPURLResponse, httpResp.statusCode >= 400 {
+                let body = String(data: data, encoding: .utf8) ?? ""
+                print("[Supabase] Delete \(table) error (HTTP \(httpResp.statusCode)): \(body)")
+                self.lastError = "Delete error (HTTP \(httpResp.statusCode)): \(body)"
+            }
         }
     }
     
@@ -376,7 +383,17 @@ class SupabaseSyncManager: ObservableObject {
         
         // Push tasks using explicit dictionary payloads (guarantees key symmetry for PostgREST PGRST102)
         let taskDescriptor = FetchDescriptor<TaskItem>()
-        let tasks = (try? context.fetch(taskDescriptor)) ?? []
+        let allTasks = (try? context.fetch(taskDescriptor)) ?? []
+        
+        // Clean up empty tasks from local context automatically
+        var tasks: [TaskItem] = []
+        for task in allTasks {
+            if task.text.trimmingCharacters(in: .whitespaces).isEmpty && task.deletedAt != nil {
+                context.delete(task)
+            } else {
+                tasks.append(task)
+            }
+        }
         
         let taskPayload: [[String: Any]] = tasks.map { task in
             task.updatedAt = pushTimestamp
@@ -454,7 +471,15 @@ class SupabaseSyncManager: ObservableObject {
                 }
             }
             
+            var remoteIdsToCleanUp: [String] = []
+            
             for dto in remoteTasks {
+                // Ignore empty remote tasks
+                if dto.text.trimmingCharacters(in: .whitespaces).isEmpty {
+                    remoteIdsToCleanUp.append(dto.id)
+                    continue
+                }
+                
                 let remoteUpdatedAt = Self.parseDate(dto.updated_at) ?? Date.distantPast
                 if let existing = existingDict[dto.id] {
                     // Accept remote if remote is newer, equal, or within 1.5s tolerance
@@ -471,6 +496,12 @@ class SupabaseSyncManager: ObservableObject {
                         needsFollowupPush = true
                     }
                 } else {
+                    // If remote task is soft-deleted but not present locally (because local user cleared/deleted it), do NOT re-create it!
+                    if dto.deleted_at != nil {
+                        remoteIdsToCleanUp.append(dto.id)
+                        continue
+                    }
+                    
                     let newTask = TaskItem(text: dto.text, intervalType: dto.interval_type, order: dto.order)
                     newTask.id = dto.id
                     newTask.completed = dto.completed
@@ -480,6 +511,10 @@ class SupabaseSyncManager: ObservableObject {
                     newTask.updatedAt = remoteUpdatedAt
                     context.insert(newTask)
                 }
+            }
+            
+            if !remoteIdsToCleanUp.isEmpty {
+                deleteRemote(table: "tasks", ids: remoteIdsToCleanUp)
             }
         }
         

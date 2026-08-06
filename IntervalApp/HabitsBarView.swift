@@ -91,11 +91,12 @@ struct HabitsBarView: View {
                                     .fill(Color.gray.opacity(colorScheme == .dark ? 0.18 : 0.1))
                             )
                             
-                            TextField("Habit name...", text: $newHabitText, onCommit: createHabit)
+                            TextField("Habit name...", text: $newHabitText)
                                 .textFieldStyle(.plain)
                                 .font(.system(size: 12, weight: .light))
                                 .frame(width: 120)
                                 .focused($isInputFocused)
+                                .onSubmit { createHabit() }
                                 .onAppear {
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                                         isInputFocused = true
@@ -151,14 +152,16 @@ struct HabitsBarView: View {
     
     private func createHabit() {
         let trimmed = newHabitText.trimmingCharacters(in: .whitespaces)
-        if !trimmed.isEmpty {
-            let maxOrder = (habits.map { $0.order }.max() ?? -1) + 1
-            let newHabit = HabitItem(text: trimmed, frequency: selectedFrequency, order: maxOrder)
-            modelContext.insert(newHabit)
-            try? modelContext.save()
-            SupabaseSyncManager.shared.push()
-            newHabitText = ""
+        guard !trimmed.isEmpty else {
+            withAnimation { isAdding = false }
+            return
         }
+        newHabitText = ""
+        let maxOrder = (habits.map { $0.order }.max() ?? -1) + 1
+        let newHabit = HabitItem(text: trimmed, frequency: selectedFrequency, order: maxOrder)
+        modelContext.insert(newHabit)
+        try? modelContext.save()
+        SupabaseSyncManager.shared.push()
         withAnimation {
             isAdding = false
         }
