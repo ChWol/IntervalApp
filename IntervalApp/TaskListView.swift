@@ -67,8 +67,10 @@ struct TaskListHeaderDropDelegate: DropDelegate {
             
             sorted.insert(draggedItem, at: 0)
             
+            let now = Date()
             for (i, t) in sorted.enumerated() {
                 t.order = i
+                t.updatedAt = now
             }
         }
     }
@@ -78,6 +80,8 @@ struct TaskListHeaderDropDelegate: DropDelegate {
     }
     
     func performDrop(info: DropInfo) -> Bool {
+        try? context.save()
+        SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
             DragState.shared.reset()
         }
@@ -104,8 +108,10 @@ struct TaskListBottomDropDelegate: DropDelegate {
             
             sorted.append(draggedItem)
             
+            let now = Date()
             for (i, t) in sorted.enumerated() {
                 t.order = i
+                t.updatedAt = now
             }
         }
     }
@@ -115,6 +121,8 @@ struct TaskListBottomDropDelegate: DropDelegate {
     }
     
     func performDrop(info: DropInfo) -> Bool {
+        try? context.save()
+        SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
             DragState.shared.reset()
         }

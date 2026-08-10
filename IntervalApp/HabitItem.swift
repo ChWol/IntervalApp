@@ -11,6 +11,9 @@ final class HabitItem {
     var order: Int = 0
     var deletedAt: Date? = nil
     var updatedAt: Date = Date()
+    /// Value of `updatedAt` at the time the row was last confirmed by the server.
+    /// `nil`, or older than `updatedAt`, means the row still has unpublished local changes.
+    var syncedAt: Date? = nil
     
     init(text: String, frequency: String = "Daily", order: Int = 0) {
         self.id = UUID().uuidString
@@ -20,6 +23,7 @@ final class HabitItem {
         self.order = order
         self.deletedAt = nil
         self.updatedAt = Date()
+        self.syncedAt = nil
     }
     
     var isCompletedCurrentPeriod: Bool {

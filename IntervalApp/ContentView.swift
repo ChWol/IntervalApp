@@ -268,51 +268,32 @@ struct ContentView: View {
     
     private func clearCompletedTasks() {
         let completedTasks = allTasks.filter { $0.completed && $0.deletedAt == nil }
-        guard !completedTasks.isEmpty else { return }
-        let ids = completedTasks.map { $0.id }
-        // First soft-delete so any concurrent pull won't re-create them
-        let now = Date()
-        for task in completedTasks {
-            task.deletedAt = now
-            task.updatedAt = now
-        }
-        try? modelContext.save()
-        // Push soft-deletes to Supabase, then hard-delete locally and remotely
-        SupabaseSyncManager.shared.push()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
-            for task in completedTasks {
-                modelContext.delete(task)
-            }
-            try? modelContext.save()
-            SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: ids)
-        }
+        deletePermanently(completedTasks)
     }
     
     private func clearDeletedTasks() {
         let deletedTasks = allTasks.filter { $0.deletedAt != nil }
-        guard !deletedTasks.isEmpty else { return }
-        let ids = deletedTasks.map { $0.id }
-        for task in deletedTasks {
-            modelContext.delete(task)
-        }
-        try? modelContext.save()
-        SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: ids)
+        deletePermanently(deletedTasks)
     }
     
     private func cleanupOldTasks() {
         let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
-        var idsToDelete: [String] = []
-        for task in allTasks {
-            if let deletedAt = task.deletedAt, deletedAt < thirtyDaysAgo {
-                idsToDelete.append(task.id)
-                modelContext.delete(task)
-            } else if let completedAt = task.completedAt, completedAt < thirtyDaysAgo {
-                idsToDelete.append(task.id)
-                modelContext.delete(task)
-            }
+        let expired = allTasks.filter { task in
+            if let deletedAt = task.deletedAt { return deletedAt < thirtyDaysAgo }
+            if let completedAt = task.completedAt { return completedAt < thirtyDaysAgo }
+            return false
         }
-        if !idsToDelete.isEmpty {
-            SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: idsToDelete)
+        deletePermanently(expired)
+    }
+    
+    /// Registers the remote delete before touching the local store so that a pull already in
+    /// flight cannot bring the rows back, and so the delete is retried until it lands.
+    private func deletePermanently(_ tasks: [TaskItem]) {
+        guard !tasks.isEmpty else { return }
+        SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: tasks.map { $0.id })
+        for task in tasks {
+            modelContext.delete(task)
         }
+        try? modelContext.save()
     }
 }

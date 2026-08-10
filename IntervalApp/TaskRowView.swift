@@ -102,8 +102,9 @@ struct TaskRowView: View {
         }
         #if os(macOS)
         .onDrag {
-            if !isNew && !text.isEmpty {
+            if !isNew && !text.isEmpty && task.text != text {
                 task.text = text
+                task.updatedAt = Date()
             }
             dragState.draggedTask = task
             dragState.targetIntervalType = listTitle
@@ -222,11 +223,12 @@ struct TaskRowView: View {
                         },
                         onSubmit: {
                             if isNew {
-                                if !text.trimmingCharacters(in: .whitespaces).isEmpty {
+                                let trimmed = text.trimmingCharacters(in: .whitespaces)
+                                if !trimmed.isEmpty {
                                     let descriptor = FetchDescriptor<TaskItem>()
                                     if let all = try? modelContext.fetch(descriptor) {
                                         let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
-                                        let newTask = TaskItem(text: text, intervalType: listTitle, order: (sorted.last?.order ?? 0) + 1)
+                                        let newTask = TaskItem(text: trimmed, intervalType: listTitle, order: (sorted.last?.order ?? 0) + 1)
                                         modelContext.insert(newTask)
                                         
                                         let nextTask = TaskItem(text: "", intervalType: listTitle, order: newTask.order + 1)

@@ -123,7 +123,7 @@ class MigrationManager: ObservableObject {
         
         let sourceTasks = allTasks.filter { $0.intervalType == migration.source && !$0.completed && $0.deletedAt == nil }
         
-        var hardDeletedIds: [String] = []
+        var droppedTasks: [TaskItem] = []
         for task in sourceTasks {
             if selectedTaskIds.contains(task.id) {
                 task.intervalType = migration.dest
@@ -131,16 +131,21 @@ class MigrationManager: ObservableObject {
                 task.updatedAt = Date()
                 maxOrder += 1
             } else if migration.source == migration.dest {
-                hardDeletedIds.append(task.id)
+                droppedTasks.append(task)
+            }
+        }
+        
+        // Register the remote delete before removing the rows locally so that a pull already
+        // in flight cannot re-create them.
+        if !droppedTasks.isEmpty {
+            SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: droppedTasks.map { $0.id })
+            for task in droppedTasks {
                 context.delete(task)
             }
         }
         
         try? context.save()
         SupabaseSyncManager.shared.push()
-        if !hardDeletedIds.isEmpty {
-            SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: hardDeletedIds)
-        }
         currentMigration = nil
         
         // RULE 3: If Day migration was just completed, trigger the first Hourly migration of the day immediately!

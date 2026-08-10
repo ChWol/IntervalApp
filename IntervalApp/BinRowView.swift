@@ -57,10 +57,10 @@ struct BinRowView: View {
     
     private func deletePermanently() {
         withAnimation {
-            let taskId = task.id
+            // Register the remote delete first so an in-flight pull cannot re-create the row.
+            SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: [task.id])
             modelContext.delete(task)
             try? modelContext.save()
-            SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: [taskId])
         }
     }
 }
