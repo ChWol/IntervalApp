@@ -46,21 +46,13 @@ struct BinRowView: View {
     
     private func restoreTask() {
         withAnimation {
-            task.deletedAt = nil
-            task.completed = false
-            task.completedAt = nil
-            task.updatedAt = Date()
-            try? modelContext.save()
-            SupabaseSyncManager.shared.push()
+            TaskHousekeeping.restore(task, in: modelContext)
         }
     }
     
     private func deletePermanently() {
         withAnimation {
-            // Register the remote delete first so an in-flight pull cannot re-create the row.
-            SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: [task.id])
-            modelContext.delete(task)
-            try? modelContext.save()
+            TaskHousekeeping.deletePermanently([task], in: modelContext)
         }
     }
 }

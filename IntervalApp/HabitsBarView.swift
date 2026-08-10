@@ -235,14 +235,12 @@ struct HabitChipView: View {
     
     private func toggleCompletion() {
         withAnimation(.easeInOut(duration: 0.2)) {
-            if habit.isCompletedCurrentPeriod {
-                habit.streak = max(0, habit.streak - 1)
-                habit.lastCompletedDate = nil
-            } else {
-                habit.streak += 1
-                habit.lastCompletedDate = Date()
+            let now = Date()
+            HabitTaskLink.setHabitCompleted(!habit.isCompletedCurrentPeriod, on: habit, now: now)
+            // Keep any hour task created from this habit in step with it.
+            if let tasks = try? modelContext.fetch(FetchDescriptor<TaskItem>()) {
+                HabitTaskLink.applyHabitCompletionToTasks(habit, tasks: tasks, now: now)
             }
-            habit.updatedAt = Date()
             try? modelContext.save()
             SupabaseSyncManager.shared.push()
         }
@@ -250,8 +248,13 @@ struct HabitChipView: View {
     
     private func deleteHabit() {
         withAnimation {
-            habit.deletedAt = Date()
-            habit.updatedAt = Date()
+            let now = Date()
+            habit.deletedAt = now
+            habit.updatedAt = now
+            // Drop any hour tasks that still represent this habit.
+            if let tasks = try? modelContext.fetch(FetchDescriptor<TaskItem>()) {
+                _ = HabitTaskLink.binLinkedHourTasks(for: habit, tasks: tasks, now: now)
+            }
             try? modelContext.save()
             SupabaseSyncManager.shared.push()
         }
@@ -275,7 +278,8 @@ struct HabitDropDelegate: DropDelegate {
             withAnimation(.easeInOut(duration: 0.2)) {
                 let descriptor = FetchDescriptor<HabitItem>()
                 guard let allHabits = try? context.fetch(descriptor) else { return }
-                var sorted = allHabits.sorted { $0.order < $1.order }
+                // Soft-deleted habits stay out of the order so they cannot steal slots.
+                var sorted = allHabits.filter { $0.deletedAt == nil }.sorted { $0.order < $1.order }
                 
                 if let sourceIdx = sorted.firstIndex(where: { $0.id == draggedItem.id }),
                    let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) {

@@ -27,12 +27,16 @@ final class HabitItem {
     }
     
     var isCompletedCurrentPeriod: Bool {
+        isCompleted(at: Date())
+    }
+    
+    /// Whether the habit counts as done for the period containing `date`.
+    /// Callers that pass an explicit `date` keep tests and midnight edges deterministic.
+    func isCompleted(at date: Date, calendar: Calendar = .current) -> Bool {
         guard let last = lastCompletedDate else { return false }
-        let cal = Calendar.current
         if frequency == "Daily" {
-            return cal.isDateInToday(last)
-        } else {
-            return cal.isDate(last, equalTo: Date(), toGranularity: .weekOfYear)
+            return calendar.isDate(last, inSameDayAs: date)
         }
+        return calendar.isDate(last, equalTo: date, toGranularity: .weekOfYear)
     }
 }

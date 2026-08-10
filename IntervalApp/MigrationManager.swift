@@ -14,30 +14,41 @@ struct Migration: Identifiable {
 class MigrationManager: ObservableObject {
     @Published var currentMigration: Migration? = nil
     
+    private enum StoreKey {
+        static let hour = "lastHour"
+        static let day = "lastDay"
+        static let week = "lastWeek"
+        static let month = "lastMonth"
+        static let year = "lastYear"
+    }
+    
     private var timerCancellable: AnyCancellable?
     private var hourTimerCancellable: AnyCancellable?
     private var isFirstHourAfterDayMigration = false
+    private var modelContext: ModelContext?
     
-    func startMonitoring(allTasks: [TaskItem]) {
+    /// Reads live data from the context on every check. Capturing an array here would freeze
+    /// the task list at start-up and make the "nothing to migrate" decisions go stale.
+    func startMonitoring(context: ModelContext) {
+        self.modelContext = context
         timerCancellable?.cancel()
         hourTimerCancellable?.cancel()
         
         // Initial check on launch
-        checkMigrations(allTasks: allTasks)
+        checkMigrations()
         
         // 1. Regular 15-second check (catches wake from sleep / background)
         timerCancellable = Timer.publish(every: 15.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                guard let self = self else { return }
-                self.checkMigrations(allTasks: allTasks)
+                self?.checkMigrations()
             }
         
         // 2. Precise top-of-the-hour timer (triggers exactly at :00:00)
-        scheduleNextHourTimer(allTasks: allTasks)
+        scheduleNextHourTimer()
     }
     
-    private func scheduleNextHourTimer(allTasks: [TaskItem]) {
+    private func scheduleNextHourTimer() {
         let now = Date()
         let cal = Calendar.current
         guard let nextHour = cal.nextDate(after: now, matching: DateComponents(minute: 0, second: 0), matchingPolicy: .nextTime) else { return }
@@ -48,97 +59,121 @@ class MigrationManager: ObservableObject {
             .delay(for: .seconds(interval), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self = self else { return }
-                self.checkMigrations(allTasks: allTasks)
-                self.scheduleNextHourTimer(allTasks: allTasks)
+                self.checkMigrations()
+                self.scheduleNextHourTimer()
             }
     }
     
-    func checkMigrations(allTasks: [TaskItem]) {
+    func checkMigrations() {
         guard currentMigration == nil else { return }
         
         let defaults = UserDefaults.standard
-        let now = Date()
-        let cal = Calendar.current
+        let current = MigrationSchedule.marker(for: Date())
+        let previous = CalendarMarker(
+            hour: defaults.object(forKey: StoreKey.hour) as? Int,
+            day: defaults.object(forKey: StoreKey.day) as? Int,
+            week: defaults.object(forKey: StoreKey.week) as? Int,
+            month: defaults.object(forKey: StoreKey.month) as? Int,
+            year: defaults.object(forKey: StoreKey.year) as? Int
+        )
         
-        let currentHour = cal.component(.hour, from: now)
-        let currentDay = cal.component(.day, from: now)
-        let currentMonth = cal.component(.month, from: now)
-        let currentYear = cal.component(.year, from: now)
-        let currentWeek = cal.component(.weekOfYear, from: now)
-        
-        let lastHour = defaults.object(forKey: "lastHour") as? Int
-        let lastDay = defaults.object(forKey: "lastDay") as? Int
-        let lastMonth = defaults.object(forKey: "lastMonth") as? Int
-        let lastYear = defaults.object(forKey: "lastYear") as? Int
-        let lastWeek = defaults.object(forKey: "lastWeek") as? Int
-        
-        var pendingMigration: Migration? = nil
-        
-        // Priority order (only trigger ONCE even if multiple intervals passed)
-        if let ly = lastYear, ly != currentYear {
-            pendingMigration = Migration(source: "1 Year", dest: "1 Year")
-        } else if let lm = lastMonth, lm != currentMonth {
-            pendingMigration = Migration(source: "1 Year", dest: "1 Month")
-        } else if let lw = lastWeek, lw != currentWeek {
-            pendingMigration = Migration(source: "1 Month", dest: "1 Week")
-        } else if let ld = lastDay, ld != currentDay {
-            pendingMigration = Migration(source: "1 Week", dest: "1 Day")
-            isFirstHourAfterDayMigration = true
-        } else if let lh = lastHour, lh != currentHour {
-            var m = Migration(source: "1 Day", dest: "1 Hour")
-            if isFirstHourAfterDayMigration {
-                m.isFirstHourOfDay = true
-            }
-            pendingMigration = m
-        }
+        let pending = MigrationSchedule.dueMigration(
+            previous: previous,
+            current: current,
+            isFirstHourAfterDay: isFirstHourAfterDayMigration
+        )
         
         // Save latest state
-        defaults.set(currentHour, forKey: "lastHour")
-        defaults.set(currentDay, forKey: "lastDay")
-        defaults.set(currentWeek, forKey: "lastWeek")
-        defaults.set(currentMonth, forKey: "lastMonth")
-        defaults.set(currentYear, forKey: "lastYear")
+        defaults.set(current.hour, forKey: StoreKey.hour)
+        defaults.set(current.day, forKey: StoreKey.day)
+        defaults.set(current.week, forKey: StoreKey.week)
+        defaults.set(current.month, forKey: StoreKey.month)
+        defaults.set(current.year, forKey: StoreKey.year)
         
-        if let migration = pendingMigration {
-            // RULE 4: If source list has NO active elements, skip popup automatically!
-            let sourceTasks = allTasks.filter { $0.intervalType == migration.source && !$0.completed && $0.deletedAt == nil }
-            if sourceTasks.isEmpty && migration.source != "1 Year" {
-                // If it was day migration that was skipped, check if hourly migration has tasks
-                if migration.source == "1 Week" {
-                    let dayTasks = allTasks.filter { $0.intervalType == "1 Day" && !$0.completed && $0.deletedAt == nil }
-                    if !dayTasks.isEmpty {
-                        self.currentMigration = Migration(source: "1 Day", dest: "1 Hour", isFirstHourOfDay: true)
-                        isFirstHourAfterDayMigration = false
-                    }
-                }
-                return
-            }
-            self.currentMigration = migration
+        guard let migration = pending else { return }
+        
+        if migration.source == "1 Week" && migration.dest == "1 Day" {
+            isFirstHourAfterDayMigration = true
+        }
+        
+        if present(migration) { return }
+        
+        // A day migration with nothing to show still hands over to the first hour of the day.
+        if migration.source == "1 Week" && migration.dest == "1 Day" {
+            presentFirstHourOfDay()
         }
     }
     
-    func executeMigration(migration: Migration, selectedTaskIds: Set<String>, allTasks: [TaskItem], context: ModelContext) {
-        let destTasks = allTasks.filter { $0.intervalType == migration.dest && !$0.completed && $0.deletedAt == nil }
-        var maxOrder = (destTasks.map { $0.order }.max() ?? -1) + 1
+    /// Shows the migration when it has something to offer. Returns whether it was shown.
+    @discardableResult
+    private func present(_ migration: Migration) -> Bool {
+        let tasks = activeTasks()
+        let sourceCount = tasks.filter { $0.intervalType == migration.source }.count
+        // Habits are only offered by the hourly step, so only that step needs to count them.
+        let habitCount = migration.dest == HabitTaskLink.hourInterval ? selectableHabits(tasks: tasks).count : 0
         
-        let sourceTasks = allTasks.filter { $0.intervalType == migration.source && !$0.completed && $0.deletedAt == nil }
+        guard MigrationSchedule.shouldPresent(migration,
+                                              sourceTaskCount: sourceCount,
+                                              selectableHabitCount: habitCount) else { return false }
+        
+        currentMigration = migration
+        // The "first hour of the day" wording applies to one migration only.
+        if migration.dest == HabitTaskLink.hourInterval {
+            isFirstHourAfterDayMigration = false
+        }
+        return true
+    }
+    
+    private func presentFirstHourOfDay() {
+        present(Migration(source: "1 Day", dest: HabitTaskLink.hourInterval, isFirstHourOfDay: true))
+    }
+    
+    func executeMigration(migration: Migration,
+                          selectedTaskIds: Set<String>,
+                          selectedHabitIds: Set<String> = []) {
+        guard let context = modelContext else {
+            currentMigration = nil
+            return
+        }
+        
+        let allTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        let allHabits = (try? context.fetch(FetchDescriptor<HabitItem>())) ?? []
+        let active = allTasks.filter { !$0.completed && $0.deletedAt == nil }
+        
+        var maxOrder = (active.filter { $0.intervalType == migration.dest }.map { $0.order }.max() ?? -1) + 1
+        let now = Date()
         
         var droppedTasks: [TaskItem] = []
-        for task in sourceTasks {
+        for task in active where task.intervalType == migration.source {
             if selectedTaskIds.contains(task.id) {
                 task.intervalType = migration.dest
                 task.order = maxOrder
-                task.updatedAt = Date()
+                task.updatedAt = now
                 maxOrder += 1
             } else if migration.source == migration.dest {
                 droppedTasks.append(task)
             }
         }
         
+        // Habits picked in the hourly step become hour tasks that stay tied to the habit.
+        if !selectedHabitIds.isEmpty {
+            let chosen = allHabits.filter { selectedHabitIds.contains($0.id) }
+            let created = HabitTaskLink.makeHourTasks(
+                for: chosen,
+                existingHourTasks: allTasks.filter { $0.intervalType == migration.dest },
+                startingOrder: maxOrder,
+                now: now
+            )
+            for task in created {
+                context.insert(task)
+                maxOrder += 1
+            }
+        }
+        
         // Register the remote delete before removing the rows locally so that a pull already
         // in flight cannot re-create them.
         if !droppedTasks.isEmpty {
-            SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: droppedTasks.map { $0.id })
+            SupabaseSyncManager.shared.deleteRemote(table: SyncTable.tasks, ids: droppedTasks.map { $0.id })
             for task in droppedTasks {
                 context.delete(task)
             }
@@ -148,13 +183,9 @@ class MigrationManager: ObservableObject {
         SupabaseSyncManager.shared.push()
         currentMigration = nil
         
-        // RULE 3: If Day migration was just completed, trigger the first Hourly migration of the day immediately!
+        // Once the day is planned, move straight on to the first hour of that day.
         if migration.source == "1 Week" && migration.dest == "1 Day" {
-            let dayTasks = allTasks.filter { $0.intervalType == "1 Day" && !$0.completed && $0.deletedAt == nil }
-            if !dayTasks.isEmpty {
-                self.currentMigration = Migration(source: "1 Day", dest: "1 Hour", isFirstHourOfDay: true)
-                isFirstHourAfterDayMigration = false
-            }
+            presentFirstHourOfDay()
         }
     }
     
@@ -162,17 +193,40 @@ class MigrationManager: ObservableObject {
         currentMigration = Migration(source: source, dest: dest)
     }
     
-    func skipMigration(allTasks: [TaskItem] = []) {
-        if let m = currentMigration, m.source == "1 Week" && m.dest == "1 Day" {
-            currentMigration = nil
-            // If Day migration was skipped, trigger first Hourly migration of the day
-            let dayTasks = allTasks.filter { $0.intervalType == "1 Day" && !$0.completed && $0.deletedAt == nil }
-            if !dayTasks.isEmpty {
-                self.currentMigration = Migration(source: "1 Day", dest: "1 Hour", isFirstHourOfDay: true)
-                isFirstHourAfterDayMigration = false
-            }
-        } else {
-            currentMigration = nil
+    func skipMigration() {
+        let skipped = currentMigration
+        currentMigration = nil
+        
+        if let skipped, skipped.source == "1 Week" && skipped.dest == "1 Day" {
+            presentFirstHourOfDay()
         }
+    }
+    
+    #if DEBUG
+    /// Test seam: gives the manager a store without starting any timers.
+    func attachForTesting(context: ModelContext) {
+        modelContext = context
+    }
+    
+    func presentForTesting(_ migration: Migration) -> Bool {
+        present(migration)
+    }
+    #endif
+    
+    // MARK: - Live Data
+    
+    private func activeTasks() -> [TaskItem] {
+        guard let context = modelContext else { return [] }
+        let all = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        return all.filter { !$0.completed && $0.deletedAt == nil }
+    }
+    
+    private func selectableHabits(tasks: [TaskItem]) -> [HabitItem] {
+        guard let context = modelContext else { return [] }
+        let habits = (try? context.fetch(FetchDescriptor<HabitItem>())) ?? []
+        return HabitTaskLink.selectableHabits(
+            from: habits,
+            hourTasks: tasks.filter { $0.intervalType == HabitTaskLink.hourInterval }
+        )
     }
 }

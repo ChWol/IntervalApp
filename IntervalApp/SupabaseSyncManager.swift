@@ -50,6 +50,7 @@ struct SupabaseTaskDTO: Decodable {
     let order: Int?
     let deleted_at: String?
     let completed_at: String?
+    let habit_id: String?
     let user_id: String?
     let updated_at: String?
 }
@@ -75,14 +76,6 @@ private struct FailableRow<T: Decodable>: Decodable {
     }
 }
 
-/// A locally destroyed row. Kept until the server confirms the delete so that a pull can
-/// never resurrect it, and so an offline delete survives an app restart.
-private struct Tombstone: Codable {
-    let id: String
-    let createdAt: Date
-    var confirmedAt: Date?
-}
-
 // MARK: - Supabase Sync Manager
 
 @MainActor
@@ -91,12 +84,6 @@ class SupabaseSyncManager: ObservableObject {
     
     private let supabaseURL = "https://mrqgudqemlgdxnrqxqtk.supabase.co"
     private let supabaseKey = "sb_publishable_KV6DvqpKbl6wmMZvcwPczw_ID2hOShH"
-    
-    private enum Table {
-        static let tasks = "tasks"
-        static let habits = "habits"
-        static let all = [tasks, habits]
-    }
     
     private enum StoreKey {
         static let accessToken = "sb_access_token"
@@ -117,8 +104,6 @@ class SupabaseSyncManager: ObservableObject {
     private let deleteBatchSize = 40
     private let maxPages = 400
     private let tokenRefreshLeeway: TimeInterval = 120
-    private let tombstoneRetention: TimeInterval = 15 * 60
-    private let maxBackoff: TimeInterval = 120
     
     @Published var isAuthenticated: Bool = false
     @Published var userEmail: String? = nil
@@ -156,11 +141,17 @@ class SupabaseSyncManager: ObservableObject {
     private var refreshTask: Task<Bool, Never>?
     private var pendingLocalPurge = false
     
-    /// Difference between the server clock and this device's clock. All `updated_at` values are
-    /// exchanged in server time so that a badly set device clock cannot win every conflict.
-    private var serverTimeOffset: TimeInterval = 0
+    private var clock = ServerClock()
+    private var ledger = TombstoneLedger()
+    private var backoff = SyncBackoff()
+    /// Off for test instances, which must not write to the real defaults.
+    private var persistsLedger = true
     
-    private var tombstones: [String: [String: Tombstone]] = [:]
+    /// Databases created before the habit link feature have no `habit_id` column. The column
+    /// is dropped from the payload if the server rejects it, so an older schema degrades to
+    /// device-local habit links instead of breaking every task push.
+    private var tasksSupportHabitId = true
+    
     /// Rows missing from the previous server snapshot. A row must be absent twice in a row
     /// before it is deleted locally, so a single incomplete snapshot cannot destroy data.
     private var missingTaskIds = Set<String>()
@@ -172,9 +163,6 @@ class SupabaseSyncManager: ObservableObject {
     /// data — on a fresh install those same rows are the user's real recycle bin.
     private var legacyBinPurgeArmed = false
     
-    private var consecutiveFailures = 0
-    private var nextScheduledAttempt: Date = .distantPast
-    
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 20
@@ -184,67 +172,6 @@ class SupabaseSyncManager: ObservableObject {
         return URLSession(configuration: config)
     }()
     
-    // MARK: - Date Formatting & Parsing
-    
-    private static let iso8601WithFraction: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
-    
-    private static let iso8601Plain: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime]
-        return f
-    }()
-    
-    /// Fallbacks for the shapes Postgres and PostgREST can emit, including values with a
-    /// space separator or no timezone at all (which the ISO8601 formatters reject).
-    private static let fallbackFormats = [
-        "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZZZZZ",
-        "yyyy-MM-dd'T'HH:mm:ssZZZZZ",
-        "yyyy-MM-dd HH:mm:ss.SSSSSSZZZZZ",
-        "yyyy-MM-dd HH:mm:ssZZZZZ",
-        "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
-        "yyyy-MM-dd'T'HH:mm:ss",
-        "yyyy-MM-dd HH:mm:ss.SSSSSS",
-        "yyyy-MM-dd HH:mm:ss"
-    ]
-    
-    private static let fallbackFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.locale = Locale(identifier: "en_US_POSIX")
-        // Timestamps without an explicit zone are UTC by Postgres convention.
-        df.timeZone = TimeZone(secondsFromGMT: 0)
-        return df
-    }()
-    
-    private static let httpDateFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.locale = Locale(identifier: "en_US_POSIX")
-        df.timeZone = TimeZone(secondsFromGMT: 0)
-        df.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
-        return df
-    }()
-    
-    private static func formatDate(_ date: Date) -> String {
-        iso8601WithFraction.string(from: date)
-    }
-    
-    private static func parseDate(_ string: String?) -> Date? {
-        guard let string = string?.trimmingCharacters(in: .whitespaces), !string.isEmpty else { return nil }
-        
-        if let date = iso8601WithFraction.date(from: string) { return date }
-        if let date = iso8601Plain.date(from: string) { return date }
-        
-        for format in fallbackFormats {
-            fallbackFormatter.dateFormat = format
-            if let date = fallbackFormatter.date(from: string) { return date }
-        }
-        
-        return nil
-    }
-    
     private init() {
         let defaults = UserDefaults.standard
         accessToken = defaults.string(forKey: StoreKey.accessToken)
@@ -252,11 +179,11 @@ class SupabaseSyncManager: ObservableObject {
         userId = defaults.string(forKey: StoreKey.userId)
         userEmail = defaults.string(forKey: StoreKey.userEmail)
         isAuthenticated = accessToken != nil && userId != nil
-        serverTimeOffset = defaults.double(forKey: StoreKey.serverTimeOffset)
+        clock.offset = defaults.double(forKey: StoreKey.serverTimeOffset)
         if let expiry = defaults.object(forKey: StoreKey.tokenExpiry) as? Double {
             accessTokenExpiry = Date(timeIntervalSince1970: expiry)
         }
-        loadTombstones()
+        ledger = TombstoneLedger.decode(from: defaults.data(forKey: StoreKey.tombstones))
     }
     
     // MARK: - Authentication
@@ -349,11 +276,10 @@ class SupabaseSyncManager: ObservableObject {
     
     private func handleAuthSuccess(_ response: AuthResponse, email: String) {
         // Signing in as somebody else must not upload the previous account's rows.
-        let previousUserId = userId
-        if let previousUserId, previousUserId != response.user.id {
+        if let previousUserId = userId, previousUserId != response.user.id {
             pendingLocalPurge = true
-            tombstones.removeAll()
-            persistTombstones()
+            ledger.removeAll()
+            persistLedger()
             missingTaskIds.removeAll()
             missingHabitIds.removeAll()
         }
@@ -492,7 +418,7 @@ class SupabaseSyncManager: ObservableObject {
         // Initial sync
         Task { @MainActor in
             await ensureFreshToken()
-            await runSyncCycle(force: true)
+            _ = await runSyncCycle(force: true)
         }
     }
     
@@ -501,7 +427,7 @@ class SupabaseSyncManager: ObservableObject {
     @discardableResult
     private func runSyncCycle(force: Bool) async -> Bool {
         guard isAuthenticated else { return false }
-        if !force && Date() < nextScheduledAttempt { return false }
+        if !force && !backoff.allowsAttempt() { return false }
         
         let pushed = await pushToSupabase()
         let pulled = await pullFromSupabase()
@@ -512,7 +438,7 @@ class SupabaseSyncManager: ObservableObject {
     func push() {
         guard isAuthenticated else { return }
         debounceTimer?.cancel()
-        Task { @MainActor in await pushToSupabase() }
+        Task { @MainActor in _ = await pushToSupabase() }
     }
     
     /// Debounced push for rapid typing (pushes shortly after the last keystroke)
@@ -538,11 +464,12 @@ class SupabaseSyncManager: ObservableObject {
     /// Call this *before* deleting the rows from the local store.
     func deleteRemote(table: String, ids: [String]) {
         guard !ids.isEmpty else { return }
-        addTombstones(table: table, ids: ids)
+        ledger.add(table: table, ids: ids)
+        persistLedger()
         guard isAuthenticated else { return }
         Task { @MainActor in
             await ensureFreshToken()
-            await flushTombstones()
+            _ = await flushTombstones()
         }
     }
     
@@ -563,7 +490,7 @@ class SupabaseSyncManager: ObservableObject {
             isSyncing = isPulling
             if pendingPushRequested {
                 pendingPushRequested = false
-                Task { @MainActor in await pushToSupabase() }
+                Task { @MainActor in _ = await pushToSupabase() }
             }
         }
         
@@ -579,7 +506,7 @@ class SupabaseSyncManager: ObservableObject {
             // must leave the row dirty so that the edit is published by the next push.
             let stamps = chunk.map { $0.updatedAt }
             let payload = chunk.map { taskPayload($0, uid: uid) }
-            guard await upsert(table: Table.tasks, payload: payload) else {
+            guard await upsert(table: SyncTable.tasks, payload: payload) else {
                 succeeded = false
                 break
             }
@@ -593,7 +520,7 @@ class SupabaseSyncManager: ObservableObject {
         for chunk in habits.filter({ needsPush($0) }).chunked(into: upsertBatchSize) {
             let stamps = chunk.map { $0.updatedAt }
             let payload = chunk.map { habitPayload($0, uid: uid) }
-            guard await upsert(table: Table.habits, payload: payload) else {
+            guard await upsert(table: SyncTable.habits, payload: payload) else {
                 succeeded = false
                 break
             }
@@ -607,7 +534,7 @@ class SupabaseSyncManager: ObservableObject {
         if succeeded {
             noteSyncSuccess()
         } else {
-            noteSyncFailure()
+            backoff.recordFailure()
         }
         return succeeded
     }
@@ -619,7 +546,7 @@ class SupabaseSyncManager: ObservableObject {
         var pushable: [TaskItem] = []
         
         for task in byId.values {
-            if isTombstoned(table: Table.tasks, id: task.id) {
+            if ledger.contains(table: SyncTable.tasks, id: task.id) {
                 // The row was destroyed for good; a copy reappearing locally is a stale echo.
                 context.delete(task)
                 continue
@@ -628,7 +555,7 @@ class SupabaseSyncManager: ObservableObject {
             let isBlank = task.text.trimmingCharacters(in: .whitespaces).isEmpty
             if isBlank && task.deletedAt != nil {
                 if task.syncedAt != nil {
-                    deleteRemote(table: Table.tasks, ids: [task.id])
+                    deleteRemote(table: SyncTable.tasks, ids: [task.id])
                 }
                 context.delete(task)
                 continue
@@ -646,13 +573,13 @@ class SupabaseSyncManager: ObservableObject {
         var pushable: [HabitItem] = []
         
         for habit in byId.values {
-            if isTombstoned(table: Table.habits, id: habit.id) {
+            if ledger.contains(table: SyncTable.habits, id: habit.id) {
                 context.delete(habit)
                 continue
             }
             if habit.text.trimmingCharacters(in: .whitespaces).isEmpty {
                 if habit.syncedAt != nil {
-                    deleteRemote(table: Table.habits, ids: [habit.id])
+                    deleteRemote(table: SyncTable.habits, ids: [habit.id])
                 }
                 context.delete(habit)
                 continue
@@ -664,18 +591,22 @@ class SupabaseSyncManager: ObservableObject {
     
     // Explicit dictionary payloads guarantee key symmetry across the array (PostgREST PGRST102).
     private func taskPayload(_ task: TaskItem, uid: String) -> [String: Any] {
-        [
+        var payload: [String: Any] = [
             "id": task.id,
             "text": task.text,
             "completed": task.completed,
-            "created_at": Self.formatDate(task.createdAt),
+            "created_at": SyncTimestamp.format(task.createdAt),
             "interval_type": task.intervalType,
             "order": task.order,
-            "deleted_at": task.deletedAt.map { Self.formatDate($0) } ?? NSNull(),
-            "completed_at": task.completedAt.map { Self.formatDate($0) } ?? NSNull(),
+            "deleted_at": task.deletedAt.map { SyncTimestamp.format($0) } ?? NSNull(),
+            "completed_at": task.completedAt.map { SyncTimestamp.format($0) } ?? NSNull(),
             "user_id": uid,
-            "updated_at": Self.formatDate(toServerTime(task.updatedAt))
+            "updated_at": SyncTimestamp.format(clock.toServer(task.updatedAt))
         ]
+        if tasksSupportHabitId {
+            payload["habit_id"] = task.habitId ?? NSNull()
+        }
+        return payload
     }
     
     private func habitPayload(_ habit: HabitItem, uid: String) -> [String: Any] {
@@ -684,11 +615,11 @@ class SupabaseSyncManager: ObservableObject {
             "text": habit.text,
             "frequency": habit.frequency,
             "streak": habit.streak,
-            "last_completed_date": habit.lastCompletedDate.map { Self.formatDate($0) } ?? NSNull(),
+            "last_completed_date": habit.lastCompletedDate.map { SyncTimestamp.format($0) } ?? NSNull(),
             "order": habit.order,
-            "deleted_at": habit.deletedAt.map { Self.formatDate($0) } ?? NSNull(),
+            "deleted_at": habit.deletedAt.map { SyncTimestamp.format($0) } ?? NSNull(),
             "user_id": uid,
-            "updated_at": Self.formatDate(toServerTime(habit.updatedAt))
+            "updated_at": SyncTimestamp.format(clock.toServer(habit.updatedAt))
         ]
     }
     
@@ -709,7 +640,7 @@ class SupabaseSyncManager: ObservableObject {
             isSyncing = isPushing
             if pendingPullRequested {
                 pendingPullRequested = false
-                Task { @MainActor in await pullFromSupabase() }
+                Task { @MainActor in _ = await pullFromSupabase() }
             }
         }
         
@@ -717,9 +648,9 @@ class SupabaseSyncManager: ObservableObject {
         
         // Both snapshots must be complete before anything is merged: a partial snapshot must
         // never be mistaken for rows having been deleted elsewhere.
-        guard let remoteTasks: [SupabaseTaskDTO] = await fetchAll(table: Table.tasks, uid: uid),
-              let remoteHabits: [SupabaseHabitDTO] = await fetchAll(table: Table.habits, uid: uid) else {
-            noteSyncFailure()
+        guard let remoteTasks: [SupabaseTaskDTO] = await fetchAll(table: SyncTable.tasks, uid: uid),
+              let remoteHabits: [SupabaseHabitDTO] = await fetchAll(table: SyncTable.habits, uid: uid) else {
+            backoff.recordFailure()
             return false
         }
         
@@ -748,7 +679,7 @@ class SupabaseSyncManager: ObservableObject {
             if let owner = dto.user_id, owner != uid { continue }
             remoteIds.insert(dto.id)
             
-            if isTombstoned(table: Table.tasks, id: dto.id) {
+            if ledger.contains(table: SyncTable.tasks, id: dto.id) {
                 if let stale = localById.removeValue(forKey: dto.id) { context.delete(stale) }
                 continue
             }
@@ -761,28 +692,39 @@ class SupabaseSyncManager: ObservableObject {
                 continue
             }
             
-            let remoteStamp = Self.parseDate(dto.updated_at).map { toLocalTime($0) }
+            let remoteStamp = SyncTimestamp.parse(dto.updated_at).map { clock.toLocal($0) }
             
             if let existing = localById[dto.id] {
-                guard let stamp = remoteStamp else {
-                    // Unreadable server timestamp: republish ours so the row is comparable again.
+                switch MergePolicy.resolve(remoteUpdatedAt: remoteStamp,
+                                           localUpdatedAt: existing.updatedAt,
+                                           localSyncedAt: existing.syncedAt) {
+                case .adoptRemote(let stamp):
+                    assign(text, to: existing, \.text)
+                    assign(dto.completed ?? existing.completed, to: existing, \.completed)
+                    assign(dto.interval_type ?? existing.intervalType, to: existing, \.intervalType)
+                    assign(dto.order ?? existing.order, to: existing, \.order)
+                    assign(SyncTimestamp.parse(dto.created_at) ?? existing.createdAt, to: existing, \.createdAt)
+                    assign(SyncTimestamp.parse(dto.deleted_at), to: existing, \.deletedAt)
+                    assign(SyncTimestamp.parse(dto.completed_at), to: existing, \.completedAt)
+                    // A link is only ever adopted, never cleared: a database without the
+                    // habit_id column reports nil for every row and would otherwise wipe the
+                    // links held on this device.
+                    if let remoteHabitId = dto.habit_id {
+                        assign(Optional(remoteHabitId), to: existing, \.habitId)
+                    }
+                    // The row now *is* the server's version, timestamp included, so the next
+                    // pull finds nothing left to do.
+                    assign(stamp, to: existing, \.updatedAt)
+                    assign(Optional(stamp), to: existing, \.syncedAt)
+                case .republishLocal:
+                    // Either the server holds an older copy or its timestamp is unreadable.
+                    // Marking the row unpublished makes the next push send it.
                     existing.syncedAt = nil
                     needsFollowupPush = true
-                    continue
-                }
-                if stamp > existing.updatedAt {
-                    var changed = false
-                    changed = assign(text, to: existing, \.text) || changed
-                    changed = assign(dto.completed ?? existing.completed, to: existing, \.completed) || changed
-                    changed = assign(dto.interval_type ?? existing.intervalType, to: existing, \.intervalType) || changed
-                    changed = assign(dto.order ?? existing.order, to: existing, \.order) || changed
-                    changed = assign(Self.parseDate(dto.created_at) ?? existing.createdAt, to: existing, \.createdAt) || changed
-                    changed = assign(Self.parseDate(dto.deleted_at), to: existing, \.deletedAt) || changed
-                    changed = assign(Self.parseDate(dto.completed_at), to: existing, \.completedAt) || changed
-                    if changed { existing.updatedAt = stamp }
-                    if existing.syncedAt != stamp { existing.syncedAt = stamp }
-                } else if needsPush(existing) {
+                case .keepLocalAndPush:
                     needsFollowupPush = true
+                case .keepLocal:
+                    break
                 }
             } else {
                 if dto.deleted_at != nil && legacyBinPurgeArmed {
@@ -793,9 +735,10 @@ class SupabaseSyncManager: ObservableObject {
                 let task = TaskItem(text: text, intervalType: dto.interval_type ?? "1 Day", order: dto.order ?? 0)
                 task.id = dto.id
                 task.completed = dto.completed ?? false
-                task.createdAt = Self.parseDate(dto.created_at) ?? Date()
-                task.deletedAt = Self.parseDate(dto.deleted_at)
-                task.completedAt = Self.parseDate(dto.completed_at)
+                task.createdAt = SyncTimestamp.parse(dto.created_at) ?? Date()
+                task.deletedAt = SyncTimestamp.parse(dto.deleted_at)
+                task.completedAt = SyncTimestamp.parse(dto.completed_at)
+                task.habitId = dto.habit_id
                 task.updatedAt = remoteStamp ?? Date()
                 task.syncedAt = remoteStamp
                 context.insert(task)
@@ -811,7 +754,7 @@ class SupabaseSyncManager: ObservableObject {
         )
         
         if !orphanRemoteIds.isEmpty {
-            deleteRemote(table: Table.tasks, ids: orphanRemoteIds)
+            deleteRemote(table: SyncTable.tasks, ids: orphanRemoteIds)
         }
         return needsFollowupPush
     }
@@ -826,7 +769,7 @@ class SupabaseSyncManager: ObservableObject {
             if let owner = dto.user_id, owner != uid { continue }
             remoteIds.insert(dto.id)
             
-            if isTombstoned(table: Table.habits, id: dto.id) {
+            if ledger.contains(table: SyncTable.habits, id: dto.id) {
                 if let stale = localById.removeValue(forKey: dto.id) { context.delete(stale) }
                 continue
             }
@@ -837,26 +780,28 @@ class SupabaseSyncManager: ObservableObject {
                 continue
             }
             
-            let remoteStamp = Self.parseDate(dto.updated_at).map { toLocalTime($0) }
+            let remoteStamp = SyncTimestamp.parse(dto.updated_at).map { clock.toLocal($0) }
             
             if let existing = localById[dto.id] {
-                guard let stamp = remoteStamp else {
+                switch MergePolicy.resolve(remoteUpdatedAt: remoteStamp,
+                                           localUpdatedAt: existing.updatedAt,
+                                           localSyncedAt: existing.syncedAt) {
+                case .adoptRemote(let stamp):
+                    assign(text, to: existing, \.text)
+                    assign(dto.frequency ?? existing.frequency, to: existing, \.frequency)
+                    assign(dto.streak ?? existing.streak, to: existing, \.streak)
+                    assign(SyncTimestamp.parse(dto.last_completed_date), to: existing, \.lastCompletedDate)
+                    assign(dto.order ?? existing.order, to: existing, \.order)
+                    assign(SyncTimestamp.parse(dto.deleted_at), to: existing, \.deletedAt)
+                    assign(stamp, to: existing, \.updatedAt)
+                    assign(Optional(stamp), to: existing, \.syncedAt)
+                case .republishLocal:
                     existing.syncedAt = nil
                     needsFollowupPush = true
-                    continue
-                }
-                if stamp > existing.updatedAt {
-                    var changed = false
-                    changed = assign(text, to: existing, \.text) || changed
-                    changed = assign(dto.frequency ?? existing.frequency, to: existing, \.frequency) || changed
-                    changed = assign(dto.streak ?? existing.streak, to: existing, \.streak) || changed
-                    changed = assign(Self.parseDate(dto.last_completed_date), to: existing, \.lastCompletedDate) || changed
-                    changed = assign(dto.order ?? existing.order, to: existing, \.order) || changed
-                    changed = assign(Self.parseDate(dto.deleted_at), to: existing, \.deletedAt) || changed
-                    if changed { existing.updatedAt = stamp }
-                    if existing.syncedAt != stamp { existing.syncedAt = stamp }
-                } else if needsPush(existing) {
+                case .keepLocalAndPush:
                     needsFollowupPush = true
+                case .keepLocal:
+                    break
                 }
             } else {
                 if dto.deleted_at != nil && legacyBinPurgeArmed {
@@ -867,8 +812,8 @@ class SupabaseSyncManager: ObservableObject {
                 let habit = HabitItem(text: text, frequency: dto.frequency ?? "Daily", order: dto.order ?? 0)
                 habit.id = dto.id
                 habit.streak = dto.streak ?? 0
-                habit.lastCompletedDate = Self.parseDate(dto.last_completed_date)
-                habit.deletedAt = Self.parseDate(dto.deleted_at)
+                habit.lastCompletedDate = SyncTimestamp.parse(dto.last_completed_date)
+                habit.deletedAt = SyncTimestamp.parse(dto.deleted_at)
                 habit.updatedAt = remoteStamp ?? Date()
                 habit.syncedAt = remoteStamp
                 context.insert(habit)
@@ -884,7 +829,7 @@ class SupabaseSyncManager: ObservableObject {
         )
         
         if !orphanRemoteIds.isEmpty {
-            deleteRemote(table: Table.habits, ids: orphanRemoteIds)
+            deleteRemote(table: SyncTable.habits, ids: orphanRemoteIds)
         }
         return needsFollowupPush
     }
@@ -961,13 +906,11 @@ class SupabaseSyncManager: ObservableObject {
     }
     
     private func needsPush(_ task: TaskItem) -> Bool {
-        guard let synced = task.syncedAt else { return true }
-        return synced < task.updatedAt
+        MergePolicy.needsPush(updatedAt: task.updatedAt, syncedAt: task.syncedAt)
     }
     
     private func needsPush(_ habit: HabitItem) -> Bool {
-        guard let synced = habit.syncedAt else { return true }
-        return synced < habit.updatedAt
+        MergePolicy.needsPush(updatedAt: habit.updatedAt, syncedAt: habit.syncedAt)
     }
     
     @discardableResult
@@ -997,75 +940,28 @@ class SupabaseSyncManager: ObservableObject {
     
     // MARK: - Tombstones
     
-    private func loadTombstones() {
-        guard let data = UserDefaults.standard.data(forKey: StoreKey.tombstones),
-              let stored = try? JSONDecoder().decode([String: [String: Tombstone]].self, from: data) else { return }
-        tombstones = stored
-    }
-    
-    private func persistTombstones() {
-        if let data = try? JSONEncoder().encode(tombstones) {
-            UserDefaults.standard.set(data, forKey: StoreKey.tombstones)
-        }
-    }
-    
-    private func addTombstones(table: String, ids: [String]) {
-        var forTable = tombstones[table] ?? [:]
-        let now = Date()
-        for id in ids where forTable[id] == nil {
-            forTable[id] = Tombstone(id: id, createdAt: now, confirmedAt: nil)
-        }
-        tombstones[table] = forTable
-        persistTombstones()
-    }
-    
-    private func isTombstoned(table: String, id: String) -> Bool {
-        tombstones[table]?[id] != nil
-    }
-    
-    private func unconfirmedTombstoneIds(table: String) -> [String] {
-        (tombstones[table] ?? [:]).values.filter { $0.confirmedAt == nil }.map { $0.id }
-    }
-    
-    private func confirmTombstones(table: String, ids: [String]) {
-        guard var forTable = tombstones[table] else { return }
-        let now = Date()
-        for id in ids {
-            forTable[id]?.confirmedAt = now
-        }
-        tombstones[table] = forTable
-    }
-    
-    /// Confirmed tombstones are kept briefly so that a snapshot fetched before the delete
-    /// cannot reintroduce the row, then dropped to keep the record from growing forever.
-    private func pruneConfirmedTombstones() {
-        let cutoff = Date().addingTimeInterval(-tombstoneRetention)
-        for (table, entries) in tombstones {
-            tombstones[table] = entries.filter { _, tombstone in
-                guard let confirmedAt = tombstone.confirmedAt else { return true }
-                return confirmedAt > cutoff
-            }
-        }
-        tombstones = tombstones.filter { !$0.value.isEmpty }
+    private func persistLedger() {
+        guard persistsLedger else { return }
+        UserDefaults.standard.set(ledger.encoded(), forKey: StoreKey.tombstones)
     }
     
     @discardableResult
     private func flushTombstones() async -> Bool {
         var succeeded = true
-        for table in Table.all {
-            let pending = unconfirmedTombstoneIds(table: table)
+        for table in SyncTable.all {
+            let pending = ledger.unconfirmedIds(table: table)
             guard !pending.isEmpty else { continue }
             for chunk in pending.chunked(into: deleteBatchSize) {
                 if await deleteRows(table: table, ids: chunk) {
-                    confirmTombstones(table: table, ids: chunk)
+                    ledger.confirm(table: table, ids: chunk)
                 } else {
                     succeeded = false
                     break
                 }
             }
         }
-        pruneConfirmedTombstones()
-        persistTombstones()
+        ledger.pruneConfirmed()
+        persistLedger()
         return succeeded
     }
     
@@ -1091,7 +987,29 @@ class SupabaseSyncManager: ObservableObject {
         }
         
         guard let (data, response) = await authenticatedRequest(request) else { return false }
+        
+        if let httpResp = response as? HTTPURLResponse, httpResp.statusCode >= 400 {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            // A database without the habit link column must not block ordinary task syncing.
+            if table == SyncTable.tasks, tasksSupportHabitId, Self.mentionsMissingHabitIdColumn(body) {
+                print("[Supabase] tasks.habit_id is missing; habit links will stay device-local. Add the column to sync them.")
+                tasksSupportHabitId = false
+                let stripped = payload.map { row in row.filter { $0.key != "habit_id" } }
+                return await upsert(table: table, payload: stripped)
+            }
+        }
+        
         return validate(response: response, data: data, action: "Upsert \(table)")
+    }
+    
+    /// Recognises PostgREST's schema-cache and Postgres' undefined-column errors.
+    static func mentionsMissingHabitIdColumn(_ body: String) -> Bool {
+        let lowered = body.lowercased()
+        guard lowered.contains("habit_id") else { return false }
+        return lowered.contains("pgrst204")
+            || lowered.contains("42703")
+            || lowered.contains("could not find")
+            || lowered.contains("does not exist")
     }
     
     private func deleteRows(table: String, ids: [String]) async -> Bool {
@@ -1178,7 +1096,7 @@ class SupabaseSyncManager: ObservableObject {
         let sentAt = Date()
         do {
             let (data, response) = try await session.data(for: req)
-            updateServerTimeOffset(from: response, sentAt: sentAt)
+            updateServerClock(from: response, sentAt: sentAt)
             
             if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 401, allowRetry {
                 if await refreshAccessToken() {
@@ -1198,53 +1116,109 @@ class SupabaseSyncManager: ObservableObject {
         }
     }
     
-    // MARK: - Clock Alignment & Backoff
-    
-    /// Tracks the offset between the server clock and this device's clock, so that a device
-    /// with a badly set clock neither wins every conflict nor ignores every remote change.
-    private func updateServerTimeOffset(from response: URLResponse, sentAt: Date) {
+    private func updateServerClock(from response: URLResponse, sentAt: Date) {
         guard let httpResp = response as? HTTPURLResponse,
-              let header = httpResp.value(forHTTPHeaderField: "Date"),
-              let serverDate = Self.httpDateFormatter.date(from: header) else { return }
-        
-        // Midpoint of the round trip is the best estimate of "now" at the moment the
-        // server stamped its response.
-        let midpoint = sentAt.addingTimeInterval(Date().timeIntervalSince(sentAt) / 2)
-        let candidate = serverDate.timeIntervalSince(midpoint)
-        
-        // The header only has second resolution, so only meaningful corrections are adopted;
-        // this keeps stored timestamps stable across syncs.
-        guard abs(candidate - serverTimeOffset) > 2 else { return }
-        serverTimeOffset = candidate
-        UserDefaults.standard.set(candidate, forKey: StoreKey.serverTimeOffset)
-    }
-    
-    private func toServerTime(_ date: Date) -> Date {
-        date.addingTimeInterval(serverTimeOffset)
-    }
-    
-    private func toLocalTime(_ date: Date) -> Date {
-        date.addingTimeInterval(-serverTimeOffset)
+              let serverDate = ServerClock.parseHTTPDate(httpResp.value(forHTTPHeaderField: "Date")) else { return }
+        if clock.adopt(serverDate: serverDate, sentAt: sentAt, receivedAt: Date()) {
+            UserDefaults.standard.set(clock.offset, forKey: StoreKey.serverTimeOffset)
+        }
     }
     
     private func noteSyncSuccess() {
-        consecutiveFailures = 0
-        nextScheduledAttempt = .distantPast
+        backoff.recordSuccess()
         lastSyncedAt = Date()
-    }
-    
-    /// Backs off scheduled cycles while the server is unreachable instead of retrying every
-    /// poll interval. Manual and edit-triggered syncs still go through immediately.
-    private func noteSyncFailure() {
-        consecutiveFailures = min(consecutiveFailures + 1, 8)
-        let delay = min(maxBackoff, pow(2, Double(consecutiveFailures)))
-        nextScheduledAttempt = Date().addingTimeInterval(delay)
     }
 }
 
+// MARK: - Test Seams
+
+#if DEBUG
+/// Lets the tests drive the real merge, payload and tombstone code against an in-memory
+/// store. Nothing here performs any networking, and none of it is compiled into a release
+/// build.
+extension SupabaseSyncManager {
+    static func makeForTesting(context: ModelContext, uid: String = "test-user") -> SupabaseSyncManager {
+        let manager = SupabaseSyncManager()
+        manager.persistsLedger = false
+        manager.ledger = TombstoneLedger()
+        manager.modelContext = context
+        manager.userId = uid
+        manager.isAuthenticated = false
+        return manager
+    }
+    
+    var testingClockOffset: TimeInterval {
+        get { clock.offset }
+        set { clock.offset = newValue }
+    }
+    
+    var testingLedger: TombstoneLedger {
+        get { ledger }
+        set { ledger = newValue }
+    }
+    
+    var testingSupportsHabitIdColumn: Bool {
+        get { tasksSupportHabitId }
+        set { tasksSupportHabitId = newValue }
+    }
+    
+    var testingUserId: String? { userId }
+    
+    /// Applies a complete server snapshot. Returns whether a follow-up push is needed.
+    @discardableResult
+    func testingMerge(tasks: [SupabaseTaskDTO], habits: [SupabaseHabitDTO] = []) -> Bool {
+        guard let context = modelContext, let uid = userId else { return false }
+        var needsFollowup = mergeRemoteTasks(tasks, context: context, uid: uid)
+        if mergeRemoteHabits(habits, context: context, uid: uid) { needsFollowup = true }
+        persist(context)
+        return needsFollowup
+    }
+    
+    func testingArmLegacyBinPurge() {
+        legacyBinPurgeArmed = true
+    }
+    
+    /// The rows a push would send, after local housekeeping.
+    func testingPushableTasks() -> [TaskItem] {
+        guard let context = modelContext else { return [] }
+        return pushableTasks(context: context).filter { needsPush($0) }
+    }
+    
+    func testingPushableHabits() -> [HabitItem] {
+        guard let context = modelContext else { return [] }
+        return pushableHabits(context: context).filter { needsPush($0) }
+    }
+    
+    /// The exact body a push would upload for one row.
+    func testingTaskPayload(_ task: TaskItem) -> [String: Any] {
+        taskPayload(task, uid: userId ?? "")
+    }
+    
+    func testingHabitPayload(_ habit: HabitItem) -> [String: Any] {
+        habitPayload(habit, uid: userId ?? "")
+    }
+    
+    func testingMarkSynced(_ task: TaskItem) {
+        task.syncedAt = task.updatedAt
+    }
+    
+    func testingMarkSynced(_ habit: HabitItem) {
+        habit.syncedAt = habit.updatedAt
+    }
+    
+    func testingNeedsPush(_ task: TaskItem) -> Bool { needsPush(task) }
+    func testingNeedsPush(_ habit: HabitItem) -> Bool { needsPush(habit) }
+    
+    func testingSave() {
+        guard let context = modelContext else { return }
+        persist(context)
+    }
+}
+#endif
+
 // MARK: - Utilities
 
-private extension Array {
+extension Array {
     func chunked(into size: Int) -> [[Element]] {
         guard size > 0 else { return isEmpty ? [] : [self] }
         return stride(from: 0, to: count, by: size).map { Array(self[$0..<Swift.min($0 + size, count)]) }

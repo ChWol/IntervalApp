@@ -5,6 +5,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \TaskItem.order) private var allTasks: [TaskItem]
+    @Query(sort: \HabitItem.order) private var allHabits: [HabitItem]
     
     @StateObject private var migrationManager = MigrationManager()
     @StateObject private var syncManager = SupabaseSyncManager.shared
@@ -29,7 +30,7 @@ struct ContentView: View {
             mainAppView
                 .onAppear {
                     syncManager.start(context: modelContext)
-                    migrationManager.startMonitoring(allTasks: allTasks)
+                    migrationManager.startMonitoring(context: modelContext)
                     cleanupOldTasks()
                 }
         } else {
@@ -236,12 +237,15 @@ struct ContentView: View {
                 MigrationModalView(
                     migration: migration,
                     tasks: allTasks.filter { $0.intervalType == migration.source && !$0.completed && $0.deletedAt == nil },
-                    onMigrate: { selectedTaskIds in
+                    habits: HabitTaskLink.selectableHabits(
+                        from: allHabits,
+                        hourTasks: allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval }
+                    ),
+                    onMigrate: { selectedTaskIds, selectedHabitIds in
                         migrationManager.executeMigration(
                             migration: migration,
                             selectedTaskIds: selectedTaskIds,
-                            allTasks: allTasks,
-                            context: modelContext
+                            selectedHabitIds: selectedHabitIds
                         )
                     },
                     onCommitGoals: { goals in
@@ -257,7 +261,7 @@ struct ContentView: View {
                         migrationManager.currentMigration = nil
                     },
                     onSkip: {
-                        migrationManager.skipMigration(allTasks: allTasks)
+                        migrationManager.skipMigration()
                     }
                 )
             }
@@ -267,33 +271,14 @@ struct ContentView: View {
     // MARK: - Actions
     
     private func clearCompletedTasks() {
-        let completedTasks = allTasks.filter { $0.completed && $0.deletedAt == nil }
-        deletePermanently(completedTasks)
+        TaskHousekeeping.deletePermanently(TaskHousekeeping.completed(from: allTasks), in: modelContext)
     }
     
     private func clearDeletedTasks() {
-        let deletedTasks = allTasks.filter { $0.deletedAt != nil }
-        deletePermanently(deletedTasks)
+        TaskHousekeeping.deletePermanently(TaskHousekeeping.binned(from: allTasks), in: modelContext)
     }
     
     private func cleanupOldTasks() {
-        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
-        let expired = allTasks.filter { task in
-            if let deletedAt = task.deletedAt { return deletedAt < thirtyDaysAgo }
-            if let completedAt = task.completedAt { return completedAt < thirtyDaysAgo }
-            return false
-        }
-        deletePermanently(expired)
-    }
-    
-    /// Registers the remote delete before touching the local store so that a pull already in
-    /// flight cannot bring the rows back, and so the delete is retried until it lands.
-    private func deletePermanently(_ tasks: [TaskItem]) {
-        guard !tasks.isEmpty else { return }
-        SupabaseSyncManager.shared.deleteRemote(table: "tasks", ids: tasks.map { $0.id })
-        for task in tasks {
-            modelContext.delete(task)
-        }
-        try? modelContext.save()
+        TaskHousekeeping.deletePermanently(TaskHousekeeping.expired(from: allTasks), in: modelContext)
     }
 }
