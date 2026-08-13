@@ -413,6 +413,7 @@ struct ScratchpadItemRowView: View {
     @State private var text: String = ""
     @State private var isExpanded: Bool = false
     @State private var isHovered: Bool = false
+    @State private var showTransferPopover: Bool = false
     
     private var myId: String { item.id }
     private var isCurrentlyFocused: Bool { focusedTaskId == myId }
@@ -428,7 +429,7 @@ struct ScratchpadItemRowView: View {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.gray.opacity(colorScheme == .dark ? 0.15 : 0.08))
                     .frame(height: 24)
-            } else if isSelected {
+            } else if isSelected && selectedItemIds.count > 1 {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.06))
             }
@@ -484,35 +485,59 @@ struct ScratchpadItemRowView: View {
                 
                 if !isNew {
                     HStack(spacing: 2) {
-                        Menu {
-                            Section("Transfer to Interval Task") {
-                                Button("1 Hour") { transferItems(to: "1 Hour") }
-                                Button("1 Day") { transferItems(to: "1 Day") }
-                                Button("1 Week") { transferItems(to: "1 Week") }
-                                Button("1 Month") { transferItems(to: "1 Month") }
-                                Button("1 Year") { transferItems(to: "1 Year") }
-                            }
-                        } label: {
+                        Button(action: {
+                            showTransferPopover.toggle()
+                        }) {
                             Image(systemName: "arrow.turn.up.right")
                                 .font(.system(size: 8))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.secondary.opacity(0.6))
                                 .padding(4)
                                 .contentShape(Rectangle())
                         }
-                        .menuStyle(.borderlessButton)
-                        .menuIndicator(.hidden)
-                        .fixedSize()
+                        .buttonStyle(.plain)
+                        .popover(isPresented: $showTransferPopover, arrowEdge: .trailing) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("TRANSFER TO TASK")
+                                    .font(.system(size: 9, weight: .light))
+                                    .tracking(1.5)
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.top, 8)
+                                
+                                Divider()
+                                
+                                ForEach(["1 Hour", "1 Day", "1 Week", "1 Month", "1 Year"], id: \.self) { cat in
+                                    Button(action: {
+                                        showTransferPopover = false
+                                        transferItems(to: cat)
+                                    }) {
+                                        HStack {
+                                            Text(cat)
+                                                .font(.system(size: 12, weight: .light))
+                                                .foregroundColor(.primary)
+                                            Spacer()
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                            .frame(width: 120)
+                        }
                         
                         Button(action: deleteItem) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 8))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.secondary.opacity(0.6))
                                 .padding(4)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
-                    .opacity(isHovered || isSelected ? 1 : 0)
+                    .opacity(isHovered || showTransferPopover || (isSelected && selectedItemIds.count > 1) ? 1 : 0)
                 }
             }
             .padding(.horizontal, 4)
@@ -529,9 +554,14 @@ struct ScratchpadItemRowView: View {
             if !isCurrentlyFocused { text = newText }
         }
         .onChange(of: focusedTaskId) { _, newId in
-            if newId != myId && isExpanded {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isExpanded = false
+            if newId != myId {
+                if isCurrentlyFocused {
+                    saveItem()
+                }
+                if isExpanded {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded = false
+                    }
                 }
             }
         }
@@ -546,7 +576,13 @@ struct ScratchpadItemRowView: View {
     }
     
     private func handleTapSelection() {
-        if isNew { return }
+        if isNew {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isExpanded = true
+                focusedTaskId = myId
+            }
+            return
+        }
         
         #if os(macOS)
         let flags = NSEvent.modifierFlags
