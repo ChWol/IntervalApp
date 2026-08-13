@@ -29,6 +29,10 @@ struct ScratchpadView: View {
     @State private var editingListTitleText: String = ""
     @State private var listToDelete: ScratchpadList? = nil
     @State private var showDeleteListAlert: Bool = false
+    
+    @State private var selectedItemIds: Set<String> = []
+    @State private var lastClickedItemId: String? = nil
+    
     @FocusState private var isNewListFocused: Bool
     
     private var activeLists: [ScratchpadList] {
@@ -77,6 +81,7 @@ struct ScratchpadView: View {
                                     Button(action: {
                                         withAnimation(.easeInOut(duration: 0.15)) {
                                             selectedListId = list.id
+                                            selectedItemIds.removeAll()
                                         }
                                     }) {
                                         Text(list.title.isEmpty ? "Untitled List" : list.title)
@@ -247,7 +252,10 @@ struct ScratchpadView: View {
                             item: item,
                             isNew: false,
                             listId: currentList.id,
-                            focusedTaskId: $focusedTaskId
+                            focusedTaskId: $focusedTaskId,
+                            selectedItemIds: $selectedItemIds,
+                            lastClickedItemId: $lastClickedItemId,
+                            allItemsInList: openItems
                         )
                     }
                     
@@ -256,7 +264,10 @@ struct ScratchpadView: View {
                             item: ScratchpadItem(listId: currentList.id, text: ""),
                             isNew: true,
                             listId: currentList.id,
-                            focusedTaskId: $focusedTaskId
+                            focusedTaskId: $focusedTaskId,
+                            selectedItemIds: $selectedItemIds,
+                            lastClickedItemId: $lastClickedItemId,
+                            allItemsInList: []
                         )
                     }
                 }
@@ -290,7 +301,10 @@ struct ScratchpadView: View {
                                 item: item,
                                 isNew: false,
                                 listId: currentList.id,
-                                focusedTaskId: $focusedTaskId
+                                focusedTaskId: $focusedTaskId,
+                                selectedItemIds: $selectedItemIds,
+                                lastClickedItemId: $lastClickedItemId,
+                                allItemsInList: completedItems
                             )
                         }
                     }
@@ -389,6 +403,9 @@ struct ScratchpadItemRowView: View {
     var isNew: Bool
     var listId: String
     @Binding var focusedTaskId: String?
+    @Binding var selectedItemIds: Set<String>
+    @Binding var lastClickedItemId: String?
+    var allItemsInList: [ScratchpadItem]
     
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
@@ -399,6 +416,7 @@ struct ScratchpadItemRowView: View {
     
     private var myId: String { item.id }
     private var isCurrentlyFocused: Bool { focusedTaskId == myId }
+    private var isSelected: Bool { selectedItemIds.contains(myId) }
     private var isDragged: Bool { !isNew && ScratchpadDragState.shared.draggedItem?.id == item.id }
     
     var body: some View {
@@ -410,6 +428,9 @@ struct ScratchpadItemRowView: View {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.gray.opacity(colorScheme == .dark ? 0.15 : 0.08))
                     .frame(height: 24)
+            } else if isSelected {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.06))
             }
             
             HStack(alignment: .top, spacing: 8) {
@@ -431,14 +452,7 @@ struct ScratchpadItemRowView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                if !isExpanded {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        isExpanded = true
-                                        focusedTaskId = myId
-                                    }
-                                } else {
-                                    focusedTaskId = myId
-                                }
+                                handleTapSelection()
                             }
                     } else {
                         CustomTextField(
@@ -469,17 +483,40 @@ struct ScratchpadItemRowView: View {
                 }
                 
                 if !isNew {
-                    Button(action: deleteItem) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 8))
-                            .foregroundColor(.secondary)
-                            .padding(4)
-                            .contentShape(Rectangle())
+                    HStack(spacing: 2) {
+                        Menu {
+                            Section("Transfer to Interval Task") {
+                                Button("1 Hour") { transferItems(to: "1 Hour") }
+                                Button("1 Day") { transferItems(to: "1 Day") }
+                                Button("1 Week") { transferItems(to: "1 Week") }
+                                Button("1 Month") { transferItems(to: "1 Month") }
+                                Button("1 Year") { transferItems(to: "1 Year") }
+                            }
+                        } label: {
+                            Image(systemName: "arrow.turn.up.right")
+                                .font(.system(size: 8))
+                                .foregroundColor(.secondary)
+                                .padding(4)
+                                .contentShape(Rectangle())
+                        }
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        .fixedSize()
+                        
+                        Button(action: deleteItem) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 8))
+                                .foregroundColor(.secondary)
+                                .padding(4)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-                    .opacity(isHovered ? 1 : 0)
+                    .opacity(isHovered || isSelected ? 1 : 0)
                 }
             }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
             .opacity(isDragged ? 0 : 1)
         }
         .onHover { hovering in
@@ -506,6 +543,74 @@ struct ScratchpadItemRowView: View {
             return NSItemProvider()
         }
         .onDrop(of: [.data], delegate: ScratchpadItemDropDelegate(item: item, context: modelContext))
+    }
+    
+    private func handleTapSelection() {
+        if isNew { return }
+        
+        #if os(macOS)
+        let flags = NSEvent.modifierFlags
+        if flags.contains(.command) {
+            if selectedItemIds.contains(myId) {
+                selectedItemIds.remove(myId)
+            } else {
+                selectedItemIds.insert(myId)
+            }
+            lastClickedItemId = myId
+            return
+        } else if flags.contains(.shift), let lastId = lastClickedItemId {
+            let allIds = allItemsInList.map { $0.id }
+            if let idx1 = allIds.firstIndex(of: lastId), let idx2 = allIds.firstIndex(of: myId) {
+                let start = min(idx1, idx2)
+                let end = max(idx1, idx2)
+                for i in start...end {
+                    selectedItemIds.insert(allIds[i])
+                }
+            }
+            return
+        }
+        #endif
+        
+        if !selectedItemIds.contains(myId) || selectedItemIds.count > 1 {
+            selectedItemIds = [myId]
+        }
+        lastClickedItemId = myId
+        
+        if !isExpanded {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isExpanded = true
+                focusedTaskId = myId
+            }
+        } else {
+            focusedTaskId = myId
+        }
+    }
+    
+    private func transferItems(to intervalType: String) {
+        let itemsToTransfer: [ScratchpadItem]
+        if selectedItemIds.contains(myId) && selectedItemIds.count > 1 {
+            itemsToTransfer = allItemsInList.filter { selectedItemIds.contains($0.id) }
+        } else {
+            itemsToTransfer = [item]
+        }
+        
+        let descriptor = FetchDescriptor<TaskItem>()
+        let existingTasks = (try? modelContext.fetch(descriptor))?.filter { $0.intervalType == intervalType && $0.deletedAt == nil } ?? []
+        var maxOrder = (existingTasks.map { $0.order }.max() ?? -1) + 1
+        
+        let now = Date()
+        for scratchItem in itemsToTransfer {
+            let newTask = TaskItem(text: scratchItem.text, intervalType: intervalType, order: maxOrder)
+            modelContext.insert(newTask)
+            maxOrder += 1
+            
+            scratchItem.deletedAt = now
+            scratchItem.updatedAt = now
+        }
+        
+        try? modelContext.save()
+        SupabaseSyncManager.shared.push()
+        selectedItemIds.removeAll()
     }
     
     private func toggleCompleted() {
@@ -549,10 +654,21 @@ struct ScratchpadItemRowView: View {
     }
     
     private func deleteItem() {
-        item.deletedAt = Date()
-        item.updatedAt = Date()
+        let now = Date()
+        let itemsToDelete: [ScratchpadItem]
+        if selectedItemIds.contains(myId) && selectedItemIds.count > 1 {
+            itemsToDelete = allItemsInList.filter { selectedItemIds.contains($0.id) }
+        } else {
+            itemsToDelete = [item]
+        }
+        
+        for it in itemsToDelete {
+            it.deletedAt = now
+            it.updatedAt = now
+        }
         try? modelContext.save()
         SupabaseSyncManager.shared.push()
+        selectedItemIds.removeAll()
     }
     
     private func handleItemSubmit(isAtBeginning: Bool) {
