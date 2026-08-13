@@ -211,12 +211,12 @@ struct ContentView: View {
                             currentViewMode = (currentViewMode == .intervals ? .scratchpad : .intervals)
                         }
                     }) {
-                        HStack(spacing: 6) {
+                        ZStack {
                             Image(systemName: currentViewMode == .intervals ? "doc.plaintext" : "chart.bar")
                                 .font(.system(size: 11, weight: .light))
                                 .foregroundColor(.secondary)
                         }
-                        .padding(8)
+                        .frame(width: 28, height: 28)
                         .background(
                             Circle()
                                 .fill(Color.primary.opacity(0.04))
@@ -233,7 +233,7 @@ struct ContentView: View {
                         #endif
                         Task { await syncManager.triggerManualSync() }
                     }) {
-                        HStack(spacing: 6) {
+                        ZStack {
                             if syncManager.isSyncing {
                                 ProgressView()
                                     .controlSize(.small)
@@ -243,7 +243,7 @@ struct ContentView: View {
                                     .foregroundColor(.secondary)
                             }
                         }
-                        .padding(8)
+                        .frame(width: 28, height: 28)
                         .background(
                             Circle()
                                 .fill(Color.primary.opacity(0.04))
