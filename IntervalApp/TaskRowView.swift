@@ -17,7 +17,7 @@ struct TaskRowView: View {
     @State private var isHovering: Bool = false
     @State private var isCheckmarkHovering: Bool = false
     @State private var localCompleted: Bool = false
-    @State private var isCompletedExpanded: Bool = false
+    @State private var isExpanded: Bool = false
     @State private var swipeOffset: CGFloat = 0
     @ObservedObject private var dragState = DragState.shared
     
@@ -90,11 +90,18 @@ struct TaskRowView: View {
             )
             #endif
         }
-        .onChange(of: focusedTaskId) { _, _ in
-            // Auto-retract swipe when user focuses another task
-            if swipeOffset != 0 {
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
-                    swipeOffset = 0
+        .onChange(of: focusedTaskId) { _, newId in
+            let myId = isNew ? "NEW_\(listTitle)" : task.id
+            if newId != myId {
+                if isExpanded {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded = false
+                    }
+                }
+                if swipeOffset != 0 {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
+                        swipeOffset = 0
+                    }
                 }
             }
         }
@@ -188,136 +195,157 @@ struct TaskRowView: View {
                     .font(.system(size: fontSize, weight: .light))
                     .foregroundColor(.secondary)
                     .strikethrough(true)
-                    .lineLimit(isCompletedExpanded ? nil : 1)
+                    .lineLimit(isExpanded ? nil : 1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            isCompletedExpanded.toggle()
+                            isExpanded.toggle()
                         }
                     }
             } else {
+                let myId = isNew ? "NEW_\(listTitle)" : task.id
+                let isCurrentlyFocused = (focusedTaskId == myId)
+                
                 ZStack(alignment: .leading) {
-                    if isNew && text.isEmpty {
-                        Text("Add task...")
-                            .font(.system(size: fontSize, weight: .light))
-                            .foregroundColor(.secondary.opacity(0.5))
-                    }
-                    
-                    CustomTextField(
-                        text: $text,
-                        isFocused: focusedTaskId == (isNew ? "NEW_\(listTitle)" : task.id),
-                        onFocusChanged: { focused in
-                            if focused {
-                                focusedTaskId = isNew ? "NEW_\(listTitle)" : task.id
-                            } else {
-                                if focusedTaskId == (isNew ? "NEW_\(listTitle)" : task.id) {
-                                    focusedTaskId = nil
+                    if isCurrentlyFocused {
+                        CustomTextField(
+                            text: $text,
+                            isFocused: true,
+                            onFocusChanged: { focused in
+                                if focused {
+                                    focusedTaskId = myId
+                                } else {
+                                    if focusedTaskId == myId {
+                                        focusedTaskId = nil
+                                    }
+                                    isExpanded = false
+                                    let trimmed = text.trimmingCharacters(in: .whitespaces)
+                                    if isNew {
+                                        if !trimmed.isEmpty {
+                                            let descriptor = FetchDescriptor<TaskItem>()
+                                            if let all = try? modelContext.fetch(descriptor) {
+                                                let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+                                                let newTask = TaskItem(text: trimmed, intervalType: listTitle, order: (sorted.last?.order ?? 0) + 1)
+                                                modelContext.insert(newTask)
+                                                try? modelContext.save()
+                                                SupabaseSyncManager.shared.push()
+                                                text = ""
+                                            }
+                                        }
+                                    } else {
+                                        if trimmed.isEmpty {
+                                            TaskHousekeeping.moveToBin(task, in: modelContext)
+                                        } else if task.text != trimmed {
+                                            task.text = trimmed
+                                            task.updatedAt = Date()
+                                            try? modelContext.save()
+                                            SupabaseSyncManager.shared.push()
+                                        }
+                                    }
                                 }
-                                let trimmed = text.trimmingCharacters(in: .whitespaces)
+                            },
+                            onSubmit: {
                                 if isNew {
+                                    let trimmed = text.trimmingCharacters(in: .whitespaces)
                                     if !trimmed.isEmpty {
                                         let descriptor = FetchDescriptor<TaskItem>()
                                         if let all = try? modelContext.fetch(descriptor) {
                                             let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
                                             let newTask = TaskItem(text: trimmed, intervalType: listTitle, order: (sorted.last?.order ?? 0) + 1)
                                             modelContext.insert(newTask)
+                                            
+                                            let nextTask = TaskItem(text: "", intervalType: listTitle, order: newTask.order + 1)
+                                            modelContext.insert(nextTask)
+                                            
                                             try? modelContext.save()
                                             SupabaseSyncManager.shared.push()
+                                            
                                             text = ""
+                                            DispatchQueue.main.async {
+                                                focusedTaskId = nextTask.id
+                                            }
                                         }
                                     }
                                 } else {
+                                    let trimmed = text.trimmingCharacters(in: .whitespaces)
                                     if trimmed.isEmpty {
                                         TaskHousekeeping.moveToBin(task, in: modelContext)
-                                    } else if task.text != trimmed {
+                                    } else {
                                         task.text = trimmed
                                         task.updatedAt = Date()
-                                        try? modelContext.save()
-                                        SupabaseSyncManager.shared.push()
+                                        
+                                        let descriptor = FetchDescriptor<TaskItem>()
+                                        if let all = try? modelContext.fetch(descriptor) {
+                                            var sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+                                            let newTask = TaskItem(text: "", intervalType: listTitle, order: task.order)
+                                            modelContext.insert(newTask)
+                                            
+                                            if let idx = sorted.firstIndex(where: { $0.id == task.id }) {
+                                                sorted.insert(newTask, at: idx + 1)
+                                            } else {
+                                                sorted.append(newTask)
+                                            }
+                                            
+                                            let now = Date()
+                                            for (i, t) in sorted.enumerated() {
+                                                t.order = i
+                                                t.updatedAt = now
+                                            }
+                                            
+                                            try? modelContext.save()
+                                            SupabaseSyncManager.shared.push()
+                                            
+                                            DispatchQueue.main.async {
+                                                focusedTaskId = newTask.id
+                                            }
+                                        }
                                     }
                                 }
-                            }
-                        },
-                        onSubmit: {
-                            if isNew {
-                                let trimmed = text.trimmingCharacters(in: .whitespaces)
-                                if !trimmed.isEmpty {
+                            },
+                            onDeleteEmpty: {
+                                if !isNew {
                                     let descriptor = FetchDescriptor<TaskItem>()
                                     if let all = try? modelContext.fetch(descriptor) {
                                         let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
-                                        let newTask = TaskItem(text: trimmed, intervalType: listTitle, order: (sorted.last?.order ?? 0) + 1)
-                                        modelContext.insert(newTask)
-                                        
-                                        let nextTask = TaskItem(text: "", intervalType: listTitle, order: newTask.order + 1)
-                                        modelContext.insert(nextTask)
-                                        
-                                        try? modelContext.save()
-                                        SupabaseSyncManager.shared.push()
-                                        
-                                        text = ""
-                                        DispatchQueue.main.async {
-                                            focusedTaskId = nextTask.id
+                                        if let idx = sorted.firstIndex(where: { $0.id == task.id }), idx > 0 {
+                                            focusedTaskId = sorted[idx - 1].id
                                         }
                                     }
-                                }
-                            } else {
-                                let trimmed = text.trimmingCharacters(in: .whitespaces)
-                                if trimmed.isEmpty {
                                     TaskHousekeeping.moveToBin(task, in: modelContext)
+                                }
+                            },
+                            fontSize: fontSize,
+                            placeholder: isNew ? "Add task..." : ""
+                        )
+                    } else {
+                        let rawText = isNew ? text : (text.isEmpty ? task.text : text)
+                        let displayText = rawText.isEmpty ? (isNew ? "Add task..." : "") : rawText
+                        let isPlaceholder = isNew && rawText.isEmpty
+                        
+                        Text(displayText)
+                            .font(.system(size: fontSize, weight: .light))
+                            .foregroundColor(isPlaceholder ? .secondary.opacity(0.5) : .primary)
+                            .lineLimit(isExpanded ? nil : 1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if isNew {
+                                    focusedTaskId = myId
                                 } else {
-                                    task.text = trimmed
-                                    task.updatedAt = Date()
-                                    
-                                    let descriptor = FetchDescriptor<TaskItem>()
-                                    if let all = try? modelContext.fetch(descriptor) {
-                                        var sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
-                                        let newTask = TaskItem(text: "", intervalType: listTitle, order: task.order)
-                                        modelContext.insert(newTask)
-                                        
-                                        if let idx = sorted.firstIndex(where: { $0.id == task.id }) {
-                                            sorted.insert(newTask, at: idx + 1)
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        if !isExpanded {
+                                            focusedTaskId = myId
+                                            isExpanded = true
                                         } else {
-                                            sorted.append(newTask)
-                                        }
-                                        
-                                        let now = Date()
-                                        for (i, t) in sorted.enumerated() {
-                                            t.order = i
-                                            t.updatedAt = now
-                                        }
-                                        
-                                        try? modelContext.save()
-                                        SupabaseSyncManager.shared.push()
-                                        
-                                        DispatchQueue.main.async {
-                                            focusedTaskId = newTask.id
+                                            focusedTaskId = myId
                                         }
                                     }
                                 }
                             }
-                        },
-                        onDeleteEmpty: {
-                            if !isNew {
-                                let descriptor = FetchDescriptor<TaskItem>()
-                                if let all = try? modelContext.fetch(descriptor) {
-                                    let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
-                                    if let idx = sorted.firstIndex(where: { $0.id == task.id }), idx > 0 {
-                                        focusedTaskId = sorted[idx - 1].id
-                                    }
-                                }
-                                TaskHousekeeping.moveToBin(task, in: modelContext)
-                            }
-                        },
-                        fontSize: fontSize,
-                        placeholder: isNew ? "Add task..." : ""
-                    )
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    focusedTaskId = isNew ? "NEW_\(listTitle)" : task.id
-                }
             }
             
             if !isNew {
