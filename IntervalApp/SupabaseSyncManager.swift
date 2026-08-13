@@ -1267,6 +1267,10 @@ class SupabaseSyncManager: ObservableObject {
         guard let httpResp = response as? HTTPURLResponse else { return false }
         if httpResp.statusCode >= 400 {
             let body = String(data: data, encoding: .utf8) ?? ""
+            if Self.mentionsMissingTable(body) {
+                print("[Supabase] \(action) table missing on remote server; operating locally.")
+                return false
+            }
             let msg = "\(action) error (HTTP \(httpResp.statusCode)): \(body)"
             print("[Supabase] \(msg)")
             lastError = msg
@@ -1274,6 +1278,14 @@ class SupabaseSyncManager: ObservableObject {
         }
         lastError = nil
         return true
+    }
+    
+    static func mentionsMissingTable(_ body: String) -> Bool {
+        let lowered = body.lowercased()
+        return lowered.contains("pgrst205")
+            || lowered.contains("42p01")
+            || lowered.contains("could not find the table")
+            || lowered.contains("does not exist")
     }
     
     /// Sends a request with auth headers. Retries once on 401 after refreshing the session.

@@ -42,7 +42,15 @@ struct ScratchpadView: View {
     
     private var activeItems: [ScratchpadItem] {
         guard let listId = selectedList?.id else { return [] }
-        return items.filter { $0.listId == listId && $0.deletedAt == nil }.sorted { $0.order < $1.order }
+        return items.filter { $0.listId == listId && $0.deletedAt == nil }
+    }
+    
+    private var openItems: [ScratchpadItem] {
+        activeItems.filter { !$0.completed }.sorted { $0.order < $1.order }
+    }
+    
+    private var completedItems: [ScratchpadItem] {
+        activeItems.filter { $0.completed }.sorted { ($0.completedAt ?? Date.distantPast) > ($1.completedAt ?? Date.distantPast) }
     }
     
     var body: some View {
@@ -80,7 +88,7 @@ struct ScratchpadView: View {
                                     }
                                 }
                                 
-                                if isSelected && activeLists.count > 1 {
+                                if isSelected {
                                     Button(action: { deleteList(list) }) {
                                         Image(systemName: "xmark")
                                             .font(.system(size: 8))
@@ -157,8 +165,37 @@ struct ScratchpadView: View {
             }
             .padding(.bottom, 5)
             
-            // MARK: - Selected List Header & Add Button
-            if let currentList = selectedList {
+            // MARK: - Selected List Contents or Empty State
+            if activeLists.isEmpty {
+                VStack(spacing: 12) {
+                    Spacer(minLength: 40)
+                    Text("No custom lists created yet.")
+                        .font(.system(size: 13, weight: .light))
+                        .foregroundColor(.secondary)
+                    
+                    Button(action: {
+                        withAnimation { isCreatingList = true }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                            isNewListFocused = true
+                        }
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus")
+                            Text("Create First List")
+                        }
+                        .font(.system(size: 12, weight: .light))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule()
+                                .fill(Color.primary.opacity(0.06))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    Spacer(minLength: 40)
+                }
+                .frame(maxWidth: .infinity)
+            } else if let currentList = selectedList {
                 HStack {
                     Text(currentList.title.uppercased())
                         .font(.system(size: 10, weight: .light, design: .default))
@@ -177,9 +214,9 @@ struct ScratchpadView: View {
                     .buttonStyle(.plain)
                 }
                 
-                // MARK: - Scratchpad Items List
+                // MARK: - Open Scratchpad Items List
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(activeItems) { item in
+                    ForEach(openItems) { item in
                         ScratchpadItemRowView(
                             item: item,
                             isNew: false,
@@ -188,7 +225,7 @@ struct ScratchpadView: View {
                         )
                     }
                     
-                    if activeItems.isEmpty {
+                    if openItems.isEmpty && completedItems.isEmpty {
                         ScratchpadItemRowView(
                             item: ScratchpadItem(listId: currentList.id, text: ""),
                             isNew: true,
@@ -197,24 +234,49 @@ struct ScratchpadView: View {
                         )
                     }
                 }
+                
+                // MARK: - Completed Items Section with Divider & Clear All
+                if !completedItems.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 8) {
+                            Text("COMPLETED (\(completedItems.count))")
+                                .font(.system(size: 9, weight: .light, design: .default))
+                                .tracking(1.5)
+                                .foregroundColor(.secondary.opacity(0.7))
+                            
+                            Rectangle()
+                                .frame(height: 1)
+                                .foregroundColor(Color.primary.opacity(0.06))
+                            
+                            Button(action: {
+                                clearAllCompletedItems(in: currentList.id)
+                            }) {
+                                Text("Clear All")
+                                    .font(.system(size: 10, weight: .light))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.top, 15)
+                        
+                        ForEach(completedItems) { item in
+                            ScratchpadItemRowView(
+                                item: item,
+                                isNew: false,
+                                listId: currentList.id,
+                                focusedTaskId: $focusedTaskId
+                            )
+                        }
+                    }
+                }
             }
             
             Spacer(minLength: 20)
         }
         .onAppear {
-            ensureDefaultListExists()
-        }
-    }
-    
-    private func ensureDefaultListExists() {
-        if activeLists.isEmpty {
-            let defaultList = ScratchpadList(title: "Scratchpad", order: 0)
-            modelContext.insert(defaultList)
-            try? modelContext.save()
-            SupabaseSyncManager.shared.push()
-            selectedListId = defaultList.id
-        } else if selectedListId == nil {
-            selectedListId = activeLists.first?.id
+            if selectedListId == nil {
+                selectedListId = activeLists.first?.id
+            }
         }
     }
     
@@ -263,13 +325,25 @@ struct ScratchpadView: View {
     
     private func createNewItemAtEnd() {
         guard let currentList = selectedList else { return }
-        let maxOrder = (activeItems.map { $0.order }.max() ?? -1) + 1
+        let maxOrder = (openItems.map { $0.order }.max() ?? -1) + 1
         let newItem = ScratchpadItem(listId: currentList.id, text: "", order: maxOrder)
         modelContext.insert(newItem)
         try? modelContext.save()
         SupabaseSyncManager.shared.push()
         DispatchQueue.main.async {
             focusedTaskId = newItem.id
+        }
+    }
+    
+    private func clearAllCompletedItems(in listId: String) {
+        let now = Date()
+        withAnimation {
+            for item in completedItems {
+                item.deletedAt = now
+                item.updatedAt = now
+            }
+            try? modelContext.save()
+            SupabaseSyncManager.shared.push()
         }
     }
 }
@@ -287,13 +361,13 @@ struct ScratchpadItemRowView: View {
     
     @State private var text: String = ""
     @State private var isExpanded: Bool = false
+    @State private var isHovered: Bool = false
     
     private var myId: String { item.id }
     private var isCurrentlyFocused: Bool { focusedTaskId == myId }
     private var isDragged: Bool { !isNew && ScratchpadDragState.shared.draggedItem?.id == item.id }
     
     var body: some View {
-        let active = isCurrentlyFocused || isExpanded
         let displayText = text.isEmpty ? (isNew ? "New item..." : "Item...") : text
         let isPlaceholder = text.isEmpty
         
@@ -359,8 +433,21 @@ struct ScratchpadItemRowView: View {
                         )
                     }
                 }
+                
+                if isHovered && !isNew {
+                    Button(action: deleteItem) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 8))
+                            .foregroundColor(.secondary)
+                            .padding(4)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .opacity(isDragged ? 0 : 1)
+        }
+        .onHover { hovering in
+            isHovered = hovering
         }
         .onAppear {
             text = item.text
@@ -405,7 +492,7 @@ struct ScratchpadItemRowView: View {
             if !trimmed.isEmpty {
                 let descriptor = FetchDescriptor<ScratchpadItem>()
                 if let all = try? modelContext.fetch(descriptor) {
-                    let sorted = all.filter { $0.listId == listId && $0.deletedAt == nil }.sorted { $0.order < $1.order }
+                    let sorted = all.filter { $0.listId == listId && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
                     let newItem = ScratchpadItem(listId: listId, text: trimmed, order: (sorted.last?.order ?? -1) + 1)
                     modelContext.insert(newItem)
                     try? modelContext.save()
@@ -438,7 +525,7 @@ struct ScratchpadItemRowView: View {
             if !trimmed.isEmpty {
                 let descriptor = FetchDescriptor<ScratchpadItem>()
                 if let all = try? modelContext.fetch(descriptor) {
-                    let sorted = all.filter { $0.listId == listId && $0.deletedAt == nil }.sorted { $0.order < $1.order }
+                    let sorted = all.filter { $0.listId == listId && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
                     let newItem = ScratchpadItem(listId: listId, text: trimmed, order: (sorted.last?.order ?? -1) + 1)
                     modelContext.insert(newItem)
                     
@@ -461,7 +548,7 @@ struct ScratchpadItemRowView: View {
                 
                 let descriptor = FetchDescriptor<ScratchpadItem>()
                 if let all = try? modelContext.fetch(descriptor) {
-                    var sorted = all.filter { $0.listId == listId && $0.deletedAt == nil }.sorted { $0.order < $1.order }
+                    var sorted = all.filter { $0.listId == listId && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
                     let newItem = ScratchpadItem(listId: listId, text: "", order: item.order)
                     modelContext.insert(newItem)
                     
@@ -504,7 +591,7 @@ struct ScratchpadItemDropDelegate: DropDelegate {
                 draggedItem.listId = item.listId
                 let descriptor = FetchDescriptor<ScratchpadItem>()
                 guard let all = try? context.fetch(descriptor) else { return }
-                var sorted = all.filter { $0.listId == item.listId && $0.deletedAt == nil && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
+                var sorted = all.filter { $0.listId == item.listId && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
                 
                 if let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) {
                     sorted.insert(draggedItem, at: targetIdx)
