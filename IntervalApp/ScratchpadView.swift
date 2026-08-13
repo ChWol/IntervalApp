@@ -325,7 +325,7 @@ struct ScratchpadView: View {
                 if !completedItems.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 8) {
-                            Text("COMPLETED (\(completedItems.count))")
+                            Text("\("COMPLETED".localized) (\(completedItems.count))")
                                 .font(.system(size: 9, weight: .light, design: .default))
                                 .tracking(1.5)
                                 .foregroundColor(.secondary.opacity(0.7))
@@ -337,7 +337,7 @@ struct ScratchpadView: View {
                             Button(action: {
                                 clearAllCompletedItems(in: currentList.id)
                             }) {
-                                Text("Clear All")
+                                Text("Clear All".localized)
                                     .font(.system(size: 10, weight: .light))
                                     .foregroundColor(.secondary)
                             }
@@ -367,13 +367,13 @@ struct ScratchpadView: View {
                 selectedListId = activeLists.first?.id
             }
         }
-        .alert("Delete List?", isPresented: $showDeleteListAlert, presenting: listToDelete) { list in
-            Button("Delete", role: .destructive) {
+        .alert("Delete List?".localized, isPresented: $showDeleteListAlert, presenting: listToDelete) { list in
+            Button("Delete".localized, role: .destructive) {
                 deleteList(list)
             }
-            Button("Cancel", role: .cancel) {}
+            Button("Cancel".localized, role: .cancel) {}
         } message: { list in
-            Text("Are you sure you want to delete '\(list.title.isEmpty ? "Untitled List" : list.title)' and all its items?")
+            Text("Delete list message".localized)
         }
     }
     
@@ -553,7 +553,7 @@ struct ScratchpadItemRowView: View {
                         }
                         .popover(isPresented: $showTransferPopover, arrowEdge: .trailing) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("TRANSFER TO TASK")
+                                Text("TRANSFER TO TASK".localized)
                                     .font(.system(size: 9, weight: .light))
                                     .tracking(1.5)
                                     .foregroundColor(.secondary)
@@ -568,7 +568,7 @@ struct ScratchpadItemRowView: View {
                                         transferItems(to: cat)
                                     }) {
                                         HStack {
-                                            Text(cat)
+                                            Text(cat.localized)
                                                 .font(.system(size: 12, weight: .light))
                                                 .foregroundColor(.primary)
                                             Spacer()

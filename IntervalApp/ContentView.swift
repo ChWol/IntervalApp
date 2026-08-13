@@ -11,12 +11,15 @@ struct ContentView: View {
     @StateObject private var syncManager = SupabaseSyncManager.shared
     @ObservedObject private var dragState = DragState.shared
     
+    @ObservedObject private var locManager = LocalizationManager.shared
+    
     @State private var isCompletedExpanded = false
     @State private var isDeletedExpanded = false
     @State private var showAllCompleted = false
     @State private var showAllDeleted = false
     @State private var focusedTaskId: String?
     @State private var currentViewMode: ViewMode = .intervals
+    @State private var showSettingsPopover: Bool = false
     
     enum ViewMode {
         case intervals
@@ -223,7 +226,55 @@ struct ContentView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .help(currentViewMode == .intervals ? "Switch to Scratchpad Lists" : "Switch to Interval Tasks")
+                    .help(currentViewMode == .intervals ? "Switch to Scratchpad Lists".localized : "Switch to Interval Tasks".localized)
+                    
+                    // Settings Button
+                    Button(action: {
+                        focusedTaskId = nil
+                        #if os(iOS)
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        #endif
+                        showSettingsPopover.toggle()
+                    }) {
+                        ZStack {
+                            Image(systemName: "gearshape")
+                                .font(.system(size: 11, weight: .light))
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(width: 28, height: 28)
+                        .background(
+                            Circle()
+                                .fill(Color.primary.opacity(0.04))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .help("Settings".localized)
+                    .popover(isPresented: $showSettingsPopover, arrowEdge: .top) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Settings".localized.uppercased())
+                                .font(.system(size: 9, weight: .light))
+                                .tracking(1.5)
+                                .foregroundColor(.secondary)
+                            
+                            Divider()
+                            
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Language".localized)
+                                    .font(.system(size: 11, weight: .light))
+                                    .foregroundColor(.secondary)
+                                
+                                Picker("", selection: $locManager.currentLanguage) {
+                                    ForEach(AppLanguage.allCases) { lang in
+                                        Text(lang.displayName).tag(lang)
+                                    }
+                                }
+                                .pickerStyle(.segmented)
+                                .labelsHidden()
+                            }
+                        }
+                        .padding(14)
+                        .frame(width: 220)
+                    }
                     
                     // Refresh / Sync Button
                     Button(action: {
@@ -251,7 +302,7 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
                     .keyboardShortcut("r", modifiers: .command)
-                    .help("Manual Sync (⌘R)")
+                    .help("Manual Sync (⌘R)".localized)
                 }
                 
                 if let err = syncManager.lastError {

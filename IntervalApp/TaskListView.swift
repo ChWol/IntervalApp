@@ -15,7 +15,7 @@ struct TaskListView: View {
         VStack(alignment: .leading, spacing: max(5, fontSize * 0.4)) {
             // Category Header with subtle + button: Drop here to place at top of list
             HStack {
-                Text(title.uppercased())
+                Text(title.uppercased().localized)
                     .font(.system(size: 10, weight: .light, design: .default))
                     .tracking(2.0)
                     .foregroundColor(.gray)

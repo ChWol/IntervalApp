@@ -15,6 +15,7 @@ struct TaskRowView: View {
     
     @State private var text: String = ""
     @State private var isHovering: Bool = false
+    @State private var isXHovered: Bool = false
     @State private var isCheckmarkHovering: Bool = false
     @State private var localCompleted: Bool = false
     @State private var isExpanded: Bool = false
@@ -363,11 +364,15 @@ struct TaskRowView: View {
                 }) {
                     Image(systemName: "xmark")
                         .font(.system(size: max(fontSize * 0.4, 11), weight: .light))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(isXHovered ? .primary : .secondary.opacity(0.6))
                         .frame(width: 24, height: 24)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .onHover { hovering in
+                    isXHovered = hovering
+                    if hovering { isHovering = true }
+                }
                 .opacity((focusedTaskId == task.id || isHovering) ? 1 : 0)
                 .padding(.trailing, 6)
             }
