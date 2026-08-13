@@ -11,6 +11,8 @@ struct TaskListView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
 
+    @State private var isPlusHovered: Bool = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: max(5, fontSize * 0.4)) {
             // Category Header with subtle + button: Drop here to place at top of list
@@ -27,11 +29,14 @@ struct TaskListView: View {
                 }) {
                     Image(systemName: "plus")
                         .font(.system(size: 10, weight: .light))
-                        .foregroundColor(.secondary.opacity(0.6))
+                        .foregroundColor(isPlusHovered ? .primary : .secondary.opacity(0.6))
                         .padding(4)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .onHover { hovering in
+                    isPlusHovered = hovering
+                }
             }
             .padding(.bottom, 5)
             .contentShape(Rectangle())

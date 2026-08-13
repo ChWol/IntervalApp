@@ -40,6 +40,10 @@ struct ScratchpadView: View {
     
     @FocusState private var isNewListFocused: Bool
     
+    @State private var isHeadlinePlusHovered: Bool = false
+    @State private var isNewListPlusHovered: Bool = false
+    @State private var isCreateFirstListHovered: Bool = false
+    
     private var activeLists: [ScratchpadList] {
         lists.filter { $0.deletedAt == nil }.sorted { $0.order < $1.order }
     }
@@ -161,15 +165,18 @@ struct ScratchpadView: View {
                                     Text("New List".localized)
                                         .font(.system(size: 11, weight: .light))
                                 }
-                                .foregroundColor(.secondary)
+                                .foregroundColor(isNewListPlusHovered ? .primary : .secondary)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
                                 .background(
                                     Capsule()
-                                        .stroke(Color.secondary.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [3]))
+                                        .stroke(isNewListPlusHovered ? Color.primary.opacity(0.4) : Color.secondary.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [3]))
                                 )
                             }
                             .buttonStyle(.plain)
+                            .onHover { hovering in
+                                isNewListPlusHovered = hovering
+                            }
                         } else {
                             HStack(spacing: 6) {
                                 TextField("List name...".localized, text: $newListName)
@@ -239,14 +246,18 @@ struct ScratchpadView: View {
                             Text("Create First List".localized)
                         }
                         .font(.system(size: 12, weight: .light))
+                        .foregroundColor(isCreateFirstListHovered ? .primary : .secondary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 7)
                         .background(
                             Capsule()
-                                .fill(Color.primary.opacity(0.06))
+                                .fill(Color.primary.opacity(isCreateFirstListHovered ? 0.12 : 0.06))
                         )
                     }
                     .buttonStyle(.plain)
+                    .onHover { hovering in
+                        isCreateFirstListHovered = hovering
+                    }
                     Spacer(minLength: 40)
                 }
                 .frame(maxWidth: .infinity)
@@ -288,11 +299,14 @@ struct ScratchpadView: View {
                     Button(action: { createNewItemAtEnd() }) {
                         Image(systemName: "plus")
                             .font(.system(size: 10, weight: .light))
-                            .foregroundColor(.secondary.opacity(0.6))
+                            .foregroundColor(isHeadlinePlusHovered ? .primary : .secondary.opacity(0.6))
                             .padding(4)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .onHover { hovering in
+                        isHeadlinePlusHovered = hovering
+                    }
                 }
                 
                 // MARK: - Open Scratchpad Items List

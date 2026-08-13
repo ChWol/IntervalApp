@@ -13,6 +13,7 @@ struct HabitsBarView: View {
     @State private var isAdding: Bool = false
     @State private var selectedFrequency: String = "Daily"
     @State private var hoveredHabitId: String? = nil
+    @State private var isPlusHovered: Bool = false
     @FocusState private var isInputFocused: Bool
     
     private var sortedHabits: [HabitItem] {
@@ -56,15 +57,18 @@ struct HabitsBarView: View {
                         }) {
                             Image(systemName: "plus")
                                 .font(.system(size: 11, weight: .light))
-                                .foregroundColor(.gray)
+                                .foregroundColor(isPlusHovered ? .primary : .gray)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 5)
                                 .background(
                                     RoundedRectangle(cornerRadius: 6)
-                                        .fill(Color.gray.opacity(colorScheme == .dark ? 0.12 : 0.06))
+                                        .fill(Color.gray.opacity(colorScheme == .dark ? (isPlusHovered ? 0.2 : 0.12) : (isPlusHovered ? 0.12 : 0.06)))
                                 )
                         }
                         .buttonStyle(.plain)
+                        .onHover { hovering in
+                            isPlusHovered = hovering
+                        }
                     } else {
                         HStack(spacing: 8) {
                             // Minimalist Daily | Weekly Toggle
