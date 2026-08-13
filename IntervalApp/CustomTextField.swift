@@ -146,8 +146,9 @@ struct CustomTextField: View {
     @FocusState private var fieldFocused: Bool
     
     var body: some View {
-        TextField(placeholder, text: $text)
+        TextField(placeholder, text: $text, axis: .vertical)
             .font(.system(size: fontSize, weight: .light))
+            .lineLimit(fieldFocused ? 10 : 1)
             .focused($fieldFocused)
             .onSubmit {
                 onSubmit()
