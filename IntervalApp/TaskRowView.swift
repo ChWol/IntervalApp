@@ -206,15 +206,27 @@ struct TaskRowView: View {
                                 if focusedTaskId == (isNew ? "NEW_\(listTitle)" : task.id) {
                                     focusedTaskId = nil
                                 }
-                                if !isNew {
-                                    let trimmed = text.trimmingCharacters(in: .whitespaces)
+                                let trimmed = text.trimmingCharacters(in: .whitespaces)
+                                if isNew {
+                                    if !trimmed.isEmpty {
+                                        let descriptor = FetchDescriptor<TaskItem>()
+                                        if let all = try? modelContext.fetch(descriptor) {
+                                            let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+                                            let newTask = TaskItem(text: trimmed, intervalType: listTitle, order: (sorted.last?.order ?? 0) + 1)
+                                            modelContext.insert(newTask)
+                                            try? modelContext.save()
+                                            SupabaseSyncManager.shared.push()
+                                            text = ""
+                                        }
+                                    }
+                                } else {
                                     if trimmed.isEmpty {
                                         TaskHousekeeping.moveToBin(task, in: modelContext)
                                     } else if task.text != trimmed {
                                         task.text = trimmed
                                         task.updatedAt = Date()
                                         try? modelContext.save()
-                                        SupabaseSyncManager.shared.pushDebounced()
+                                        SupabaseSyncManager.shared.push()
                                     }
                                 }
                             }
