@@ -236,7 +236,7 @@ struct ScratchpadView: View {
                     }) {
                         HStack(spacing: 6) {
                             Image(systemName: "plus")
-                            Text("Create First List")
+                            Text("Create First List".localized)
                         }
                         .font(.system(size: 12, weight: .light))
                         .padding(.horizontal, 14)

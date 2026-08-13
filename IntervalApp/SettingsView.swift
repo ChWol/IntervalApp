@@ -7,7 +7,7 @@ struct SettingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 28) {
-            // Header: Title & Close Button
+            // Header: Title
             HStack {
                 Text("SETTINGS".localized)
                     .font(.system(size: 11, weight: .light, design: .default))
@@ -15,16 +15,6 @@ struct SettingsView: View {
                     .foregroundColor(.gray)
                 
                 Spacer()
-                
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .light))
-                        .foregroundColor(.secondary)
-                        .padding(6)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help("Close Settings")
             }
             .padding(.bottom, 10)
             

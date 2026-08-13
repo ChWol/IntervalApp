@@ -218,22 +218,22 @@ struct ContentView: View {
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                         #endif
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            currentViewMode = (currentViewMode == .intervals ? .scratchpad : .intervals)
+                            currentViewMode = (currentViewMode == .scratchpad ? .intervals : .scratchpad)
                         }
                     }) {
                         ZStack {
-                            Image(systemName: currentViewMode == .intervals ? "doc.plaintext" : "chart.bar")
+                            Image(systemName: currentViewMode == .scratchpad ? "chart.bar" : "doc.plaintext")
                                 .font(.system(size: 11, weight: .light))
                                 .foregroundColor(.secondary)
                         }
                         .frame(width: 28, height: 28)
                         .background(
                             Circle()
-                                .fill(Color.primary.opacity(0.04))
+                                .fill(Color.primary.opacity(currentViewMode == .scratchpad ? 0.12 : 0.04))
                         )
                     }
                     .buttonStyle(.plain)
-                    .help(currentViewMode == .intervals ? "Switch to Scratchpad Lists".localized : "Switch to Interval Tasks".localized)
+                    .help(currentViewMode == .scratchpad ? "Switch to Interval Tasks".localized : "Switch to Scratchpad Lists".localized)
                     
                     // Settings Button
                     Button(action: {
@@ -246,14 +246,14 @@ struct ContentView: View {
                         }
                     }) {
                         ZStack {
-                            Image(systemName: currentViewMode == .settings ? "xmark" : "gearshape")
+                            Image(systemName: "gearshape")
                                 .font(.system(size: 11, weight: .light))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(currentViewMode == .settings ? .primary : .secondary)
                         }
                         .frame(width: 28, height: 28)
                         .background(
                             Circle()
-                                .fill(Color.primary.opacity(0.04))
+                                .fill(Color.primary.opacity(currentViewMode == .settings ? 0.12 : 0.04))
                         )
                     }
                     .buttonStyle(.plain)
