@@ -85,23 +85,19 @@ struct TaskListHeaderDropDelegate: DropDelegate {
 
     func dropEntered(info: DropInfo) {
         guard let draggedItem = DragState.shared.draggedTask else { return }
-        withAnimation(.easeInOut(duration: 0.2)) {
-            DragState.shared.targetIntervalType = listTitle
-            DragState.shared.targetFontSize = sectionFontSize
-            
-            draggedItem.intervalType = listTitle
-            
-            let descriptor = FetchDescriptor<TaskItem>()
-            guard let allTasks = try? context.fetch(descriptor) else { return }
-            var sorted = allTasks.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
-            
-            sorted.insert(draggedItem, at: 0)
-            
-            let now = Date()
-            for (i, t) in sorted.enumerated() {
-                t.order = i
-                t.updatedAt = now
-            }
+        DragState.shared.targetIntervalType = listTitle
+        DragState.shared.targetFontSize = sectionFontSize
+        
+        draggedItem.intervalType = listTitle
+        
+        let descriptor = FetchDescriptor<TaskItem>()
+        guard let allTasks = try? context.fetch(descriptor) else { return }
+        var sorted = allTasks.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
+        
+        sorted.insert(draggedItem, at: 0)
+        
+        for (i, t) in sorted.enumerated() {
+            t.order = i
         }
     }
     
@@ -110,6 +106,13 @@ struct TaskListHeaderDropDelegate: DropDelegate {
     }
     
     func performDrop(info: DropInfo) -> Bool {
+        let descriptor = FetchDescriptor<TaskItem>()
+        if let allTasks = try? context.fetch(descriptor) {
+            let now = Date()
+            for task in allTasks {
+                task.updatedAt = now
+            }
+        }
         try? context.save()
         SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
@@ -126,23 +129,19 @@ struct TaskListBottomDropDelegate: DropDelegate {
 
     func dropEntered(info: DropInfo) {
         guard let draggedItem = DragState.shared.draggedTask else { return }
-        withAnimation(.easeInOut(duration: 0.2)) {
-            DragState.shared.targetIntervalType = listTitle
-            DragState.shared.targetFontSize = sectionFontSize
-            
-            draggedItem.intervalType = listTitle
-            
-            let descriptor = FetchDescriptor<TaskItem>()
-            guard let allTasks = try? context.fetch(descriptor) else { return }
-            var sorted = allTasks.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
-            
-            sorted.append(draggedItem)
-            
-            let now = Date()
-            for (i, t) in sorted.enumerated() {
-                t.order = i
-                t.updatedAt = now
-            }
+        DragState.shared.targetIntervalType = listTitle
+        DragState.shared.targetFontSize = sectionFontSize
+        
+        draggedItem.intervalType = listTitle
+        
+        let descriptor = FetchDescriptor<TaskItem>()
+        guard let allTasks = try? context.fetch(descriptor) else { return }
+        var sorted = allTasks.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
+        
+        sorted.append(draggedItem)
+        
+        for (i, t) in sorted.enumerated() {
+            t.order = i
         }
     }
     
@@ -151,6 +150,13 @@ struct TaskListBottomDropDelegate: DropDelegate {
     }
     
     func performDrop(info: DropInfo) -> Bool {
+        let descriptor = FetchDescriptor<TaskItem>()
+        if let allTasks = try? context.fetch(descriptor) {
+            let now = Date()
+            for task in allTasks {
+                task.updatedAt = now
+            }
+        }
         try? context.save()
         SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {

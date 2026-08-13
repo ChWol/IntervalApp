@@ -54,15 +54,27 @@ struct CustomTextField: NSViewRepresentable {
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: NoHighlightTextField, context: Context) -> CGSize? {
         let w = proposal.width ?? nsView.bounds.width
         let intrinsic = nsView.intrinsicContentSize
-        guard w > 0 else { return intrinsic }
+        let string = nsView.stringValue
+        if string.isEmpty || !string.contains("\n") {
+            let font = nsView.font ?? .systemFont(ofSize: fontSize, weight: .light)
+            let fontLineHeight = font.ascender - font.descender + font.leading
+            let rect = (string as NSString).boundingRect(
+                with: CGSize(width: w > 0 ? w : 1000, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: [.font: font]
+            )
+            if ceil(rect.height) <= fontLineHeight * 1.3 {
+                return CGSize(width: w > 0 ? w : intrinsic.width, height: intrinsic.height)
+            }
+        }
         let font = nsView.font ?? .systemFont(ofSize: fontSize, weight: .light)
-        let rect = (nsView.stringValue as NSString).boundingRect(
-            with: CGSize(width: w, height: .greatestFiniteMagnitude),
+        let rect = (string as NSString).boundingRect(
+            with: CGSize(width: w > 0 ? w : 1000, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             attributes: [.font: font]
         )
-        let h = max(intrinsic.height, ceil(rect.height) + 6)
-        return CGSize(width: w, height: h)
+        let h = max(intrinsic.height, ceil(rect.height))
+        return CGSize(width: w > 0 ? w : intrinsic.width, height: h)
     }
 
     func updateNSView(_ nsView: NoHighlightTextField, context: Context) {

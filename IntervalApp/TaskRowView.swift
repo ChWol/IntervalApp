@@ -492,28 +492,24 @@ struct TaskDropDelegate: DropDelegate {
     func dropEntered(info: DropInfo) {
         guard let draggedItem = DragState.shared.draggedTask else { return }
         
-        withAnimation(.easeInOut(duration: 0.2)) {
-            DragState.shared.targetIntervalType = item.intervalType
-            DragState.shared.targetFontSize = sectionFontSize
+        DragState.shared.targetIntervalType = item.intervalType
+        DragState.shared.targetFontSize = sectionFontSize
+        
+        if draggedItem.id != item.id {
+            draggedItem.intervalType = item.intervalType
             
-            if draggedItem.id != item.id {
-                draggedItem.intervalType = item.intervalType
-                
-                let descriptor = FetchDescriptor<TaskItem>()
-                guard let allTasks = try? context.fetch(descriptor) else { return }
-                var sorted = allTasks.filter { $0.intervalType == item.intervalType && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
-                
-                if let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) {
-                    sorted.insert(draggedItem, at: targetIdx)
-                } else {
-                    sorted.append(draggedItem)
-                }
-                
-                let now = Date()
-                for (i, t) in sorted.enumerated() {
-                    t.order = i
-                    t.updatedAt = now
-                }
+            let descriptor = FetchDescriptor<TaskItem>()
+            guard let allTasks = try? context.fetch(descriptor) else { return }
+            var sorted = allTasks.filter { $0.intervalType == item.intervalType && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
+            
+            if let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) {
+                sorted.insert(draggedItem, at: targetIdx)
+            } else {
+                sorted.append(draggedItem)
+            }
+            
+            for (i, t) in sorted.enumerated() {
+                t.order = i
             }
         }
     }
@@ -523,6 +519,13 @@ struct TaskDropDelegate: DropDelegate {
     }
     
     func performDrop(info: DropInfo) -> Bool {
+        let descriptor = FetchDescriptor<TaskItem>()
+        if let allTasks = try? context.fetch(descriptor) {
+            let now = Date()
+            for task in allTasks {
+                task.updatedAt = now
+            }
+        }
         try? context.save()
         SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
