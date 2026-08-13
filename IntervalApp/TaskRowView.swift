@@ -92,9 +92,10 @@ struct TaskRowView: View {
             )
             #endif
         }
-        .onChange(of: focusedTaskId) { _, newId in
+        .onChange(of: focusedTaskId) { oldId, newId in
             let myId = isNew ? "NEW_\(listTitle)" : task.id
-            if newId != myId {
+            if oldId == myId && newId != myId {
+                saveTask()
                 if isExpanded {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         isExpanded = false
@@ -225,29 +226,7 @@ struct TaskRowView: View {
                                     if focusedTaskId == myId {
                                         focusedTaskId = nil
                                     }
-                                    let trimmed = text.trimmingCharacters(in: .whitespaces)
-                                    if isNew {
-                                        if !trimmed.isEmpty {
-                                            let descriptor = FetchDescriptor<TaskItem>()
-                                            if let all = try? modelContext.fetch(descriptor) {
-                                                let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
-                                                let newTask = TaskItem(text: trimmed, intervalType: listTitle, order: (sorted.last?.order ?? 0) + 1)
-                                                modelContext.insert(newTask)
-                                                try? modelContext.save()
-                                                SupabaseSyncManager.shared.push()
-                                                text = ""
-                                            }
-                                        }
-                                    } else {
-                                        if trimmed.isEmpty {
-                                            TaskHousekeeping.moveToBin(task, in: modelContext)
-                                        } else if task.text != trimmed {
-                                            task.text = trimmed
-                                            task.updatedAt = Date()
-                                            try? modelContext.save()
-                                            SupabaseSyncManager.shared.push()
-                                        }
-                                    }
+                                    saveTask()
                                 }
                             },
                             onSubmit: { isAtBeginning in
@@ -408,9 +387,32 @@ struct TaskRowView: View {
         .onChange(of: text) { _, newText in
             if !isNew && newText != task.text {
                 task.text = newText
+            }
+        }
+    }
+    
+    private func saveTask() {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        if isNew {
+            if !trimmed.isEmpty {
+                let descriptor = FetchDescriptor<TaskItem>()
+                if let all = try? modelContext.fetch(descriptor) {
+                    let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+                    let newTask = TaskItem(text: trimmed, intervalType: listTitle, order: (sorted.last?.order ?? -1) + 1)
+                    modelContext.insert(newTask)
+                    try? modelContext.save()
+                    SupabaseSyncManager.shared.push()
+                    text = ""
+                }
+            }
+        } else {
+            if trimmed.isEmpty {
+                TaskHousekeeping.moveToBin(task, in: modelContext)
+            } else if task.text != trimmed {
+                task.text = trimmed
                 task.updatedAt = Date()
                 try? modelContext.save()
-                SupabaseSyncManager.shared.pushDebounced()
+                SupabaseSyncManager.shared.push()
             }
         }
     }
