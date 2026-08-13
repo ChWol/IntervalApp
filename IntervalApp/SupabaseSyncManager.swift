@@ -501,20 +501,15 @@ class SupabaseSyncManager: ObservableObject {
         
         // Tasks
         let tasks = pushableTasks(context: context)
-        let dirtyTasks = tasks.filter({ needsPush($0) })
-        print("[Sync] Push: \(tasks.count) pushable tasks, \(dirtyTasks.count) dirty (need push)")
-        for chunk in dirtyTasks.chunked(into: upsertBatchSize) {
+        for chunk in tasks.filter({ needsPush($0) }).chunked(into: upsertBatchSize) {
             // Capture the stamps before awaiting: an edit made while the request is in flight
             // must leave the row dirty so that the edit is published by the next push.
             let stamps = chunk.map { $0.updatedAt }
             let payload = chunk.map { taskPayload($0, uid: uid) }
-            print("[Sync] Upserting \(chunk.count) tasks...")
             guard await upsert(table: SyncTable.tasks, payload: payload) else {
-                print("[Sync] ⚠️ Task upsert FAILED for chunk of \(chunk.count)")
                 succeeded = false
                 break
             }
-            print("[Sync] ✅ Task upsert succeeded for \(chunk.count) tasks")
             for (index, task) in chunk.enumerated() {
                 task.syncedAt = stamps[index]
             }
@@ -675,7 +670,6 @@ class SupabaseSyncManager: ObservableObject {
     }
     
     private func mergeRemoteTasks(_ dtos: [SupabaseTaskDTO], context: ModelContext, uid: String) -> Bool {
-        print("[Sync] Pull: received \(dtos.count) remote tasks")
         var needsFollowupPush = false
         var localById = deduplicatedTasks(context: context)
         var orphanRemoteIds: [String] = []

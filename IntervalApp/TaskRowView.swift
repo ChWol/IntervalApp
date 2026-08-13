@@ -17,6 +17,7 @@ struct TaskRowView: View {
     @State private var isHovering: Bool = false
     @State private var isCheckmarkHovering: Bool = false
     @State private var localCompleted: Bool = false
+    @State private var isCompletedExpanded: Bool = false
     @State private var swipeOffset: CGFloat = 0
     @ObservedObject private var dragState = DragState.shared
     
@@ -187,7 +188,14 @@ struct TaskRowView: View {
                     .font(.system(size: fontSize, weight: .light))
                     .foregroundColor(.secondary)
                     .strikethrough(true)
+                    .lineLimit(isCompletedExpanded ? nil : 1)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isCompletedExpanded.toggle()
+                        }
+                    }
             } else {
                 ZStack(alignment: .leading) {
                     if isNew && text.isEmpty {
@@ -304,6 +312,11 @@ struct TaskRowView: View {
                         fontSize: fontSize,
                         placeholder: isNew ? "Add task..." : ""
                     )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    focusedTaskId = isNew ? "NEW_\(listTitle)" : task.id
                 }
             }
             
