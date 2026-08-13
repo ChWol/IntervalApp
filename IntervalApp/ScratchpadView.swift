@@ -308,19 +308,16 @@ struct ScratchpadView: View {
                         )
                     }
                     
-                    if openItems.isEmpty && completedItems.isEmpty {
-                        Button(action: { createNewItemAtEnd() }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "plus")
-                                    .font(.system(size: 11, weight: .light))
-                                Text("Add Item")
-                                    .font(.system(size: 13, weight: .light))
-                            }
-                            .foregroundColor(.secondary.opacity(0.6))
-                            .padding(.vertical, 4)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
+                    if openItems.isEmpty {
+                        ScratchpadItemRowView(
+                            item: ScratchpadItem(listId: currentList.id, text: ""),
+                            isNew: true,
+                            listId: currentList.id,
+                            focusedTaskId: $focusedTaskId,
+                            selectedItemIds: $selectedItemIds,
+                            lastClickedItemId: $lastClickedItemId,
+                            allItemsInList: []
+                        )
                     }
                 }
                 
@@ -465,6 +462,8 @@ struct ScratchpadItemRowView: View {
     @State private var text: String = ""
     @State private var isExpanded: Bool = false
     @State private var isHovering: Bool = false
+    @State private var isArrowHovered: Bool = false
+    @State private var isXHovered: Bool = false
     @State private var showTransferPopover: Bool = false
     
     private var myId: String { item.id }
@@ -473,8 +472,9 @@ struct ScratchpadItemRowView: View {
     private var isDragged: Bool { !isNew && ScratchpadDragState.shared.draggedItem?.id == item.id }
     
     var body: some View {
-        let rawText = isNew ? text : (text.isEmpty ? item.text : text)
+        let rawText = isNew ? (text.isEmpty ? "Item..." : text) : (text.isEmpty ? item.text : text)
         let displayText = rawText
+        let isPlaceholder = isNew && text.isEmpty
         
         ZStack {
             if isDragged {
@@ -499,7 +499,7 @@ struct ScratchpadItemRowView: View {
                     if !isCurrentlyFocused {
                         Text(displayText)
                             .font(.system(size: 14, weight: .light))
-                            .foregroundColor(item.completed ? .secondary : .primary)
+                            .foregroundColor(isPlaceholder ? .secondary.opacity(0.5) : (item.completed ? .secondary : .primary))
                             .strikethrough(item.completed)
                             .lineLimit(isExpanded ? nil : 1)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -530,7 +530,7 @@ struct ScratchpadItemRowView: View {
                                 }
                             },
                             fontSize: 14,
-                            placeholder: ""
+                            placeholder: isNew ? "Item..." : ""
                         )
                     }
                 }
@@ -542,11 +542,15 @@ struct ScratchpadItemRowView: View {
                         }) {
                             Image(systemName: "arrow.turn.up.right")
                                 .font(.system(size: 11, weight: .light))
-                                .foregroundColor(.secondary.opacity(0.6))
+                                .foregroundColor(isArrowHovered ? .primary : .secondary.opacity(0.6))
                                 .frame(width: 22, height: 22)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .onHover { hovering in
+                            isArrowHovered = hovering
+                            if hovering { isHovering = true }
+                        }
                         .popover(isPresented: $showTransferPopover, arrowEdge: .trailing) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("TRANSFER TO TASK")
@@ -583,11 +587,15 @@ struct ScratchpadItemRowView: View {
                         Button(action: deleteItem) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 11, weight: .light))
-                                .foregroundColor(.secondary.opacity(0.6))
+                                .foregroundColor(isXHovered ? .primary : .secondary.opacity(0.6))
                                 .frame(width: 22, height: 22)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .onHover { hovering in
+                            isXHovered = hovering
+                            if hovering { isHovering = true }
+                        }
                     }
                     .opacity((isHovering || showTransferPopover || (isSelected && selectedItemIds.count > 1)) ? 1 : 0)
                 }
