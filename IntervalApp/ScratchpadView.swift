@@ -79,9 +79,14 @@ struct ScratchpadView: View {
                                         }
                                 } else {
                                     Button(action: {
-                                        withAnimation(.easeInOut(duration: 0.15)) {
-                                            selectedListId = list.id
-                                            selectedItemIds.removeAll()
+                                        if isSelected {
+                                            editingListTitleId = list.id
+                                            editingListTitleText = list.title
+                                        } else {
+                                            withAnimation(.easeInOut(duration: 0.15)) {
+                                                selectedListId = list.id
+                                                selectedItemIds.removeAll()
+                                            }
                                         }
                                     }) {
                                         Text(list.title.isEmpty ? "Untitled List" : list.title)
@@ -89,10 +94,6 @@ struct ScratchpadView: View {
                                             .foregroundColor(isSelected ? .primary : .secondary)
                                     }
                                     .buttonStyle(.plain)
-                                    .onTapGesture(count: 2) {
-                                        editingListTitleId = list.id
-                                        editingListTitleText = list.title
-                                    }
                                 }
                                 
                                 if isSelected {
@@ -228,10 +229,24 @@ struct ScratchpadView: View {
                 .frame(maxWidth: .infinity)
             } else if let currentList = selectedList {
                 HStack {
-                    Text(currentList.title.uppercased())
-                        .font(.system(size: 10, weight: .light, design: .default))
-                        .tracking(2.0)
-                        .foregroundColor(.gray)
+                    if editingListTitleId == currentList.id {
+                        TextField("List title...", text: $editingListTitleText)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 10, weight: .light, design: .default))
+                            .onSubmit {
+                                finishEditingListTitle(currentList)
+                            }
+                    } else {
+                        Text(currentList.title.uppercased())
+                            .font(.system(size: 10, weight: .light, design: .default))
+                            .tracking(2.0)
+                            .foregroundColor(.gray)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                editingListTitleId = currentList.id
+                                editingListTitleText = currentList.title
+                            }
+                    }
                     
                     Spacer()
                     
@@ -260,15 +275,18 @@ struct ScratchpadView: View {
                     }
                     
                     if openItems.isEmpty && completedItems.isEmpty {
-                        ScratchpadItemRowView(
-                            item: ScratchpadItem(listId: currentList.id, text: ""),
-                            isNew: true,
-                            listId: currentList.id,
-                            focusedTaskId: $focusedTaskId,
-                            selectedItemIds: $selectedItemIds,
-                            lastClickedItemId: $lastClickedItemId,
-                            allItemsInList: []
-                        )
+                        Button(action: { createNewItemAtEnd() }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 11, weight: .light))
+                                Text("Add Item")
+                                    .font(.system(size: 13, weight: .light))
+                            }
+                            .foregroundColor(.secondary.opacity(0.6))
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 
@@ -489,9 +507,9 @@ struct ScratchpadItemRowView: View {
                             showTransferPopover.toggle()
                         }) {
                             Image(systemName: "arrow.turn.up.right")
-                                .font(.system(size: 8))
+                                .font(.system(size: 11, weight: .light))
                                 .foregroundColor(.secondary.opacity(0.6))
-                                .padding(4)
+                                .padding(2)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -530,14 +548,17 @@ struct ScratchpadItemRowView: View {
                         
                         Button(action: deleteItem) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 8))
+                                .font(.system(size: 11, weight: .light))
                                 .foregroundColor(.secondary.opacity(0.6))
-                                .padding(4)
+                                .padding(2)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
                     .opacity(isHovered || showTransferPopover || (isSelected && selectedItemIds.count > 1) ? 1 : 0)
+                    .onHover { hovering in
+                        if hovering { isHovered = true }
+                    }
                 }
             }
             .padding(.horizontal, 4)
