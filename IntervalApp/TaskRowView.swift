@@ -21,6 +21,7 @@ struct TaskRowView: View {
     @State private var isExpanded: Bool = false
     @State private var swipeOffset: CGFloat = 0
     @ObservedObject private var dragState = DragState.shared
+    @ObservedObject private var locManager = LocalizationManager.shared
     
     private var isDragged: Bool {
         !isNew && dragState.draggedTask?.id == task.id
@@ -324,11 +325,11 @@ struct TaskRowView: View {
                                 }
                             },
                             fontSize: fontSize,
-                            placeholder: isNew ? "Add task..." : ""
+                            placeholder: isNew ? "Add task...".localized : ""
                         )
                     } else {
                         let rawText = isNew ? text : (text.isEmpty ? task.text : text)
-                        let displayText = rawText.isEmpty ? (isNew ? "Add task..." : "") : rawText
+                        let displayText = rawText.isEmpty ? (isNew ? "Add task...".localized : "") : rawText
                         let isPlaceholder = isNew && rawText.isEmpty
                         
                         Text(displayText)

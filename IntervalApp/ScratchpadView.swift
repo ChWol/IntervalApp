@@ -19,6 +19,7 @@ struct ScratchpadView: View {
     
     @Query(sort: \ScratchpadList.order) private var lists: [ScratchpadList]
     @Query(sort: \ScratchpadItem.order) private var items: [ScratchpadItem]
+    @ObservedObject private var locManager = LocalizationManager.shared
     
     @Binding var focusedTaskId: String?
     
@@ -157,7 +158,7 @@ struct ScratchpadView: View {
                                 HStack(spacing: 4) {
                                     Image(systemName: "plus")
                                         .font(.system(size: 10, weight: .light))
-                                    Text("New List")
+                                    Text("New List".localized)
                                         .font(.system(size: 11, weight: .light))
                                 }
                                 .foregroundColor(.secondary)
@@ -171,7 +172,7 @@ struct ScratchpadView: View {
                             .buttonStyle(.plain)
                         } else {
                             HStack(spacing: 6) {
-                                TextField("List name...", text: $newListName)
+                                TextField("List name...".localized, text: $newListName)
                                     .textFieldStyle(.plain)
                                     .font(.system(size: 11, weight: .light))
                                     .frame(width: 100)
@@ -223,7 +224,7 @@ struct ScratchpadView: View {
             if activeLists.isEmpty {
                 VStack(spacing: 12) {
                     Spacer(minLength: 40)
-                    Text("No custom lists created yet.")
+                    Text("No custom lists created yet.".localized)
                         .font(.system(size: 13, weight: .light))
                         .foregroundColor(.secondary)
                     
@@ -458,6 +459,7 @@ struct ScratchpadItemRowView: View {
     
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject private var locManager = LocalizationManager.shared
     
     @State private var text: String = ""
     @State private var isExpanded: Bool = false
@@ -472,7 +474,7 @@ struct ScratchpadItemRowView: View {
     private var isDragged: Bool { !isNew && ScratchpadDragState.shared.draggedItem?.id == item.id }
     
     var body: some View {
-        let rawText = isNew ? (text.isEmpty ? "Item..." : text) : (text.isEmpty ? item.text : text)
+        let rawText = isNew ? (text.isEmpty ? "Item...".localized : text) : (text.isEmpty ? item.text : text)
         let displayText = rawText
         let isPlaceholder = isNew && text.isEmpty
         
@@ -530,7 +532,7 @@ struct ScratchpadItemRowView: View {
                                 }
                             },
                             fontSize: 14,
-                            placeholder: isNew ? "Item..." : ""
+                            placeholder: isNew ? "Item...".localized : ""
                         )
                     }
                 }

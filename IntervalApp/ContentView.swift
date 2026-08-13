@@ -24,6 +24,7 @@ struct ContentView: View {
     enum ViewMode {
         case intervals
         case scratchpad
+        case settings
     }
     
     let intervals = [
@@ -61,6 +62,12 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 40) {
                     if currentViewMode == .scratchpad {
                         ScratchpadView(focusedTaskId: $focusedTaskId)
+                    } else if currentViewMode == .settings {
+                        SettingsView(onClose: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                currentViewMode = .intervals
+                            }
+                        })
                     } else {
                         HabitsBarView()
                         
@@ -234,10 +241,12 @@ struct ContentView: View {
                         #if os(iOS)
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                         #endif
-                        showSettingsPopover.toggle()
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            currentViewMode = (currentViewMode == .settings ? .intervals : .settings)
+                        }
                     }) {
                         ZStack {
-                            Image(systemName: "gearshape")
+                            Image(systemName: currentViewMode == .settings ? "xmark" : "gearshape")
                                 .font(.system(size: 11, weight: .light))
                                 .foregroundColor(.secondary)
                         }
@@ -249,32 +258,6 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Settings".localized)
-                    .popover(isPresented: $showSettingsPopover, arrowEdge: .top) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Settings".localized.uppercased())
-                                .font(.system(size: 9, weight: .light))
-                                .tracking(1.5)
-                                .foregroundColor(.secondary)
-                            
-                            Divider()
-                            
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Language".localized)
-                                    .font(.system(size: 11, weight: .light))
-                                    .foregroundColor(.secondary)
-                                
-                                Picker("", selection: $locManager.currentLanguage) {
-                                    ForEach(AppLanguage.allCases) { lang in
-                                        Text(lang.displayName).tag(lang)
-                                    }
-                                }
-                                .pickerStyle(.segmented)
-                                .labelsHidden()
-                            }
-                        }
-                        .padding(14)
-                        .frame(width: 220)
-                    }
                     
                     // Refresh / Sync Button
                     Button(action: {

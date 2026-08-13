@@ -66,6 +66,8 @@ class LocalizationManager: ObservableObject {
         "TRANSFER TO TASK": [.english: "TRANSFER TO TASK", .german: "IN AUFGABE UMWANDELN", .french: "TRANSFÉRER EN TÂCHE"],
         
         // Tooltips & Dialogs
+        "SETTINGS": [.english: "SETTINGS", .german: "EINSTELLUNGEN", .french: "PARAMÈTRES"],
+        "LANGUAGE": [.english: "LANGUAGE", .german: "SPRACHE", .french: "LANGUE"],
         "Settings": [.english: "Settings", .german: "Einstellungen", .french: "Paramètres"],
         "Language": [.english: "Language", .german: "Sprache", .french: "Langue"],
         "Switch to Scratchpad Lists": [.english: "Switch to Scratchpad Lists", .german: "Zu Notizlisten wechseln", .french: "Passer aux listes de notes"],

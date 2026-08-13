@@ -7,6 +7,7 @@ struct HabitsBarView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \HabitItem.order) private var habits: [HabitItem]
+    @ObservedObject private var locManager = LocalizationManager.shared
     
     @State private var newHabitText: String = ""
     @State private var isAdding: Bool = false
@@ -25,7 +26,7 @@ struct HabitsBarView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("HABITS")
+            Text("HABITS".localized)
                 .font(.system(size: 10, weight: .light, design: .default))
                 .tracking(2.0)
                 .foregroundColor(.gray)
