@@ -13,14 +13,29 @@ struct TaskListView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: max(5, fontSize * 0.4)) {
-            // Category Header: Drop here to place at top of list
-            Text(title.uppercased())
-                .font(.system(size: 10, weight: .light, design: .default))
-                .tracking(2.0)
-                .foregroundColor(.gray)
-                .padding(.bottom, 5)
-                .contentShape(Rectangle())
-                .onDrop(of: [.data], delegate: TaskListHeaderDropDelegate(listTitle: title, sectionFontSize: fontSize, context: modelContext))
+            // Category Header with subtle + button: Drop here to place at top of list
+            HStack {
+                Text(title.uppercased())
+                    .font(.system(size: 10, weight: .light, design: .default))
+                    .tracking(2.0)
+                    .foregroundColor(.gray)
+                
+                Spacer()
+                
+                Button(action: {
+                    createNewTaskAtEnd()
+                }) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 10, weight: .light))
+                        .foregroundColor(.secondary.opacity(0.6))
+                        .padding(4)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.bottom, 5)
+            .contentShape(Rectangle())
+            .onDrop(of: [.data], delegate: TaskListHeaderDropDelegate(listTitle: title, sectionFontSize: fontSize, context: modelContext))
             
             ForEach(tasks) { task in
                 TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title, focusedTaskId: $focusedTaskId)
@@ -43,6 +58,21 @@ struct TaskListView: View {
                 .foregroundColor(Color(white: colorScheme == .dark ? 0.15 : 0.9)),
             alignment: .bottom
         )
+    }
+    
+    private func createNewTaskAtEnd() {
+        let descriptor = FetchDescriptor<TaskItem>()
+        if let all = try? modelContext.fetch(descriptor) {
+            let sorted = all.filter { $0.intervalType == title && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+            let maxOrder = (sorted.last?.order ?? -1) + 1
+            let newTask = TaskItem(text: "", intervalType: title, order: maxOrder)
+            modelContext.insert(newTask)
+            try? modelContext.save()
+            SupabaseSyncManager.shared.push()
+            DispatchQueue.main.async {
+                focusedTaskId = newTask.id
+            }
+        }
     }
 }
 

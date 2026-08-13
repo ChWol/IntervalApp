@@ -30,7 +30,7 @@ struct CustomTextField: NSViewRepresentable {
     @Binding var text: String
     var isFocused: Bool
     var onFocusChanged: (Bool) -> Void
-    var onSubmit: () -> Void
+    var onSubmit: (_ isAtBeginning: Bool) -> Void
     var onDeleteEmpty: () -> Void
     var fontSize: CGFloat
     var placeholder: String
@@ -44,13 +44,25 @@ struct CustomTextField: NSViewRepresentable {
         tf.placeholderString = placeholder
         tf.delegate = context.coordinator
         tf.cell?.focusRingType = .none
+        tf.usesSingleLineMode = false
+        tf.cell?.wraps = true
+        tf.cell?.isScrollable = false
         tf.stringValue = text
         return tf
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: NoHighlightTextField, context: Context) -> CGSize? {
-        let s = nsView.intrinsicContentSize
-        return CGSize(width: proposal.width ?? s.width, height: s.height)
+        let w = proposal.width ?? nsView.bounds.width
+        let intrinsic = nsView.intrinsicContentSize
+        guard w > 0 else { return intrinsic }
+        let font = nsView.font ?? .systemFont(ofSize: fontSize, weight: .light)
+        let rect = (nsView.stringValue as NSString).boundingRect(
+            with: CGSize(width: w, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: font]
+        )
+        let h = max(intrinsic.height, ceil(rect.height) + 6)
+        return CGSize(width: w, height: h)
     }
 
     func updateNSView(_ nsView: NoHighlightTextField, context: Context) {
@@ -90,7 +102,7 @@ struct CustomTextField: NSViewRepresentable {
     class Coordinator: NSObject, NSTextFieldDelegate {
         var textBinding: Binding<String>
         var onFocusChanged: ((Bool) -> Void)?
-        var onSubmit: (() -> Void)?
+        var onSubmit: ((_ isAtBeginning: Bool) -> Void)?
         var onDeleteEmpty: (() -> Void)?
         var isEditing: Bool = false
 
@@ -118,7 +130,8 @@ struct CustomTextField: NSViewRepresentable {
 
         func control(_ control: NSControl, textView: NSTextView, doCommandBy sel: Selector) -> Bool {
             if sel == #selector(NSResponder.insertNewline(_:)) {
-                onSubmit?()
+                let isAtBeginning = textView.selectedRange().location == 0
+                onSubmit?(isAtBeginning)
                 return true
             }
             if sel == #selector(NSResponder.deleteBackward(_:)) {
@@ -138,7 +151,7 @@ struct CustomTextField: View {
     @Binding var text: String
     var isFocused: Bool
     var onFocusChanged: (Bool) -> Void
-    var onSubmit: () -> Void
+    var onSubmit: (_ isAtBeginning: Bool) -> Void
     var onDeleteEmpty: () -> Void
     var fontSize: CGFloat
     var placeholder: String
@@ -153,7 +166,7 @@ struct CustomTextField: View {
             .fixedSize(horizontal: false, vertical: active)
             .focused($fieldFocused)
             .onSubmit {
-                onSubmit()
+                onSubmit(text.isEmpty)
             }
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {

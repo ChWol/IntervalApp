@@ -31,16 +31,18 @@ struct HabitsBarView: View {
                 .foregroundColor(.gray)
             
             // Habits Chips Container
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(sortedHabits) { habit in
-                        HabitChipView(habit: habit, hoveredHabitId: $hoveredHabitId)
-                            .onDrag {
-                                HabitDragState.shared.draggedHabit = habit
-                                return NSItemProvider(object: habit.id as NSString)
-                            }
-                            .onDrop(of: [.data], delegate: HabitDropDelegate(item: habit, context: modelContext))
-                    }
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(sortedHabits) { habit in
+                            HabitChipView(habit: habit, hoveredHabitId: $hoveredHabitId)
+                                .id(habit.id)
+                                .onDrag {
+                                    HabitDragState.shared.draggedHabit = habit
+                                    return NSItemProvider(object: habit.id as NSString)
+                                }
+                                .onDrop(of: [.data], delegate: HabitDropDelegate(item: habit, context: modelContext, proxy: proxy))
+                        }
                     
                     if !isAdding {
                         Button(action: {
@@ -140,6 +142,7 @@ struct HabitsBarView: View {
                     }
                 }
             }
+        }
         }
         .padding(.bottom, 20)
         .overlay(
@@ -271,6 +274,7 @@ class HabitDragState: ObservableObject {
 struct HabitDropDelegate: DropDelegate {
     let item: HabitItem
     let context: ModelContext
+    var proxy: ScrollViewProxy? = nil
 
     func dropEntered(info: DropInfo) {
         guard let draggedItem = HabitDragState.shared.draggedHabit else { return }
@@ -294,6 +298,9 @@ struct HabitDropDelegate: DropDelegate {
                 }
                 try? context.save()
                 SupabaseSyncManager.shared.push()
+            }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                proxy?.scrollTo(item.id, anchor: .center)
             }
         }
     }

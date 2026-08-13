@@ -145,6 +145,10 @@ struct TaskRowView: View {
         HStack(alignment: .center, spacing: max(8, fontSize * 0.5)) {
             if !isNew {
                 Button(action: {
+                    focusedTaskId = nil
+                    #if os(iOS)
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    #endif
                     withAnimation(.easeOut(duration: 0.2)) {
                         localCompleted = true
                     }
@@ -244,7 +248,7 @@ struct TaskRowView: View {
                                     }
                                 }
                             },
-                            onSubmit: {
+                            onSubmit: { isAtBeginning in
                                 if isNew {
                                     let trimmed = text.trimmingCharacters(in: .whitespaces)
                                     if !trimmed.isEmpty {
@@ -281,7 +285,11 @@ struct TaskRowView: View {
                                             modelContext.insert(newTask)
                                             
                                             if let idx = sorted.firstIndex(where: { $0.id == task.id }) {
-                                                sorted.insert(newTask, at: idx + 1)
+                                                if isAtBeginning {
+                                                    sorted.insert(newTask, at: idx)
+                                                } else {
+                                                    sorted.insert(newTask, at: idx + 1)
+                                                }
                                             } else {
                                                 sorted.append(newTask)
                                             }
@@ -512,14 +520,6 @@ struct TaskDropDelegate: DropDelegate {
     
     func dropUpdated(info: DropInfo) -> DropProposal? {
         return DropProposal(operation: .move)
-    }
-    
-    func dropExited(info: DropInfo) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                DragState.shared.reset()
-            }
-        }
     }
     
     func performDrop(info: DropInfo) -> Bool {
