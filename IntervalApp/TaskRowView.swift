@@ -437,15 +437,6 @@ class DragState: ObservableObject {
     }
     
     private func startMonitoring() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
-            guard let self = self else { return }
-            if self.draggedTask != nil {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    self.reset()
-                }
-            }
-        }
-        
         #if os(macOS)
         if monitor == nil {
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDragged, .leftMouseUp]) { [weak self] event in
@@ -492,24 +483,26 @@ struct TaskDropDelegate: DropDelegate {
     func dropEntered(info: DropInfo) {
         guard let draggedItem = DragState.shared.draggedTask else { return }
         
-        DragState.shared.targetIntervalType = item.intervalType
-        DragState.shared.targetFontSize = sectionFontSize
-        
-        if draggedItem.id != item.id {
-            draggedItem.intervalType = item.intervalType
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            DragState.shared.targetIntervalType = item.intervalType
+            DragState.shared.targetFontSize = sectionFontSize
             
-            let descriptor = FetchDescriptor<TaskItem>()
-            guard let allTasks = try? context.fetch(descriptor) else { return }
-            var sorted = allTasks.filter { $0.intervalType == item.intervalType && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
-            
-            if let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) {
-                sorted.insert(draggedItem, at: targetIdx)
-            } else {
-                sorted.append(draggedItem)
-            }
-            
-            for (i, t) in sorted.enumerated() {
-                t.order = i
+            if draggedItem.id != item.id || draggedItem.intervalType != item.intervalType {
+                draggedItem.intervalType = item.intervalType
+                
+                let descriptor = FetchDescriptor<TaskItem>()
+                guard let allTasks = try? context.fetch(descriptor) else { return }
+                var sorted = allTasks.filter { $0.intervalType == item.intervalType && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
+                
+                if let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) {
+                    sorted.insert(draggedItem, at: targetIdx)
+                } else {
+                    sorted.append(draggedItem)
+                }
+                
+                for (i, t) in sorted.enumerated() {
+                    t.order = i
+                }
             }
         }
     }

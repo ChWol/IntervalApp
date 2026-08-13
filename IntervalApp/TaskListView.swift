@@ -85,19 +85,21 @@ struct TaskListHeaderDropDelegate: DropDelegate {
 
     func dropEntered(info: DropInfo) {
         guard let draggedItem = DragState.shared.draggedTask else { return }
-        DragState.shared.targetIntervalType = listTitle
-        DragState.shared.targetFontSize = sectionFontSize
-        
-        draggedItem.intervalType = listTitle
-        
-        let descriptor = FetchDescriptor<TaskItem>()
-        guard let allTasks = try? context.fetch(descriptor) else { return }
-        var sorted = allTasks.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
-        
-        sorted.insert(draggedItem, at: 0)
-        
-        for (i, t) in sorted.enumerated() {
-            t.order = i
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            DragState.shared.targetIntervalType = listTitle
+            DragState.shared.targetFontSize = sectionFontSize
+            
+            draggedItem.intervalType = listTitle
+            
+            let descriptor = FetchDescriptor<TaskItem>()
+            guard let allTasks = try? context.fetch(descriptor) else { return }
+            var sorted = allTasks.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
+            
+            sorted.insert(draggedItem, at: 0)
+            
+            for (i, t) in sorted.enumerated() {
+                t.order = i
+            }
         }
     }
     
@@ -129,19 +131,21 @@ struct TaskListBottomDropDelegate: DropDelegate {
 
     func dropEntered(info: DropInfo) {
         guard let draggedItem = DragState.shared.draggedTask else { return }
-        DragState.shared.targetIntervalType = listTitle
-        DragState.shared.targetFontSize = sectionFontSize
-        
-        draggedItem.intervalType = listTitle
-        
-        let descriptor = FetchDescriptor<TaskItem>()
-        guard let allTasks = try? context.fetch(descriptor) else { return }
-        var sorted = allTasks.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
-        
-        sorted.append(draggedItem)
-        
-        for (i, t) in sorted.enumerated() {
-            t.order = i
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            DragState.shared.targetIntervalType = listTitle
+            DragState.shared.targetFontSize = sectionFontSize
+            
+            draggedItem.intervalType = listTitle
+            
+            let descriptor = FetchDescriptor<TaskItem>()
+            guard let allTasks = try? context.fetch(descriptor) else { return }
+            var sorted = allTasks.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
+            
+            sorted.append(draggedItem)
+            
+            for (i, t) in sorted.enumerated() {
+                t.order = i
+            }
         }
     }
     
