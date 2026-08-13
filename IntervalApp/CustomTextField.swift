@@ -155,6 +155,19 @@ struct CustomTextField: View {
             .onSubmit {
                 onSubmit()
             }
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button(action: {
+                        fieldFocused = false
+                        onFocusChanged(false)
+                    }) {
+                        Image(systemName: "keyboard.chevron.compact.down")
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
             .onChange(of: isFocused) { _, newValue in
                 fieldFocused = newValue
             }

@@ -174,8 +174,15 @@ struct ContentView: View {
             .contentShape(Rectangle())
             .onTapGesture {
                 focusedTaskId = nil
+                #if os(iOS)
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                #endif
             }
             .refreshable {
+                focusedTaskId = nil
+                #if os(iOS)
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                #endif
                 await syncManager.triggerManualSync()
             }
             
@@ -184,6 +191,10 @@ struct ContentView: View {
                 HStack {
                     Spacer()
                     Button(action: {
+                        focusedTaskId = nil
+                        #if os(iOS)
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        #endif
                         Task { await syncManager.triggerManualSync() }
                     }) {
                         HStack(spacing: 6) {
