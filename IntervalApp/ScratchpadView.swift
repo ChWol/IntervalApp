@@ -25,8 +25,12 @@ struct ScratchpadView: View {
     @State private var selectedListId: String? = nil
     @State private var isCreatingList: Bool = false
     @State private var newListName: String = ""
+    
     @State private var editingListTitleId: String? = nil
     @State private var editingListTitleText: String = ""
+    @FocusState private var isEditingListTitleFocused: Bool
+    @FocusState private var isEditingHeadlineFocused: Bool
+    
     @State private var listToDelete: ScratchpadList? = nil
     @State private var showDeleteListAlert: Bool = false
     
@@ -74,19 +78,23 @@ struct ScratchpadView: View {
                                         .textFieldStyle(.plain)
                                         .font(.system(size: 12, weight: .medium))
                                         .frame(minWidth: 60)
+                                        .focused($isEditingListTitleFocused)
                                         .onSubmit {
                                             finishEditingListTitle(list)
                                         }
+                                        .onChange(of: editingListTitleText) { _, newText in
+                                            list.title = newText
+                                        }
+                                        .onChange(of: isEditingListTitleFocused) { _, focused in
+                                            if !focused {
+                                                finishEditingListTitle(list)
+                                            }
+                                        }
                                 } else {
                                     Button(action: {
-                                        if isSelected {
-                                            editingListTitleId = list.id
-                                            editingListTitleText = list.title
-                                        } else {
-                                            withAnimation(.easeInOut(duration: 0.15)) {
-                                                selectedListId = list.id
-                                                selectedItemIds.removeAll()
-                                            }
+                                        withAnimation(.easeInOut(duration: 0.15)) {
+                                            selectedListId = list.id
+                                            selectedItemIds.removeAll()
                                         }
                                     }) {
                                         Text(list.title.isEmpty ? "Untitled List" : list.title)
@@ -94,18 +102,32 @@ struct ScratchpadView: View {
                                             .foregroundColor(isSelected ? .primary : .secondary)
                                     }
                                     .buttonStyle(.plain)
-                                }
-                                
-                                if isSelected {
-                                    Button(action: {
-                                        listToDelete = list
-                                        showDeleteListAlert = true
-                                    }) {
-                                        Image(systemName: "xmark")
-                                            .font(.system(size: 8))
-                                            .foregroundColor(.secondary.opacity(0.6))
+                                    
+                                    if isSelected {
+                                        Button(action: {
+                                            editingListTitleId = list.id
+                                            editingListTitleText = list.title
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                                isEditingListTitleFocused = true
+                                            }
+                                        }) {
+                                            Image(systemName: "pencil")
+                                                .font(.system(size: 8))
+                                                .foregroundColor(.secondary.opacity(0.6))
+                                        }
+                                        .buttonStyle(.plain)
+                                        .help("Edit list name")
+                                        
+                                        Button(action: {
+                                            listToDelete = list
+                                            showDeleteListAlert = true
+                                        }) {
+                                            Image(systemName: "xmark")
+                                                .font(.system(size: 8))
+                                                .foregroundColor(.secondary.opacity(0.6))
+                                        }
+                                        .buttonStyle(.plain)
                                     }
-                                    .buttonStyle(.plain)
                                 }
                             }
                             .padding(.horizontal, 12)
@@ -229,12 +251,21 @@ struct ScratchpadView: View {
                 .frame(maxWidth: .infinity)
             } else if let currentList = selectedList {
                 HStack {
-                    if editingListTitleId == currentList.id {
+                    if editingListTitleId == "HEADLINE_\(currentList.id)" {
                         TextField("List title...", text: $editingListTitleText)
                             .textFieldStyle(.plain)
                             .font(.system(size: 10, weight: .light, design: .default))
+                            .focused($isEditingHeadlineFocused)
                             .onSubmit {
                                 finishEditingListTitle(currentList)
+                            }
+                            .onChange(of: editingListTitleText) { _, newText in
+                                currentList.title = newText
+                            }
+                            .onChange(of: isEditingHeadlineFocused) { _, focused in
+                                if !focused {
+                                    finishEditingListTitle(currentList)
+                                }
                             }
                     } else {
                         Text(currentList.title.uppercased())
@@ -243,8 +274,11 @@ struct ScratchpadView: View {
                             .foregroundColor(.gray)
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                editingListTitleId = currentList.id
+                                editingListTitleId = "HEADLINE_\(currentList.id)"
                                 editingListTitleText = currentList.title
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                    isEditingHeadlineFocused = true
+                                }
                             }
                     }
                     
@@ -366,7 +400,7 @@ struct ScratchpadView: View {
     
     private func finishEditingListTitle(_ list: ScratchpadList) {
         let trimmed = editingListTitleText.trimmingCharacters(in: .whitespaces)
-        if !trimmed.isEmpty && list.title != trimmed {
+        if !trimmed.isEmpty {
             list.title = trimmed
             list.updatedAt = Date()
             try? modelContext.save()
@@ -430,7 +464,7 @@ struct ScratchpadItemRowView: View {
     
     @State private var text: String = ""
     @State private var isExpanded: Bool = false
-    @State private var isHovered: Bool = false
+    @State private var isHovering: Bool = false
     @State private var showTransferPopover: Bool = false
     
     private var myId: String { item.id }
@@ -439,8 +473,8 @@ struct ScratchpadItemRowView: View {
     private var isDragged: Bool { !isNew && ScratchpadDragState.shared.draggedItem?.id == item.id }
     
     var body: some View {
-        let displayText = text.isEmpty ? (isNew ? "New item..." : "Item...") : text
-        let isPlaceholder = text.isEmpty
+        let rawText = isNew ? text : (text.isEmpty ? item.text : text)
+        let displayText = rawText
         
         ZStack {
             if isDragged {
@@ -465,7 +499,7 @@ struct ScratchpadItemRowView: View {
                     if !isCurrentlyFocused {
                         Text(displayText)
                             .font(.system(size: 14, weight: .light))
-                            .foregroundColor(isPlaceholder ? .secondary.opacity(0.5) : (item.completed ? .secondary : .primary))
+                            .foregroundColor(item.completed ? .secondary : .primary)
                             .strikethrough(item.completed)
                             .lineLimit(isExpanded ? nil : 1)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -496,7 +530,7 @@ struct ScratchpadItemRowView: View {
                                 }
                             },
                             fontSize: 14,
-                            placeholder: isNew ? "New item..." : "Item..."
+                            placeholder: ""
                         )
                     }
                 }
@@ -509,7 +543,7 @@ struct ScratchpadItemRowView: View {
                             Image(systemName: "arrow.turn.up.right")
                                 .font(.system(size: 11, weight: .light))
                                 .foregroundColor(.secondary.opacity(0.6))
-                                .padding(2)
+                                .frame(width: 22, height: 22)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -550,23 +584,21 @@ struct ScratchpadItemRowView: View {
                             Image(systemName: "xmark")
                                 .font(.system(size: 11, weight: .light))
                                 .foregroundColor(.secondary.opacity(0.6))
-                                .padding(2)
+                                .frame(width: 22, height: 22)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
-                    .opacity(isHovered || showTransferPopover || (isSelected && selectedItemIds.count > 1) ? 1 : 0)
-                    .onHover { hovering in
-                        if hovering { isHovered = true }
-                    }
+                    .opacity((isHovering || showTransferPopover || (isSelected && selectedItemIds.count > 1)) ? 1 : 0)
                 }
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
             .opacity(isDragged ? 0 : 1)
         }
+        .contentShape(Rectangle())
         .onHover { hovering in
-            isHovered = hovering
+            isHovering = hovering
         }
         .onAppear {
             text = item.text
@@ -574,11 +606,9 @@ struct ScratchpadItemRowView: View {
         .onChange(of: item.text) { _, newText in
             if !isCurrentlyFocused { text = newText }
         }
-        .onChange(of: focusedTaskId) { _, newId in
-            if newId != myId {
-                if isCurrentlyFocused {
-                    saveItem()
-                }
+        .onChange(of: focusedTaskId) { oldId, newId in
+            if oldId == myId && newId != myId {
+                saveItem()
                 if isExpanded {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         isExpanded = false
