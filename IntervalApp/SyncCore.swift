@@ -8,7 +8,9 @@ import Foundation
 enum SyncTable {
     static let tasks = "tasks"
     static let habits = "habits"
-    static let all = [tasks, habits]
+    static let scratchpadLists = "scratchpad_lists"
+    static let scratchpadItems = "scratchpad_items"
+    static let all = [tasks, habits, scratchpadLists, scratchpadItems]
 }
 
 // MARK: - Timestamps

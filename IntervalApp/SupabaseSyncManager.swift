@@ -67,6 +67,29 @@ struct SupabaseHabitDTO: Decodable {
     let updated_at: String?
 }
 
+struct SupabaseScratchpadListDTO: Decodable {
+    let id: String
+    let title: String?
+    let order: Int?
+    let created_at: String?
+    let deleted_at: String?
+    let user_id: String?
+    let updated_at: String?
+}
+
+struct SupabaseScratchpadItemDTO: Decodable {
+    let id: String
+    let list_id: String?
+    let text: String?
+    let completed: Bool?
+    let order: Int?
+    let created_at: String?
+    let deleted_at: String?
+    let completed_at: String?
+    let user_id: String?
+    let updated_at: String?
+}
+
 /// Wrapper that turns an undecodable row into `nil` instead of failing the whole array.
 private struct FailableRow<T: Decodable>: Decodable {
     let value: T?
@@ -529,6 +552,30 @@ class SupabaseSyncManager: ObservableObject {
             }
         }
         
+        // Scratchpad Lists
+        let scratchpadLists = pushableScratchpadLists(context: context)
+        for chunk in scratchpadLists.filter({ needsPush($0) }).chunked(into: upsertBatchSize) {
+            let stamps = chunk.map { $0.updatedAt }
+            let payload = chunk.map { scratchpadListPayload($0, uid: uid) }
+            if await upsert(table: SyncTable.scratchpadLists, payload: payload) {
+                for (index, item) in chunk.enumerated() {
+                    item.syncedAt = stamps[index]
+                }
+            }
+        }
+        
+        // Scratchpad Items
+        let scratchpadItems = pushableScratchpadItems(context: context)
+        for chunk in scratchpadItems.filter({ needsPush($0) }).chunked(into: upsertBatchSize) {
+            let stamps = chunk.map { $0.updatedAt }
+            let payload = chunk.map { scratchpadItemPayload($0, uid: uid) }
+            if await upsert(table: SyncTable.scratchpadItems, payload: payload) {
+                for (index, item) in chunk.enumerated() {
+                    item.syncedAt = stamps[index]
+                }
+            }
+        }
+        
         persist(context)
         
         if succeeded {
@@ -589,6 +636,16 @@ class SupabaseSyncManager: ObservableObject {
         return pushable
     }
     
+    private func pushableScratchpadLists(context: ModelContext) -> [ScratchpadList] {
+        guard let all = try? context.fetch(FetchDescriptor<ScratchpadList>()) else { return [] }
+        return all.filter { !$0.title.trimmingCharacters(in: .whitespaces).isEmpty || $0.deletedAt != nil }
+    }
+    
+    private func pushableScratchpadItems(context: ModelContext) -> [ScratchpadItem] {
+        guard let all = try? context.fetch(FetchDescriptor<ScratchpadItem>()) else { return [] }
+        return all.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty || $0.deletedAt != nil }
+    }
+    
     // Explicit dictionary payloads guarantee key symmetry across the array (PostgREST PGRST102).
     private func taskPayload(_ task: TaskItem, uid: String) -> [String: Any] {
         var payload: [String: Any] = [
@@ -621,6 +678,43 @@ class SupabaseSyncManager: ObservableObject {
             "user_id": uid,
             "updated_at": SyncTimestamp.format(clock.toServer(habit.updatedAt))
         ]
+    }
+    
+    private func scratchpadListPayload(_ list: ScratchpadList, uid: String) -> [String: Any] {
+        [
+            "id": list.id,
+            "title": list.title,
+            "order": list.order,
+            "created_at": SyncTimestamp.format(list.createdAt),
+            "deleted_at": list.deletedAt.map { SyncTimestamp.format($0) } ?? NSNull(),
+            "user_id": uid,
+            "updated_at": SyncTimestamp.format(clock.toServer(list.updatedAt))
+        ]
+    }
+    
+    private func scratchpadItemPayload(_ item: ScratchpadItem, uid: String) -> [String: Any] {
+        [
+            "id": item.id,
+            "list_id": item.listId,
+            "text": item.text,
+            "completed": item.completed,
+            "order": item.order,
+            "created_at": SyncTimestamp.format(item.createdAt),
+            "deleted_at": item.deletedAt.map { SyncTimestamp.format($0) } ?? NSNull(),
+            "completed_at": item.completedAt.map { SyncTimestamp.format($0) } ?? NSNull(),
+            "user_id": uid,
+            "updated_at": SyncTimestamp.format(clock.toServer(item.updatedAt))
+        ]
+    }
+    
+    private func needsPush(_ item: ScratchpadList) -> Bool {
+        guard let synced = item.syncedAt else { return true }
+        return item.updatedAt > synced
+    }
+    
+    private func needsPush(_ item: ScratchpadItem) -> Bool {
+        guard let synced = item.syncedAt else { return true }
+        return item.updatedAt > synced
     }
     
     // MARK: - Pull from Supabase
@@ -657,6 +751,18 @@ class SupabaseSyncManager: ObservableObject {
         var needsFollowupPush = mergeRemoteTasks(remoteTasks, context: context, uid: uid)
         if mergeRemoteHabits(remoteHabits, context: context, uid: uid) {
             needsFollowupPush = true
+        }
+        
+        if let remoteScratchpadLists: [SupabaseScratchpadListDTO] = await fetchAll(table: SyncTable.scratchpadLists, uid: uid) {
+            if mergeRemoteScratchpadLists(remoteScratchpadLists, context: context, uid: uid) {
+                needsFollowupPush = true
+            }
+        }
+        
+        if let remoteScratchpadItems: [SupabaseScratchpadItemDTO] = await fetchAll(table: SyncTable.scratchpadItems, uid: uid) {
+            if mergeRemoteScratchpadItems(remoteScratchpadItems, context: context, uid: uid) {
+                needsFollowupPush = true
+            }
         }
         
         persist(context)
@@ -830,6 +936,89 @@ class SupabaseSyncManager: ObservableObject {
         
         if !orphanRemoteIds.isEmpty {
             deleteRemote(table: SyncTable.habits, ids: orphanRemoteIds)
+        }
+        return needsFollowupPush
+    }
+    
+    private func mergeRemoteScratchpadLists(_ dtos: [SupabaseScratchpadListDTO], context: ModelContext, uid: String) -> Bool {
+        var needsFollowupPush = false
+        guard let all = try? context.fetch(FetchDescriptor<ScratchpadList>()) else { return false }
+        var localById = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        
+        for dto in dtos {
+            if let owner = dto.user_id, owner != uid { continue }
+            let title = (dto.title ?? "").trimmingCharacters(in: .whitespaces)
+            let remoteStamp = SyncTimestamp.parse(dto.updated_at).map { clock.toLocal($0) }
+            
+            if let existing = localById[dto.id] {
+                switch MergePolicy.resolve(remoteUpdatedAt: remoteStamp, localUpdatedAt: existing.updatedAt, localSyncedAt: existing.syncedAt) {
+                case .adoptRemote(let stamp):
+                    assign(title, to: existing, \.title)
+                    assign(dto.order ?? existing.order, to: existing, \.order)
+                    assign(SyncTimestamp.parse(dto.created_at) ?? existing.createdAt, to: existing, \.createdAt)
+                    assign(SyncTimestamp.parse(dto.deleted_at), to: existing, \.deletedAt)
+                    assign(stamp, to: existing, \.updatedAt)
+                    assign(Optional(stamp), to: existing, \.syncedAt)
+                case .republishLocal, .keepLocalAndPush:
+                    needsFollowupPush = true
+                case .keepLocal:
+                    break
+                }
+            } else {
+                let list = ScratchpadList(title: title, order: dto.order ?? 0)
+                list.id = dto.id
+                list.createdAt = SyncTimestamp.parse(dto.created_at) ?? Date()
+                list.deletedAt = SyncTimestamp.parse(dto.deleted_at)
+                list.updatedAt = remoteStamp ?? Date()
+                list.syncedAt = remoteStamp
+                context.insert(list)
+                localById[dto.id] = list
+                if remoteStamp == nil { needsFollowupPush = true }
+            }
+        }
+        return needsFollowupPush
+    }
+    
+    private func mergeRemoteScratchpadItems(_ dtos: [SupabaseScratchpadItemDTO], context: ModelContext, uid: String) -> Bool {
+        var needsFollowupPush = false
+        guard let all = try? context.fetch(FetchDescriptor<ScratchpadItem>()) else { return false }
+        var localById = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        
+        for dto in dtos {
+            if let owner = dto.user_id, owner != uid { continue }
+            let text = (dto.text ?? "").trimmingCharacters(in: .whitespaces)
+            let remoteStamp = SyncTimestamp.parse(dto.updated_at).map { clock.toLocal($0) }
+            
+            if let existing = localById[dto.id] {
+                switch MergePolicy.resolve(remoteUpdatedAt: remoteStamp, localUpdatedAt: existing.updatedAt, localSyncedAt: existing.syncedAt) {
+                case .adoptRemote(let stamp):
+                    assign(dto.list_id ?? existing.listId, to: existing, \.listId)
+                    assign(text, to: existing, \.text)
+                    assign(dto.completed ?? existing.completed, to: existing, \.completed)
+                    assign(dto.order ?? existing.order, to: existing, \.order)
+                    assign(SyncTimestamp.parse(dto.created_at) ?? existing.createdAt, to: existing, \.createdAt)
+                    assign(SyncTimestamp.parse(dto.deleted_at), to: existing, \.deletedAt)
+                    assign(SyncTimestamp.parse(dto.completed_at), to: existing, \.completedAt)
+                    assign(stamp, to: existing, \.updatedAt)
+                    assign(Optional(stamp), to: existing, \.syncedAt)
+                case .republishLocal, .keepLocalAndPush:
+                    needsFollowupPush = true
+                case .keepLocal:
+                    break
+                }
+            } else {
+                let item = ScratchpadItem(listId: dto.list_id ?? "", text: text, order: dto.order ?? 0)
+                item.id = dto.id
+                item.completed = dto.completed ?? false
+                item.createdAt = SyncTimestamp.parse(dto.created_at) ?? Date()
+                item.deletedAt = SyncTimestamp.parse(dto.deleted_at)
+                item.completedAt = SyncTimestamp.parse(dto.completed_at)
+                item.updatedAt = remoteStamp ?? Date()
+                item.syncedAt = remoteStamp
+                context.insert(item)
+                localById[dto.id] = item
+                if remoteStamp == nil { needsFollowupPush = true }
+            }
         }
         return needsFollowupPush
     }

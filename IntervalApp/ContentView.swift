@@ -16,6 +16,12 @@ struct ContentView: View {
     @State private var showAllCompleted = false
     @State private var showAllDeleted = false
     @State private var focusedTaskId: String?
+    @State private var currentViewMode: ViewMode = .intervals
+    
+    enum ViewMode {
+        case intervals
+        case scratchpad
+    }
     
     let intervals = [
         ("1 Hour", 45.0),
@@ -50,16 +56,19 @@ struct ContentView: View {
             
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 40) {
-                    HabitsBarView()
-                    
-                    ForEach(intervals, id: \.0) { interval in
-                        TaskListView(
-                            title: interval.0,
-                            fontSize: interval.1,
-                            tasks: allTasks.filter { $0.intervalType == interval.0 && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order },
-                            focusedTaskId: $focusedTaskId
-                        )
-                    }
+                    if currentViewMode == .scratchpad {
+                        ScratchpadView(focusedTaskId: $focusedTaskId)
+                    } else {
+                        HabitsBarView()
+                        
+                        ForEach(intervals, id: \.0) { interval in
+                            TaskListView(
+                                title: interval.0,
+                                fontSize: interval.1,
+                                tasks: allTasks.filter { $0.intervalType == interval.0 && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order },
+                                focusedTaskId: $focusedTaskId
+                            )
+                        }
                     
                     // Bin and Completed Lists
                     VStack(alignment: .leading, spacing: 20) {
@@ -168,6 +177,7 @@ struct ContentView: View {
                         }
                     }
                     .padding(.top, 20)
+                    }
                 }
                 .padding(40)
             }
@@ -186,10 +196,36 @@ struct ContentView: View {
                 await syncManager.triggerManualSync()
             }
             
-            // Minimalist Sync Indicator / Trigger in Top Right
+            // Minimalist View Switcher & Sync Indicator in Top Right
             VStack(alignment: .trailing, spacing: 8) {
-                HStack {
+                HStack(spacing: 8) {
                     Spacer()
+                    
+                    // View Mode Switcher Button
+                    Button(action: {
+                        focusedTaskId = nil
+                        #if os(iOS)
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        #endif
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            currentViewMode = (currentViewMode == .intervals ? .scratchpad : .intervals)
+                        }
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: currentViewMode == .intervals ? "doc.plaintext" : "chart.bar")
+                                .font(.system(size: 11, weight: .light))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(8)
+                        .background(
+                            Circle()
+                                .fill(Color.primary.opacity(0.04))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .help(currentViewMode == .intervals ? "Switch to Scratchpad Lists" : "Switch to Interval Tasks")
+                    
+                    // Refresh / Sync Button
                     Button(action: {
                         focusedTaskId = nil
                         #if os(iOS)
