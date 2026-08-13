@@ -68,33 +68,53 @@ class MigrationManager: ObservableObject {
         guard currentMigration == nil else { return }
         
         let defaults = UserDefaults.standard
-        let current = MigrationSchedule.marker(for: Date())
-        let previous = CalendarMarker(
-            hour: defaults.object(forKey: StoreKey.hour) as? Int,
-            day: defaults.object(forKey: StoreKey.day) as? Int,
-            week: defaults.object(forKey: StoreKey.week) as? Int,
-            month: defaults.object(forKey: StoreKey.month) as? Int,
-            year: defaults.object(forKey: StoreKey.year) as? Int
-        )
+        let now = Date()
+        let cal = Calendar.current
         
-        let pending = MigrationSchedule.dueMigration(
-            previous: previous,
-            current: current,
-            isFirstHourAfterDay: isFirstHourAfterDayMigration
-        )
+        // Initial setup for a fresh installation: record current dates without showing modals.
+        if defaults.object(forKey: StoreKey.hour) == nil {
+            defaults.set(now, forKey: StoreKey.hour)
+            defaults.set(now, forKey: StoreKey.day)
+            defaults.set(now, forKey: StoreKey.week)
+            defaults.set(now, forKey: StoreKey.month)
+            defaults.set(now, forKey: StoreKey.year)
+            return
+        }
         
-        // Save latest state
-        defaults.set(current.hour, forKey: StoreKey.hour)
-        defaults.set(current.day, forKey: StoreKey.day)
-        defaults.set(current.week, forKey: StoreKey.week)
-        defaults.set(current.month, forKey: StoreKey.month)
-        defaults.set(current.year, forKey: StoreKey.year)
+        let lastHourDate = (defaults.object(forKey: StoreKey.hour) as? Date) ?? now
+        let lastDayDate = (defaults.object(forKey: StoreKey.day) as? Date) ?? now
+        let lastWeekDate = (defaults.object(forKey: StoreKey.week) as? Date) ?? now
+        let lastMonthDate = (defaults.object(forKey: StoreKey.month) as? Date) ?? now
+        let lastYearDate = (defaults.object(forKey: StoreKey.year) as? Date) ?? now
         
-        guard let migration = pending else { return }
+        var pending: Migration? = nil
+        var targetStoreKey: String? = nil
+        
+        if !cal.isDate(lastYearDate, equalTo: now, toGranularity: .year) {
+            pending = Migration(source: "1 Year", dest: "1 Year")
+            targetStoreKey = StoreKey.year
+        } else if !cal.isDate(lastMonthDate, equalTo: now, toGranularity: .month) {
+            pending = Migration(source: "1 Year", dest: "1 Month")
+            targetStoreKey = StoreKey.month
+        } else if !cal.isDate(lastWeekDate, equalTo: now, toGranularity: .weekOfYear) {
+            pending = Migration(source: "1 Month", dest: "1 Week")
+            targetStoreKey = StoreKey.week
+        } else if !cal.isDate(lastDayDate, equalTo: now, toGranularity: .day) {
+            pending = Migration(source: "1 Week", dest: "1 Day")
+            targetStoreKey = StoreKey.day
+        } else if !cal.isDate(lastHourDate, equalTo: now, toGranularity: .hour) {
+            pending = Migration(source: "1 Day", dest: HabitTaskLink.hourInterval, isFirstHourOfDay: isFirstHourAfterDayMigration)
+            targetStoreKey = StoreKey.hour
+        }
+        
+        guard let migration = pending, let key = targetStoreKey else { return }
         
         if migration.source == "1 Week" && migration.dest == "1 Day" {
             isFirstHourAfterDayMigration = true
         }
+        
+        // Update state marker once evaluated
+        defaults.set(now, forKey: key)
         
         if present(migration) { return }
         

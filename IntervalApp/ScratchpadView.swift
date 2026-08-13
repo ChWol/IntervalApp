@@ -102,7 +102,7 @@ struct ScratchpadView: View {
                                             selectedItemIds.removeAll()
                                         }
                                     }) {
-                                        Text(list.title.isEmpty ? "Untitled List" : list.title)
+                                        Text(list.title.isEmpty ? "Untitled List".localized : list.title)
                                             .font(.system(size: 12, weight: isSelected ? .medium : .light))
                                             .foregroundColor(isSelected ? .primary : .secondary)
                                     }
@@ -264,9 +264,11 @@ struct ScratchpadView: View {
             } else if let currentList = selectedList {
                 HStack {
                     if editingListTitleId == "HEADLINE_\(currentList.id)" {
-                        TextField("List title...", text: $editingListTitleText)
+                        TextField("List title...".localized, text: $editingListTitleText)
                             .textFieldStyle(.plain)
                             .font(.system(size: 10, weight: .light, design: .default))
+                            .tracking(2.0)
+                            .foregroundColor(.gray)
                             .focused($isEditingHeadlineFocused)
                             .onSubmit {
                                 finishEditingListTitle(currentList)
@@ -280,7 +282,7 @@ struct ScratchpadView: View {
                                 }
                             }
                     } else {
-                        Text(currentList.title.uppercased())
+                        Text((currentList.title.isEmpty ? "Untitled List".localized : currentList.title).uppercased())
                             .font(.system(size: 10, weight: .light, design: .default))
                             .tracking(2.0)
                             .foregroundColor(.gray)
@@ -376,6 +378,16 @@ struct ScratchpadView: View {
             }
             
             Spacer(minLength: 20)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            focusedTaskId = nil
+            #if os(iOS)
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            #endif
+            if let currentList = selectedList {
+                finishEditingListTitle(currentList)
+            }
         }
         .onAppear {
             if selectedListId == nil {
@@ -553,51 +565,53 @@ struct ScratchpadItemRowView: View {
                 
                 if !isNew {
                     HStack(spacing: 2) {
-                        Button(action: {
-                            showTransferPopover.toggle()
-                        }) {
-                            Image(systemName: "arrow.turn.up.right")
-                                .font(.system(size: 11, weight: .light))
-                                .foregroundColor(isArrowHovered ? .primary : .secondary.opacity(0.6))
-                                .frame(width: 22, height: 22)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .onHover { hovering in
-                            isArrowHovered = hovering
-                            if hovering { isHovering = true }
-                        }
-                        .popover(isPresented: $showTransferPopover, arrowEdge: .trailing) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("TRANSFER TO TASK".localized)
-                                    .font(.system(size: 9, weight: .light))
-                                    .tracking(1.5)
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal, 8)
-                                    .padding(.top, 8)
-                                
-                                Divider()
-                                
-                                ForEach(["1 Hour", "1 Day", "1 Week", "1 Month", "1 Year"], id: \.self) { cat in
-                                    Button(action: {
-                                        showTransferPopover = false
-                                        transferItems(to: cat)
-                                    }) {
-                                        HStack {
-                                            Text(cat.localized)
-                                                .font(.system(size: 12, weight: .light))
-                                                .foregroundColor(.primary)
-                                            Spacer()
-                                        }
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                }
+                        if !item.completed {
+                            Button(action: {
+                                showTransferPopover.toggle()
+                            }) {
+                                Image(systemName: "arrow.turn.up.right")
+                                    .font(.system(size: 11, weight: .light))
+                                    .foregroundColor(isArrowHovered ? .primary : .secondary.opacity(0.6))
+                                    .frame(width: 22, height: 22)
+                                    .contentShape(Rectangle())
                             }
-                            .padding(.vertical, 4)
-                            .frame(width: 120)
+                            .buttonStyle(.plain)
+                            .onHover { hovering in
+                                isArrowHovered = hovering
+                                if hovering { isHovering = true }
+                            }
+                            .popover(isPresented: $showTransferPopover, arrowEdge: .trailing) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("TRANSFER TO TASK".localized)
+                                        .font(.system(size: 9, weight: .light))
+                                        .tracking(1.5)
+                                        .foregroundColor(.secondary)
+                                        .padding(.horizontal, 8)
+                                        .padding(.top, 8)
+                                    
+                                    Divider()
+                                    
+                                    ForEach(["1 Hour", "1 Day", "1 Week", "1 Month", "1 Year"], id: \.self) { cat in
+                                        Button(action: {
+                                            showTransferPopover = false
+                                            transferItems(to: cat)
+                                        }) {
+                                            HStack {
+                                                Text(cat.localized)
+                                                    .font(.system(size: 12, weight: .light))
+                                                    .foregroundColor(.primary)
+                                                Spacer()
+                                            }
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                                .frame(width: 120)
+                            }
                         }
                         
                         Button(action: deleteItem) {

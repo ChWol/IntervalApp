@@ -211,20 +211,44 @@ struct ContentView: View {
                 HStack(spacing: 8) {
                     Spacer()
                     
-                    // View Mode Switcher Button
+                    // Main Page Button
                     Button(action: {
                         focusedTaskId = nil
                         #if os(iOS)
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                         #endif
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            currentViewMode = (currentViewMode == .scratchpad ? .intervals : .scratchpad)
+                            currentViewMode = .intervals
                         }
                     }) {
                         ZStack {
-                            Image(systemName: currentViewMode == .scratchpad ? "chart.bar" : "doc.plaintext")
+                            Image(systemName: "chart.bar")
                                 .font(.system(size: 11, weight: .light))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(currentViewMode == .intervals ? .primary : .secondary)
+                        }
+                        .frame(width: 28, height: 28)
+                        .background(
+                            Circle()
+                                .fill(Color.primary.opacity(currentViewMode == .intervals ? 0.12 : 0.04))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .help("Switch to Interval Tasks".localized)
+                    
+                    // Scratchpad Lists Button
+                    Button(action: {
+                        focusedTaskId = nil
+                        #if os(iOS)
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        #endif
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            currentViewMode = .scratchpad
+                        }
+                    }) {
+                        ZStack {
+                            Image(systemName: "doc.plaintext")
+                                .font(.system(size: 11, weight: .light))
+                                .foregroundColor(currentViewMode == .scratchpad ? .primary : .secondary)
                         }
                         .frame(width: 28, height: 28)
                         .background(
@@ -233,7 +257,7 @@ struct ContentView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .help(currentViewMode == .scratchpad ? "Switch to Interval Tasks".localized : "Switch to Scratchpad Lists".localized)
+                    .help("Switch to Scratchpad Lists".localized)
                     
                     // Settings Button
                     Button(action: {
@@ -242,7 +266,7 @@ struct ContentView: View {
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                         #endif
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            currentViewMode = (currentViewMode == .settings ? .intervals : .settings)
+                            currentViewMode = .settings
                         }
                     }) {
                         ZStack {

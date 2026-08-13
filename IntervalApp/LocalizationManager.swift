@@ -81,6 +81,18 @@ class LocalizationManager: ObservableObject {
             .german: "Möchtest du diese Liste und alle ihre Einträge wirklich löschen?",
             .french: "Voulez-vous vraiment supprimer cette liste et tous ses éléments ?"
         ],
+        "Untitled List": [.english: "Untitled List", .german: "Unbenannte Liste", .french: "Liste sans titre"],
+        "SUPPORT & FEEDBACK": [.english: "SUPPORT & FEEDBACK", .german: "SUPPORT & FEEDBACK", .french: "SUPPORT ET RETOURS"],
+        "For feedback, inspiration or help contact:": [
+            .english: "For feedback, inspiration or help contact:",
+            .german: "Für Feedback, Inspiration oder Hilfe wende dich an:",
+            .french: "Pour des retours, de l'inspiration ou de l'aide :"
+        ],
+        "Donations & Support:": [
+            .english: "Donations & Support:",
+            .german: "Spenden & Unterstützung:",
+            .french: "Dons et soutien :"
+        ],
         "HABITS": [.english: "HABITS", .german: "GEWOHNHEITEN", .french: "HABITUDES"],
         "New habit...": [.english: "New habit...", .german: "Neue Gewohnheit...", .french: "Nouvelle habitude..."]
     ]
