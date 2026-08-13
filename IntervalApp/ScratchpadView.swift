@@ -27,6 +27,8 @@ struct ScratchpadView: View {
     @State private var newListName: String = ""
     @State private var editingListTitleId: String? = nil
     @State private var editingListTitleText: String = ""
+    @State private var listToDelete: ScratchpadList? = nil
+    @State private var showDeleteListAlert: Bool = false
     @FocusState private var isNewListFocused: Bool
     
     private var activeLists: [ScratchpadList] {
@@ -89,7 +91,10 @@ struct ScratchpadView: View {
                                 }
                                 
                                 if isSelected {
-                                    Button(action: { deleteList(list) }) {
+                                    Button(action: {
+                                        listToDelete = list
+                                        showDeleteListAlert = true
+                                    }) {
                                         Image(systemName: "xmark")
                                             .font(.system(size: 8))
                                             .foregroundColor(.secondary.opacity(0.6))
@@ -144,6 +149,27 @@ struct ScratchpadView: View {
                                     .frame(width: 100)
                                     .focused($isNewListFocused)
                                     .onSubmit { createList() }
+                                    .onChange(of: isNewListFocused) { _, focused in
+                                        if !focused {
+                                            let trimmed = newListName.trimmingCharacters(in: .whitespaces)
+                                            if trimmed.isEmpty {
+                                                withAnimation {
+                                                    isCreatingList = false
+                                                    newListName = ""
+                                                }
+                                            } else {
+                                                createList()
+                                            }
+                                        }
+                                    }
+                                    #if os(macOS)
+                                    .onExitCommand {
+                                        withAnimation {
+                                            isCreatingList = false
+                                            newListName = ""
+                                        }
+                                    }
+                                    #endif
                                 
                                 Button(action: createList) {
                                     Image(systemName: "checkmark")
@@ -277,6 +303,14 @@ struct ScratchpadView: View {
             if selectedListId == nil {
                 selectedListId = activeLists.first?.id
             }
+        }
+        .alert("Delete List?", isPresented: $showDeleteListAlert, presenting: listToDelete) { list in
+            Button("Delete", role: .destructive) {
+                deleteList(list)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { list in
+            Text("Are you sure you want to delete '\(list.title.isEmpty ? "Untitled List" : list.title)' and all its items?")
         }
     }
     
@@ -434,14 +468,16 @@ struct ScratchpadItemRowView: View {
                     }
                 }
                 
-                if isHovered && !isNew {
+                if !isNew {
                     Button(action: deleteItem) {
                         Image(systemName: "xmark")
                             .font(.system(size: 8))
                             .foregroundColor(.secondary)
                             .padding(4)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .opacity(isHovered ? 1 : 0)
                 }
             }
             .opacity(isDragged ? 0 : 1)
