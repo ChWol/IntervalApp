@@ -219,7 +219,6 @@ struct TaskRowView: View {
                                     if focusedTaskId == myId {
                                         focusedTaskId = nil
                                     }
-                                    isExpanded = false
                                     let trimmed = text.trimmingCharacters(in: .whitespaces)
                                     if isNew {
                                         if !trimmed.isEmpty {

@@ -160,7 +160,6 @@ struct CustomTextField: View {
                     Spacer()
                     Button(action: {
                         fieldFocused = false
-                        onFocusChanged(false)
                     }) {
                         Image(systemName: "keyboard.chevron.compact.down")
                             .font(.system(size: 16, weight: .regular))
