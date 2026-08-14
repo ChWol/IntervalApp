@@ -17,7 +17,6 @@ struct ContentView: View {
     
     @State private var isCompletedExpanded = false
     @State private var isDeletedExpanded = false
-    @ObservedObject private var locManager = LocalizationManager.shared
     @State private var showAllCompleted = false
     @State private var showAllDeleted = false
     @State private var focusedTaskId: String?

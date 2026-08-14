@@ -35,18 +35,18 @@ enum TaskHousekeeping {
     static func moveToBin(_ task: TaskItem,
                           in context: ModelContext,
                           now: Date = Date(),
-                          sync: SupabaseSyncManager = .shared) {
+                          sync: SupabaseSyncManager? = nil) {
         SoundManager.playTaskDeleted()
         task.deletedAt = now
         task.updatedAt = now
         try? context.save()
-        sync.push()
+        (sync ?? SupabaseSyncManager.shared).push()
     }
     
     static func restore(_ task: TaskItem,
                         in context: ModelContext,
                         now: Date = Date(),
-                        sync: SupabaseSyncManager = .shared) {
+                        sync: SupabaseSyncManager? = nil) {
         SoundManager.playUndo()
         task.deletedAt = nil
         task.completed = false
@@ -59,7 +59,7 @@ enum TaskHousekeeping {
             HabitTaskLink.applyTaskCompletionToHabit(task, habits: habits, now: now)
         }
         try? context.save()
-        sync.push()
+        (sync ?? SupabaseSyncManager.shared).push()
     }
     
     /// Hard delete. The remote delete is registered *before* the local row disappears, so a
@@ -67,9 +67,10 @@ enum TaskHousekeeping {
     /// confirms it.
     static func deletePermanently(_ tasks: [TaskItem],
                                   in context: ModelContext,
-                                  sync: SupabaseSyncManager = .shared) {
+                                  sync: SupabaseSyncManager? = nil) {
         guard !tasks.isEmpty else { return }
-        sync.deleteRemote(table: SyncTable.tasks, ids: tasks.map { $0.id })
+        let syncManager = sync ?? SupabaseSyncManager.shared
+        syncManager.deleteRemote(table: SyncTable.tasks, ids: tasks.map { $0.id })
         for task in tasks {
             context.delete(task)
         }
