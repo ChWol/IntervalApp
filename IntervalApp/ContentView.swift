@@ -119,7 +119,7 @@ struct ContentView: View {
                                                 HStack {
                                                     if completedTasks.count > 10 {
                                                         Button(action: { withAnimation { showAllCompleted.toggle() } }) {
-                                                            Text(showAllCompleted ? "Show Less" : "Show More (\(completedTasks.count - 10))")
+                                                            Text(showAllCompleted ? "Show Less".localized : "\("Show More".localized) (\(completedTasks.count - 10))")
                                                                 .font(.system(size: 12, weight: .light))
                                                                 .foregroundColor(.secondary)
                                                         }
@@ -133,7 +133,7 @@ struct ContentView: View {
                                                             clearCompletedTasks()
                                                         }
                                                     }) {
-                                                        Text("Clear All")
+                                                        Text("Clear All".localized)
                                                             .font(.system(size: 12, weight: .light))
                                                             .foregroundColor(.secondary)
                                                     }
@@ -144,7 +144,7 @@ struct ContentView: View {
                                             .padding(.top, 10)
                                             .padding(.leading, 5)
                                         } label: {
-                                            Text("COMPLETED")
+                                            Text("COMPLETED".localized)
                                                 .font(.system(size: 10, weight: .light, design: .default))
                                                 .tracking(2.0)
                                                 .foregroundColor(.secondary)
@@ -171,7 +171,7 @@ struct ContentView: View {
                                                 HStack {
                                                     if deletedTasks.count > 10 {
                                                         Button(action: { withAnimation { showAllDeleted.toggle() } }) {
-                                                            Text(showAllDeleted ? "Show Less" : "Show More (\(deletedTasks.count - 10))")
+                                                            Text(showAllDeleted ? "Show Less".localized : "\("Show More".localized) (\(deletedTasks.count - 10))")
                                                                 .font(.system(size: 12, weight: .light))
                                                                 .foregroundColor(.secondary)
                                                         }
@@ -185,7 +185,7 @@ struct ContentView: View {
                                                             clearDeletedTasks()
                                                         }
                                                     }) {
-                                                        Text("Clear All")
+                                                        Text("Clear All".localized)
                                                             .font(.system(size: 12, weight: .light))
                                                             .foregroundColor(.secondary)
                                                     }
@@ -196,7 +196,7 @@ struct ContentView: View {
                                             .padding(.top, 10)
                                             .padding(.leading, 5)
                                         } label: {
-                                            Text("RECENTLY DELETED")
+                                            Text("RECENTLY DELETED".localized)
                                                 .font(.system(size: 10, weight: .light, design: .default))
                                                 .tracking(2.0)
                                                 .foregroundColor(.secondary)

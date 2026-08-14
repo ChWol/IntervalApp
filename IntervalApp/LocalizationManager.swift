@@ -71,7 +71,13 @@ class LocalizationManager: ObservableObject {
         "Add Item": [.english: "Add Item", .german: "Eintrag hinzufügen", .french: "Ajouter un élément", .arabic: "إضافة عنصر"],
         "ITEMS": [.english: "ITEMS", .german: "EINTRÄGE", .french: "ÉLÉMENTS", .arabic: "العناصر"],
         "COMPLETED": [.english: "COMPLETED", .german: "ERLEDIGT", .french: "TERMINÉ", .arabic: "المكتملة"],
+        "Completed": [.english: "Completed", .german: "Erledigt", .french: "Terminé", .arabic: "المكتملة"],
+        "RECENTLY DELETED": [.english: "RECENTLY DELETED", .german: "KÜRZLICH GELÖSCHT", .french: "RÉCEMMENT SUPPRIMÉ", .arabic: "المحذوفة مؤخراً"],
+        "Recently Deleted": [.english: "Recently Deleted", .german: "Kürzlich gelöscht", .french: "Récemment supprimé", .arabic: "المحذوفة مؤخراً"],
         "Clear All": [.english: "Clear All", .german: "Alle löschen", .french: "Tout effacer", .arabic: "مسح الكل"],
+        "Clear all": [.english: "Clear all", .german: "Alle löschen", .french: "Tout effacer", .arabic: "مسح الكل"],
+        "Show Less": [.english: "Show Less", .german: "Weniger anzeigen", .french: "Afficher moins", .arabic: "عرض أقل"],
+        "Show More": [.english: "Show More", .german: "Mehr anzeigen", .french: "Afficher plus", .arabic: "عرض المزيد"],
         "TRANSFER TO TASK": [.english: "TRANSFER TO TASK", .german: "IN AUFGABE UMWANDELN", .french: "TRANSFÉRER EN TÂCHE", .arabic: "تحويل إلى مهمة"],
         
         // Settings & Preferences
