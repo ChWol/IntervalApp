@@ -328,6 +328,95 @@ class SupabaseSyncManager: ObservableObject {
         }
     }
     
+    @discardableResult
+    func handleIncomingURL(_ url: URL) -> Bool {
+        let urlString = url.absoluteString
+        guard urlString.contains("reset-password") || urlString.contains("recovery") || urlString.contains("access_token") else {
+            return false
+        }
+        
+        var tokenMap: [String: String] = [:]
+        
+        // Parse fragment (#access_token=...)
+        if let fragment = url.fragment {
+            for pair in fragment.components(separatedBy: "&") {
+                let parts = pair.components(separatedBy: "=")
+                if parts.count == 2 {
+                    tokenMap[parts[0]] = parts[1].removingPercentEncoding ?? parts[1]
+                }
+            }
+        }
+        
+        // Parse query (?access_token=...)
+        if let query = url.query {
+            for pair in query.components(separatedBy: "&") {
+                let parts = pair.components(separatedBy: "=")
+                if parts.count == 2 {
+                    tokenMap[parts[0]] = parts[1].removingPercentEncoding ?? parts[1]
+                }
+            }
+        }
+        
+        if let token = tokenMap["access_token"] {
+            self.accessToken = token
+            if let refresh = tokenMap["refresh_token"] {
+                self.refreshToken = refresh
+            }
+            if let expiresInStr = tokenMap["expires_in"], let expiresIn = Double(expiresInStr) {
+                self.accessTokenExpiry = Date().addingTimeInterval(expiresIn)
+            }
+            self.isAuthenticated = true
+            
+            // Trigger UI to show the password reset modal
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .promptPasswordUpdate, object: nil)
+            }
+            return true
+        }
+        
+        return false
+    }
+    
+    func updateUserPassword(newPassword: String) async -> (success: Bool, error: String?) {
+        guard let token = accessToken else {
+            return (false, "Not authenticated")
+        }
+        guard newPassword.count >= 6 else {
+            return (false, "Password must be at least 6 characters".localized)
+        }
+        
+        guard let url = URL(string: "\(supabaseURL)/auth/v1/user") else {
+            return (false, "Invalid URL")
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue(supabaseKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["password": newPassword])
+        
+        do {
+            let (data, response) = try await session.data(for: request)
+            if let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode >= 400 {
+                let body = String(data: data, encoding: .utf8) ?? ""
+                return (false, "Update failed (\(statusCode)): \(body)")
+            }
+            
+            if let userResp = try? JSONDecoder().decode(AuthUser.self, from: data) {
+                self.userId = userResp.id
+                if let email = userResp.email {
+                    self.userEmail = email
+                    UserDefaults.standard.set(email, forKey: StoreKey.userEmail)
+                }
+            }
+            
+            return (true, nil)
+        } catch {
+            return (false, "Network error: \(error.localizedDescription)")
+        }
+    }
+    
     func signOut() {
         if let ctx = modelContext {
             purgeLocalStore(context: ctx)

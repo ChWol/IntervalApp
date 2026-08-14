@@ -23,6 +23,7 @@ struct ContentView: View {
     @State private var currentViewMode: ViewMode = .intervals
     @State private var isSearchPresented = false
     @State private var scratchpadSelectedListId: String? = nil
+    @State private var showUpdatePasswordModal = false
     
     enum ViewMode {
         case intervals
@@ -39,39 +40,54 @@ struct ContentView: View {
     ]
     
     var body: some View {
-        Group {
-            if syncManager.isAuthenticated {
-                mainAppView
-                    .onAppear {
-                        syncManager.start(context: modelContext)
-                        migrationManager.startMonitoring(context: modelContext)
-                        cleanupOldTasks()
-                    }
-                    .onChange(of: syncManager.isAuthenticated) { _, authenticated in
-                        if authenticated {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                currentViewMode = .intervals
-                                focusedTaskId = nil
+        ZStack {
+            Group {
+                if syncManager.isAuthenticated {
+                    mainAppView
+                        .onAppear {
+                            syncManager.start(context: modelContext)
+                            migrationManager.startMonitoring(context: modelContext)
+                            cleanupOldTasks()
+                        }
+                        .onChange(of: syncManager.isAuthenticated) { _, authenticated in
+                            if authenticated {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    currentViewMode = .intervals
+                                    focusedTaskId = nil
+                                }
                             }
                         }
-                    }
-                    .onChange(of: scenePhase) { _, newPhase in
-                        if newPhase == .active {
-                            migrationManager.checkMigrations()
-                            Task {
-                                await syncManager.triggerManualSync()
+                        .onChange(of: scenePhase) { _, newPhase in
+                            if newPhase == .active {
+                                migrationManager.checkMigrations()
+                                Task {
+                                    await syncManager.triggerManualSync()
+                                }
                             }
                         }
-                    }
-            } else {
-                AuthView()
-                    .onAppear {
-                        syncManager.start(context: modelContext)
-                        currentViewMode = .intervals
-                    }
+                } else {
+                    AuthView()
+                        .onAppear {
+                            syncManager.start(context: modelContext)
+                            currentViewMode = .intervals
+                        }
+                }
+            }
+            .environment(\.layoutDirection, locManager.currentLanguage == .arabic ? .rightToLeft : .leftToRight)
+            
+            if showUpdatePasswordModal {
+                UpdatePasswordModalView(isPresented: $showUpdatePasswordModal)
+                    .zIndex(200)
             }
         }
-        .environment(\.layoutDirection, locManager.currentLanguage == .arabic ? .rightToLeft : .leftToRight)
+        .onOpenURL { url in
+            syncManager.handleIncomingURL(url)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .promptPasswordUpdate)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showUpdatePasswordModal = true
+            }
+        }
     }
     
     // MARK: - Main App View
