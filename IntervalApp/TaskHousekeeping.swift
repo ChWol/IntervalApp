@@ -3,6 +3,7 @@ import SwiftData
 
 /// The lifecycle of a task: into the bin, back out again, and eventually gone for good.
 /// Kept in one place so every entry point behaves identically and so the rules can be tested.
+@MainActor
 enum TaskHousekeeping {
     /// How long completed and binned tasks are kept before they are removed automatically.
     static let retentionDays = 30

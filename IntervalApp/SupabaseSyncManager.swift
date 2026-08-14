@@ -3,6 +3,12 @@ import SwiftUI
 import SwiftData
 import Combine
 
+// MARK: - Notifications
+
+extension Notification.Name {
+    static let syncPullDidComplete = Notification.Name("syncPullDidComplete")
+}
+
 // MARK: - Auth Models
 
 struct AuthResponse: Codable {
@@ -277,6 +283,11 @@ class SupabaseSyncManager: ObservableObject {
     }
     
     func signOut() {
+        if let ctx = modelContext {
+            purgeLocalStore(context: ctx)
+        } else {
+            pendingLocalPurge = true
+        }
         accessToken = nil
         refreshToken = nil
         accessTokenExpiry = nil
@@ -290,6 +301,8 @@ class SupabaseSyncManager: ObservableObject {
         refreshTask = nil
         missingTaskIds.removeAll()
         missingHabitIds.removeAll()
+        ledger.removeAll()
+        persistLedger()
         UserDefaults.standard.removeObject(forKey: StoreKey.userEmail)
         UserDefaults.standard.removeObject(forKey: StoreKey.accessToken)
         UserDefaults.standard.removeObject(forKey: StoreKey.refreshToken)
@@ -297,15 +310,35 @@ class SupabaseSyncManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: StoreKey.tokenExpiry)
     }
     
-    private func handleAuthSuccess(_ response: AuthResponse, email: String) {
-        // Signing in as somebody else must not upload the previous account's rows.
-        if let previousUserId = userId, previousUserId != response.user.id {
-            pendingLocalPurge = true
-            ledger.removeAll()
-            persistLedger()
-            missingTaskIds.removeAll()
-            missingHabitIds.removeAll()
+    func deleteAccount() async {
+        guard let uid = userId, let token = accessToken else {
+            signOut()
+            return
         }
+        let tables = ["tasks", "habits", "scratchpad_items", "scratchpad_lists"]
+        for table in tables {
+            guard let url = URL(string: "\(supabaseURL)/rest/v1/\(table)?user_id=eq.\(uid)") else { continue }
+            var req = URLRequest(url: url)
+            req.httpMethod = "DELETE"
+            req.setValue(supabaseKey, forHTTPHeaderField: "apikey")
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            _ = try? await URLSession.shared.data(for: req)
+        }
+        signOut()
+    }
+
+    
+    private func handleAuthSuccess(_ response: AuthResponse, email: String) {
+        // Signing in must wipe any previously cached account data to ensure privacy
+        if let ctx = modelContext {
+            purgeLocalStore(context: ctx)
+        } else {
+            pendingLocalPurge = true
+        }
+        ledger.removeAll()
+        persistLedger()
+        missingTaskIds.removeAll()
+        missingHabitIds.removeAll()
         
         applyTokens(response)
         userId = response.user.id
@@ -314,11 +347,10 @@ class SupabaseSyncManager: ObservableObject {
         isAuthenticated = true
         
         if let ctx = modelContext {
-            if pendingLocalPurge {
-                purgeLocalStore(context: ctx)
-                pendingLocalPurge = false
-            }
             startSync(context: ctx)
+            Task { @MainActor in
+                _ = await self.runSyncCycle(force: true)
+            }
         }
     }
     
@@ -768,6 +800,7 @@ class SupabaseSyncManager: ObservableObject {
         persist(context)
         completeLegacyBinPurge()
         noteSyncSuccess()
+        NotificationCenter.default.post(name: .syncPullDidComplete, object: nil)
         
         if needsFollowupPush {
             push()
@@ -1078,9 +1111,11 @@ class SupabaseSyncManager: ObservableObject {
         return byId
     }
     
-    private func purgeLocalStore(context: ModelContext) {
+    func purgeLocalStore(context: ModelContext) {
         for task in (try? context.fetch(FetchDescriptor<TaskItem>())) ?? [] { context.delete(task) }
         for habit in (try? context.fetch(FetchDescriptor<HabitItem>())) ?? [] { context.delete(habit) }
+        for item in (try? context.fetch(FetchDescriptor<ScratchpadItem>())) ?? [] { context.delete(item) }
+        for list in (try? context.fetch(FetchDescriptor<ScratchpadList>())) ?? [] { context.delete(list) }
         persist(context)
     }
     

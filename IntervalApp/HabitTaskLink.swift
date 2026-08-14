@@ -17,9 +17,15 @@ enum HabitTaskLink {
         )
         return habits
             .filter { $0.deletedAt == nil }
+            .filter { $0.isScheduledForTodayOrOverdue(date: now) }
             .filter { !$0.isCompleted(at: now) }
             .filter { !alreadyListed.contains($0.id) }
-            .sorted { $0.order < $1.order }
+            .sorted { h1, h2 in
+                let o1 = h1.isOverdueInCurrentWeek(date: now)
+                let o2 = h2.isOverdueInCurrentWeek(date: now)
+                if o1 != o2 { return o1 && !o2 }
+                return h1.order < h2.order
+            }
     }
     
     /// Builds the hour tasks for the chosen habits, appended after `startingOrder`.

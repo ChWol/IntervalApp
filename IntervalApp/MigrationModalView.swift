@@ -171,7 +171,7 @@ struct MigrationModalView: View {
                         selectionRow(
                             text: habit.text,
                             isSelected: selectedHabitIds.contains(habit.id),
-                            badge: habit.streak > 0 ? "\(habit.streak)\(habit.frequency == "Daily" ? "d" : "w")" : nil
+                            badge: nil
                         ) {
                             toggle(habit.id, in: &selectedHabitIds)
                         }

@@ -4,6 +4,7 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \TaskItem.order) private var allTasks: [TaskItem]
     @Query(sort: \HabitItem.order) private var allHabits: [HabitItem]
     
@@ -12,6 +13,7 @@ struct ContentView: View {
     @ObservedObject private var dragState = DragState.shared
     
     @ObservedObject private var locManager = LocalizationManager.shared
+    @AppStorage("showHabits") private var showHabits: Bool = true
     
     @State private var isCompletedExpanded = false
     @State private var isDeletedExpanded = false
@@ -19,7 +21,6 @@ struct ContentView: View {
     @State private var showAllDeleted = false
     @State private var focusedTaskId: String?
     @State private var currentViewMode: ViewMode = .intervals
-    @State private var showSettingsPopover: Bool = false
     
     enum ViewMode {
         case intervals
@@ -43,10 +44,27 @@ struct ContentView: View {
                     migrationManager.startMonitoring(context: modelContext)
                     cleanupOldTasks()
                 }
+                .onChange(of: syncManager.isAuthenticated) { _, authenticated in
+                    if authenticated {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            currentViewMode = .intervals
+                            focusedTaskId = nil
+                        }
+                    }
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        migrationManager.checkMigrations()
+                        Task {
+                            await syncManager.triggerManualSync()
+                        }
+                    }
+                }
         } else {
             AuthView()
                 .onAppear {
                     syncManager.start(context: modelContext)
+                    currentViewMode = .intervals
                 }
         }
     }
@@ -58,152 +76,161 @@ struct ContentView: View {
         ZStack {
             Color(colorScheme == .dark ? .black : .white).ignoresSafeArea()
             
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 40) {
-                    if currentViewMode == .scratchpad {
-                        ScratchpadView(focusedTaskId: $focusedTaskId)
-                    } else if currentViewMode == .settings {
-                        SettingsView(onClose: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                currentViewMode = .intervals
-                            }
-                        })
-                    } else {
-                        HabitsBarView()
-                        
-                        ForEach(intervals, id: \.0) { interval in
-                            TaskListView(
-                                title: interval.0,
-                                fontSize: interval.1,
-                                tasks: allTasks.filter { $0.intervalType == interval.0 && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order },
-                                focusedTaskId: $focusedTaskId
-                            )
-                        }
-                    
-                    // Bin and Completed Lists
-                    VStack(alignment: .leading, spacing: 20) {
-                        let completedTasks = allTasks.filter { $0.completed && $0.deletedAt == nil }.sorted { ($0.completedAt ?? Date()) > ($1.completedAt ?? Date()) }
-                        if !completedTasks.isEmpty {
-                            DisclosureGroup(isExpanded: $isCompletedExpanded) {
-                                VStack(alignment: .leading, spacing: 15) {
-                                    let displayed = showAllCompleted ? completedTasks : Array(completedTasks.prefix(10))
-                                    ForEach(displayed) { task in
-                                        BinRowView(task: task, fontSize: 14.0)
-                                    }
-                                    HStack {
-                                        if completedTasks.count > 10 {
-                                            Button(action: { withAnimation { showAllCompleted.toggle() } }) {
-                                                Text(showAllCompleted ? "Show Less" : "Show More (\(completedTasks.count - 10))")
-                                                    .font(.system(size: 12, weight: .light))
-                                                    .foregroundColor(.secondary)
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        Button(action: {
-                                            withAnimation {
-                                                clearCompletedTasks()
-                                            }
-                                        }) {
-                                            Text("Clear All")
-                                                .font(.system(size: 12, weight: .light))
-                                                .foregroundColor(.secondary)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                    .padding(.top, 5)
-                                }
-                                .padding(.top, 10)
-                                .padding(.leading, 5)
-                            } label: {
-                                Text("COMPLETED")
-                                    .font(.system(size: 10, weight: .light, design: .default))
-                                    .tracking(2.0)
-                                    .foregroundColor(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        withAnimation { isCompletedExpanded.toggle() }
-                                    }
-                            }
-                            .tint(.secondary)
-                            .onChange(of: isCompletedExpanded) { _, newValue in
-                                if !newValue { showAllCompleted = false }
-                            }
-                        }
-                        
-                        let deletedTasks = allTasks.filter { $0.deletedAt != nil }.sorted { ($0.deletedAt ?? Date()) > ($1.deletedAt ?? Date()) }
-                        if !deletedTasks.isEmpty {
-                            DisclosureGroup(isExpanded: $isDeletedExpanded) {
-                                VStack(alignment: .leading, spacing: 15) {
-                                    let displayed = showAllDeleted ? deletedTasks : Array(deletedTasks.prefix(10))
-                                    ForEach(displayed) { task in
-                                        BinRowView(task: task, fontSize: 14.0)
-                                    }
-                                    HStack {
-                                        if deletedTasks.count > 10 {
-                                            Button(action: { withAnimation { showAllDeleted.toggle() } }) {
-                                                Text(showAllDeleted ? "Show Less" : "Show More (\(deletedTasks.count - 10))")
-                                                    .font(.system(size: 12, weight: .light))
-                                                    .foregroundColor(.secondary)
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        Button(action: {
-                                            withAnimation {
-                                                clearDeletedTasks()
-                                            }
-                                        }) {
-                                            Text("Clear All")
-                                                .font(.system(size: 12, weight: .light))
-                                                .foregroundColor(.secondary)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                    .padding(.top, 5)
-                                }
-                                .padding(.top, 10)
-                                .padding(.leading, 5)
-                            } label: {
-                                Text("RECENTLY DELETED")
-                                    .font(.system(size: 10, weight: .light, design: .default))
-                                    .tracking(2.0)
-                                    .foregroundColor(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        withAnimation { isDeletedExpanded.toggle() }
-                                    }
-                            }
-                            .tint(.secondary)
-                            .onChange(of: isDeletedExpanded) { _, newValue in
-                                if !newValue { showAllDeleted = false }
-                            }
-                        }
+            if currentViewMode == .settings {
+                SettingsView(onClose: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        currentViewMode = .intervals
                     }
-                    .padding(.top, 20)
+                })
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            } else {
+                GeometryReader { geo in
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 40) {
+                            if currentViewMode == .scratchpad {
+                                ScratchpadView(focusedTaskId: $focusedTaskId)
+                            } else {
+                                if showHabits {
+                                    HabitsBarView()
+                                }
+                                
+                                ForEach(intervals, id: \.0) { interval in
+                                    TaskListView(
+                                        title: interval.0,
+                                        fontSize: interval.1,
+                                        tasks: allTasks.filter { $0.intervalType == interval.0 && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order },
+                                        focusedTaskId: $focusedTaskId
+                                    )
+                                }
+                            
+                                // Bin and Completed Lists
+                                VStack(alignment: .leading, spacing: 20) {
+                                    let completedTasks = allTasks.filter { $0.completed && $0.deletedAt == nil }.sorted { ($0.completedAt ?? Date()) > ($1.completedAt ?? Date()) }
+                                    if !completedTasks.isEmpty {
+                                        DisclosureGroup(isExpanded: $isCompletedExpanded) {
+                                            VStack(alignment: .leading, spacing: 15) {
+                                                let displayed = showAllCompleted ? completedTasks : Array(completedTasks.prefix(10))
+                                                ForEach(displayed) { task in
+                                                    BinRowView(task: task, fontSize: 14.0)
+                                                }
+                                                HStack {
+                                                    if completedTasks.count > 10 {
+                                                        Button(action: { withAnimation { showAllCompleted.toggle() } }) {
+                                                            Text(showAllCompleted ? "Show Less" : "Show More (\(completedTasks.count - 10))")
+                                                                .font(.system(size: 12, weight: .light))
+                                                                .foregroundColor(.secondary)
+                                                        }
+                                                        .buttonStyle(.plain)
+                                                    }
+                                                    
+                                                    Spacer()
+                                                    
+                                                    Button(action: {
+                                                        withAnimation {
+                                                            clearCompletedTasks()
+                                                        }
+                                                    }) {
+                                                        Text("Clear All")
+                                                            .font(.system(size: 12, weight: .light))
+                                                            .foregroundColor(.secondary)
+                                                    }
+                                                    .buttonStyle(.plain)
+                                                }
+                                                .padding(.top, 5)
+                                            }
+                                            .padding(.top, 10)
+                                            .padding(.leading, 5)
+                                        } label: {
+                                            Text("COMPLETED")
+                                                .font(.system(size: 10, weight: .light, design: .default))
+                                                .tracking(2.0)
+                                                .foregroundColor(.secondary)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .contentShape(Rectangle())
+                                                .onTapGesture {
+                                                    withAnimation { isCompletedExpanded.toggle() }
+                                                }
+                                        }
+                                        .tint(.secondary)
+                                        .onChange(of: isCompletedExpanded) { _, newValue in
+                                            if !newValue { showAllCompleted = false }
+                                        }
+                                    }
+                                    
+                                    let deletedTasks = allTasks.filter { $0.deletedAt != nil }.sorted { ($0.deletedAt ?? Date()) > ($1.deletedAt ?? Date()) }
+                                    if !deletedTasks.isEmpty {
+                                        DisclosureGroup(isExpanded: $isDeletedExpanded) {
+                                            VStack(alignment: .leading, spacing: 15) {
+                                                let displayed = showAllDeleted ? deletedTasks : Array(deletedTasks.prefix(10))
+                                                ForEach(displayed) { task in
+                                                    BinRowView(task: task, fontSize: 14.0)
+                                                }
+                                                HStack {
+                                                    if deletedTasks.count > 10 {
+                                                        Button(action: { withAnimation { showAllDeleted.toggle() } }) {
+                                                            Text(showAllDeleted ? "Show Less" : "Show More (\(deletedTasks.count - 10))")
+                                                                .font(.system(size: 12, weight: .light))
+                                                                .foregroundColor(.secondary)
+                                                        }
+                                                        .buttonStyle(.plain)
+                                                    }
+                                                    
+                                                    Spacer()
+                                                    
+                                                    Button(action: {
+                                                        withAnimation {
+                                                            clearDeletedTasks()
+                                                        }
+                                                    }) {
+                                                        Text("Clear All")
+                                                            .font(.system(size: 12, weight: .light))
+                                                            .foregroundColor(.secondary)
+                                                    }
+                                                    .buttonStyle(.plain)
+                                                }
+                                                .padding(.top, 5)
+                                            }
+                                            .padding(.top, 10)
+                                            .padding(.leading, 5)
+                                        } label: {
+                                            Text("RECENTLY DELETED")
+                                                .font(.system(size: 10, weight: .light, design: .default))
+                                                .tracking(2.0)
+                                                .foregroundColor(.secondary)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .contentShape(Rectangle())
+                                                .onTapGesture {
+                                                    withAnimation { isDeletedExpanded.toggle() }
+                                                }
+                                        }
+                                        .tint(.secondary)
+                                        .onChange(of: isDeletedExpanded) { _, newValue in
+                                            if !newValue { showAllDeleted = false }
+                                        }
+                                    }
+                                }
+                                .padding(.top, 20)
+                            }
+                        }
+                        .padding(40)
+                        .frame(minWidth: geo.size.width, minHeight: geo.size.height, alignment: .topLeading)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        focusedTaskId = nil
+                        NotificationCenter.default.post(name: .scratchpadClearSelection, object: nil)
+                        #if os(iOS)
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        #endif
+                    }
+                    .refreshable {
+                        focusedTaskId = nil
+                        #if os(iOS)
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        #endif
+                        await syncManager.triggerManualSync()
                     }
                 }
-                .padding(40)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                focusedTaskId = nil
-                #if os(iOS)
-                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                #endif
-            }
-            .refreshable {
-                focusedTaskId = nil
-                #if os(iOS)
-                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                #endif
-                await syncManager.triggerManualSync()
             }
             
             // Minimalist View Switcher & Sync Indicator in Top Right
@@ -233,6 +260,7 @@ struct ContentView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .pointingHandCursor()
                     .help("Switch to Interval Tasks".localized)
                     
                     // Scratchpad Lists Button
@@ -257,6 +285,7 @@ struct ContentView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .pointingHandCursor()
                     .help("Switch to Scratchpad Lists".localized)
                     
                     // Settings Button
@@ -281,6 +310,7 @@ struct ContentView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .pointingHandCursor()
                     .help("Settings".localized)
                     
                     // Refresh / Sync Button
@@ -308,6 +338,7 @@ struct ContentView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .pointingHandCursor()
                     .keyboardShortcut("r", modifiers: .command)
                     .help("Manual Sync (⌘R)".localized)
                 }
