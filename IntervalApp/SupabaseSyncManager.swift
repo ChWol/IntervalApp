@@ -293,6 +293,41 @@ class SupabaseSyncManager: ObservableObject {
         }
     }
     
+    func resetPassword(email: String) async -> (success: Bool, error: String?) {
+        isLoading = true
+        authError = nil
+        defer { isLoading = false }
+        
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !trimmedEmail.isEmpty, trimmedEmail.contains("@") else {
+            return (false, "Invalid email address".localized)
+        }
+        
+        guard let url = URL(string: "\(supabaseURL)/auth/v1/recover") else {
+            return (false, "Invalid URL")
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue(supabaseKey, forHTTPHeaderField: "apikey")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["email": trimmedEmail])
+        
+        do {
+            let (data, response) = try await session.data(for: request)
+            if let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode >= 400 {
+                if let err = try? JSONDecoder().decode(AuthErrorResponse.self, from: data) {
+                    return (false, err.displayMessage)
+                } else {
+                    return (false, "Password recovery failed (\(statusCode))")
+                }
+            }
+            return (true, nil)
+        } catch {
+            return (false, "Network error: \(error.localizedDescription)")
+        }
+    }
+    
     func signOut() {
         if let ctx = modelContext {
             purgeLocalStore(context: ctx)

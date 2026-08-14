@@ -571,6 +571,41 @@ class LocalizationManager: ObservableObject {
             .english: "Failed to leave list", .german: "Liste konnte nicht verlassen werden", .french: "Impossible de quitter la liste",
             .spanish: "Error al salir de la lista", .portuguese: "Falha ao sair da lista", .italian: "Impossibile lasciare la lista",
             .arabic: "فشل في مغادرة القائمة", .chinese: "退出列表失败", .japanese: "リストからの退出に失敗しました", .korean: "목록 나가기에 실패했습니다"
+        ],
+        "Forgot password?": [
+            .english: "Forgot password?", .german: "Passwort vergessen?", .french: "Mot de passe oublié ?",
+            .spanish: "¿Olvidaste tu contraseña?", .portuguese: "Esqueceu a senha?", .italian: "Password dimenticata?",
+            .arabic: "هل نسيت كلمة المرور؟", .chinese: "忘记密码？", .japanese: "パスワードをお忘れですか？", .korean: "비밀번호를 잊으셨나요?"
+        ],
+        "Reset your password": [
+            .english: "Reset your password", .german: "Passwort zurücksetzen", .french: "Réinitialiser le mot de passe",
+            .spanish: "Restablecer contraseña", .portuguese: "Redefinir senha", .italian: "Reimposta la password",
+            .arabic: "إعادة تعيين كلمة المرور", .chinese: "重置密码", .japanese: "パスワードを再設定", .korean: "비밀번호 재설정"
+        ],
+        "Enter your email to receive a recovery link": [
+            .english: "Enter your email to receive a recovery link", .german: "Gib deine E-Mail ein, um einen Link zu erhalten", .french: "Entrez votre e-mail pour recevoir un lien",
+            .spanish: "Introduce tu correo para recibir un enlace", .portuguese: "Digite seu e-mail para receber um link", .italian: "Inserisci la tua email per ricevere un link",
+            .arabic: "أدخل بريدك الإلكتروني لتلقي رابط الاسترداد", .chinese: "输入邮箱以接收重置链接", .japanese: "メールアドレスを入力して再設定リンクを受信", .korean: "복구 링크를 받을 이메일을 입력하세요"
+        ],
+        "SEND RESET LINK": [
+            .english: "SEND RESET LINK", .german: "LINK SENDEN", .french: "ENVOYER LE LIEN",
+            .spanish: "ENVIAR ENLACE", .portuguese: "ENVIAR LINK", .italian: "INVIA LINK",
+            .arabic: "إرسال الرابط", .chinese: "发送重置链接", .japanese: "再設定リンクを送信", .korean: "재설정 링크 보내기"
+        ],
+        "Password reset link sent! Check your inbox.": [
+            .english: "Password reset link sent! Check your inbox.", .german: "Reset-Link gesendet! Prüfe dein Postfach.", .french: "Lien envoyé ! Vérifiez votre boîte de réception.",
+            .spanish: "¡Enlace enviado! Revisa tu bandeja de entrada.", .portuguese: "Link enviado! Verifique sua caixa de entrada.", .italian: "Link inviato! Controlla la tua casella di posta.",
+            .arabic: "تم إرسال الرابط! تحقق من بريدك الوارد.", .chinese: "重置链接已发送！请查看您的收件箱。", .japanese: "リンクを送信しました！受信トレイを確認してください。", .korean: "재설정 링크가 전송되었습니다! 받은편지함을 확인하세요."
+        ],
+        "Back to Sign In": [
+            .english: "Back to Sign In", .german: "Zurück zur Anmeldung", .french: "Retour à la connexion",
+            .spanish: "Volver a iniciar sesión", .portuguese: "Voltar para o login", .italian: "Torna ad accedi",
+            .arabic: "العودة لتسجيل الدخول", .chinese: "返回登录", .japanese: "サインインに戻る", .korean: "로그인으로 돌아가기"
+        ],
+        "Password must be at least 6 characters": [
+            .english: "Password must be at least 6 characters", .german: "Passwort muss mindestens 6 Zeichen lang sein", .french: "Le mot de passe doit comporter au moins 6 caractères",
+            .spanish: "La contraseña debe tener al menos 6 caracteres", .portuguese: "A senha deve ter pelo menos 6 caracteres", .italian: "La password deve contenere almeno 6 caratteri",
+            .arabic: "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل", .chinese: "密码长度至少为 6 个字符", .japanese: "パスワードは6文字以上である必要があります", .korean: "비밀번호는 6자 이상이어야 합니다"
         ]
     ]
 }
