@@ -21,6 +21,8 @@ struct ContentView: View {
     @State private var showAllDeleted = false
     @State private var focusedTaskId: String?
     @State private var currentViewMode: ViewMode = .intervals
+    @State private var isSearchPresented = false
+    @State private var scratchpadSelectedListId: String? = nil
     
     enum ViewMode {
         case intervals
@@ -91,7 +93,7 @@ struct ContentView: View {
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 40) {
                             if currentViewMode == .scratchpad {
-                                ScratchpadView(focusedTaskId: $focusedTaskId)
+                                ScratchpadView(focusedTaskId: $focusedTaskId, selectedListId: $scratchpadSelectedListId)
                             } else {
                                 if showHabits {
                                     HabitsBarView()
@@ -346,6 +348,31 @@ struct ContentView: View {
                     .help("Manual Sync (⌘R)".localized)
                 }
                 
+                // Hidden shortcut triggers for search (⌘F and ⌘K)
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        isSearchPresented.toggle()
+                    }
+                }) {
+                    EmptyView()
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut("f", modifiers: .command)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+                
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        isSearchPresented.toggle()
+                    }
+                }) {
+                    EmptyView()
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut("k", modifiers: .command)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+                
                 if let err = syncManager.lastError {
                     HStack(spacing: 8) {
                         Text(err)
@@ -371,6 +398,33 @@ struct ContentView: View {
             }
             .padding(.top, 20)
             .padding(.trailing, 24)
+            
+            #if os(iOS)
+            // Invisible gesture capture layer for iOS downward swipe
+            Color.clear
+                .contentShape(Rectangle())
+                .allowsHitTesting(!isSearchPresented)
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 25)
+                        .onEnded { value in
+                            if value.translation.height > 60 && abs(value.translation.width) < value.translation.height * 0.7 && !isSearchPresented {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                                    isSearchPresented = true
+                                }
+                            }
+                        }
+                )
+            #endif
+            
+            if isSearchPresented {
+                SpotlightSearchView(
+                    isPresented: $isSearchPresented,
+                    onSelect: { item in
+                        handleSearchSelection(item)
+                    }
+                )
+                .zIndex(100)
+            }
             
             if let migration = migrationManager.currentMigration {
                 MigrationModalView(
@@ -408,6 +462,23 @@ struct ContentView: View {
     }
     
     // MARK: - Actions
+    
+    private func handleSearchSelection(_ item: SearchResultItem) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            switch item.destination {
+            case .interval:
+                currentViewMode = .intervals
+                focusedTaskId = item.targetId
+            case .habit:
+                currentViewMode = .intervals
+                focusedTaskId = nil
+            case .scratchpad(let listId):
+                scratchpadSelectedListId = listId
+                currentViewMode = .scratchpad
+                focusedTaskId = item.targetId
+            }
+        }
+    }
     
     private func clearCompletedTasks() {
         TaskHousekeeping.deletePermanently(TaskHousekeeping.completed(from: allTasks), in: modelContext)

@@ -31,8 +31,7 @@ struct ScratchpadView: View {
     @ObservedObject private var locManager = LocalizationManager.shared
 
     @Binding var focusedTaskId: String?
-
-    @State private var selectedListId: String? = nil
+    @Binding var selectedListId: String?
     @State private var isCreatingList: Bool = false
     @State private var newListName: String = ""
 

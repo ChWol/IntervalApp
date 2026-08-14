@@ -426,6 +426,59 @@ class LocalizationManager: ObservableObject {
             .english: "New habit...", .german: "Neue Gewohnheit...", .french: "Nouvelle habitude...",
             .spanish: "Nuevo hábito...", .portuguese: "Novo hábito...", .italian: "Nuova abitudine...",
             .arabic: "عادة جديدة...", .chinese: "新习惯...", .japanese: "新しい習慣...", .korean: "새 습관..."
+        ],
+        
+        // Search
+        "SEARCH": [
+            .english: "SEARCH", .german: "SUCHE", .french: "RECHERCHE",
+            .spanish: "BÚSQUEDA", .portuguese: "BUSCA", .italian: "RICERCA",
+            .arabic: "بحث", .chinese: "搜索", .japanese: "検索", .korean: "검색"
+        ],
+        "TASKS": [
+            .english: "TASKS", .german: "AUFGABEN", .french: "TÂCHES",
+            .spanish: "TAREAS", .portuguese: "TAREFAS", .italian: "ATTIVITÀ",
+            .arabic: "المهام", .chinese: "任务", .japanese: "タスク", .korean: "할 일"
+        ],
+        "Search...": [
+            .english: "Search...", .german: "Suchen...", .french: "Rechercher...",
+            .spanish: "Buscar...", .portuguese: "Buscar...", .italian: "Cerca...",
+            .arabic: "بحث...", .chinese: "搜索...", .japanese: "検索...", .korean: "검색..."
+        ],
+        "Search tasks, habits, lists...": [
+            .english: "Search tasks, habits, lists...",
+            .german: "Aufgaben, Habits, Listen durchsuchen...",
+            .french: "Rechercher tâches, habitudes, listes...",
+            .spanish: "Buscar tareas, hábitos, listas...",
+            .portuguese: "Buscar tarefas, hábitos, listas...",
+            .italian: "Cerca attività, abitudini, liste...",
+            .arabic: "البحث في المهام والعادات والقوائم...",
+            .chinese: "搜索任务、习惯、列表...",
+            .japanese: "タスク、習慣、リストを検索...",
+            .korean: "할 일, 습관, 목록 검색..."
+        ],
+        "No results found": [
+            .english: "No results found",
+            .german: "Keine Ergebnisse gefunden",
+            .french: "Aucun résultat trouvé",
+            .spanish: "No se encontraron resultados",
+            .portuguese: "Nenhum resultado encontrado",
+            .italian: "Nessun risultato trovato",
+            .arabic: "لم يتم العثور على نتائج",
+            .chinese: "未找到相关结果",
+            .japanese: "結果が見つかりませんでした",
+            .korean: "검색 결과가 없습니다"
+        ],
+        "Type to search across all intervals, habits & lists": [
+            .english: "Type to search across all intervals, habits & lists",
+            .german: "Tippen, um alle Intervalle, Habits & Listen zu durchsuchen",
+            .french: "Tapez pour rechercher dans tous les intervalles, habitudes et listes",
+            .spanish: "Escribe para buscar en todos los intervalos, hábitos y listas",
+            .portuguese: "Digite para pesquisar em todos os intervalos, hábitos e listas",
+            .italian: "Digita per cercare in tutti gli intervalli, abitudini e liste",
+            .arabic: "اكتب للبحث في جميع الفترات والعادات والقوائم",
+            .chinese: "输入以搜索所有时间段、习惯和列表",
+            .japanese: "入力してすべてのインターバル、習慣、リストを検索",
+            .korean: "모든 간격, 습관 및 목록을 검색하려면 입력하세요"
         ]
     ]
 }
