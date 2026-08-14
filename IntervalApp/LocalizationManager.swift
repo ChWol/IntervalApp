@@ -80,6 +80,31 @@ class LocalizationManager: ObservableObject {
         "Show More": [.english: "Show More", .german: "Mehr anzeigen", .french: "Afficher plus", .arabic: "عرض المزيد"],
         "TRANSFER TO TASK": [.english: "TRANSFER TO TASK", .german: "IN AUFGABE UMWANDELN", .french: "TRANSFÉRER EN TÂCHE", .arabic: "تحويل إلى مهمة"],
         
+        // Migration Modals
+        "Skip": [.english: "Skip", .german: "Überspringen", .french: "Ignorer", .arabic: "تخطي"],
+        "Migrate": [.english: "Migrate", .german: "Übertragen", .french: "Transférer", .arabic: "نقل"],
+        "Commit": [.english: "Commit", .german: "Festlegen", .french: "Valider", .arabic: "تأكيد"],
+        "FROM YOUR DAY": [.english: "FROM YOUR DAY", .german: "AUS DEINEM TAG", .french: "DE VOTRE JOURNÉE", .arabic: "من يومك"],
+        "Migrate Tasks": [.english: "Migrate Tasks", .german: "Aufgaben übertragen", .french: "Transférer les tâches", .arabic: "نقل المهام"],
+        "Nothing left in your 1 Day list.": [
+            .english: "Nothing left in your 1 Day list.",
+            .german: "Keine offenen Aufgaben in deiner 1-Tag-Liste.",
+            .french: "Rien dans votre liste 1 Jour.",
+            .arabic: "لا توجد مهام متبقية في قائمة اليوم."
+        ],
+        "No habits left for this period.": [
+            .english: "No habits left for this period.",
+            .german: "Keine Gewohnheiten für diesen Zeitraum offen.",
+            .french: "Aucune habitude restante pour cette période.",
+            .arabic: "لا توجد عادات متبقية لهذه الفترة."
+        ],
+        "No incomplete tasks available to transfer.": [
+            .english: "No incomplete tasks available to transfer.",
+            .german: "Keine offenen Aufgaben zum Übertragen vorhanden.",
+            .french: "Aucune tâche incomplète à transférer.",
+            .arabic: "لا توجد مهام غير مكتملة للنقل."
+        ],
+        
         // Settings & Preferences
         "SETTINGS": [.english: "SETTINGS", .german: "EINSTELLUNGEN", .french: "PARAMÈTRES", .arabic: "الإعدادات"],
         "LANGUAGE": [.english: "LANGUAGE", .german: "SPRACHE", .french: "LANGUE", .arabic: "اللغة"],

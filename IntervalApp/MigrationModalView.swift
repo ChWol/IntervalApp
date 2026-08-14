@@ -100,14 +100,14 @@ struct MigrationModalView: View {
                 
                 HStack {
                     Spacer()
-                    Button("Skip") { onSkip() }
+                    Button("Skip".localized) { onSkip() }
                         .buttonStyle(.plain)
                         .padding(.horizontal, 15)
                         .padding(.vertical, 8)
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary, lineWidth: 1))
                     
                     if isYearReset {
-                        Button("Commit") {
+                        Button("Commit".localized) {
                             let validGoals = yearGoals.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
                             onCommitGoals(validGoals)
                         }
@@ -118,7 +118,7 @@ struct MigrationModalView: View {
                         .foregroundColor(Color(colorScheme == .dark ? .black : .white))
                         .cornerRadius(8)
                     } else {
-                        Button("Migrate") { onMigrate(selectedTaskIds, selectedHabitIds) }
+                        Button("Migrate".localized) { onMigrate(selectedTaskIds, selectedHabitIds) }
                             .buttonStyle(.plain)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 8)
@@ -146,9 +146,9 @@ struct MigrationModalView: View {
     
     private var hourSplitPicker: some View {
         HStack(alignment: .top, spacing: 0) {
-            pickerColumn(title: "FROM YOUR DAY") {
+            pickerColumn(title: "FROM YOUR DAY".localized) {
                 if tasks.isEmpty {
-                    emptyHint("Nothing left in your 1 Day list.")
+                    emptyHint("Nothing left in your 1 Day list.".localized)
                 } else {
                     ForEach(tasks) { task in
                         selectionRow(text: task.text, isSelected: selectedTaskIds.contains(task.id)) {
@@ -163,9 +163,9 @@ struct MigrationModalView: View {
                 .foregroundColor(Color(white: colorScheme == .dark ? 0.18 : 0.9))
                 .padding(.horizontal, 18)
             
-            pickerColumn(title: "HABITS") {
+            pickerColumn(title: "HABITS".localized) {
                 if habits.isEmpty {
-                    emptyHint("No habits left for this period.")
+                    emptyHint("No habits left for this period.".localized)
                 } else {
                     ForEach(habits) { habit in
                         selectionRow(
