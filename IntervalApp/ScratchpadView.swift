@@ -413,14 +413,28 @@ struct ScratchpadView: View {
         .background(
             Group {
                 Button("") {
-                    if focusedTaskId == nil {
+                    #if os(macOS)
+                    if let firstResponder = NSApp.keyWindow?.firstResponder,
+                       firstResponder is NSText || firstResponder is NSTextView || firstResponder is NSTextField {
+                        NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+                        return
+                    }
+                    #endif
+                    if focusedTaskId == nil && !isSharingList && editingListTitleId == nil && !isCreatingList {
                         selectedItemIds = Set(openItems.map { $0.id })
                     }
                 }
                 .keyboardShortcut("a", modifiers: .command)
 
                 Button("") {
-                    if focusedTaskId == nil && !selectedItemIds.isEmpty {
+                    #if os(macOS)
+                    if let firstResponder = NSApp.keyWindow?.firstResponder,
+                       firstResponder is NSText || firstResponder is NSTextView || firstResponder is NSTextField {
+                        NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
+                        return
+                    }
+                    #endif
+                    if focusedTaskId == nil && !isSharingList && !selectedItemIds.isEmpty {
                         copySelectedItems()
                     }
                 }
