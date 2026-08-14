@@ -66,6 +66,9 @@ struct CustomTextField: NSViewRepresentable {
         tf.cell?.wraps = true
         tf.cell?.isScrollable = false
         tf.stringValue = text
+        let isRTL = LocalizationManager.shared.currentLanguage == .arabic
+        tf.alignment = isRTL ? .right : .left
+        tf.baseWritingDirection = isRTL ? .rightToLeft : .leftToRight
         if isFocused {
             tf.pendingFocus = true
         }
@@ -112,6 +115,13 @@ struct CustomTextField: NSViewRepresentable {
 
         if nsView.stringValue != text {
             nsView.stringValue = text
+        }
+
+        let isRTL = LocalizationManager.shared.currentLanguage == .arabic
+        let targetAlignment: NSTextAlignment = isRTL ? .right : .left
+        if nsView.alignment != targetAlignment {
+            nsView.alignment = targetAlignment
+            nsView.baseWritingDirection = isRTL ? .rightToLeft : .leftToRight
         }
 
         if isFocused && nsView.currentEditor() == nil {

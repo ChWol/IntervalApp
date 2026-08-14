@@ -17,6 +17,7 @@ struct ContentView: View {
     
     @State private var isCompletedExpanded = false
     @State private var isDeletedExpanded = false
+    @ObservedObject private var locManager = LocalizationManager.shared
     @State private var showAllCompleted = false
     @State private var showAllDeleted = false
     @State private var focusedTaskId: String?
@@ -37,36 +38,39 @@ struct ContentView: View {
     ]
     
     var body: some View {
-        if syncManager.isAuthenticated {
-            mainAppView
-                .onAppear {
-                    syncManager.start(context: modelContext)
-                    migrationManager.startMonitoring(context: modelContext)
-                    cleanupOldTasks()
-                }
-                .onChange(of: syncManager.isAuthenticated) { _, authenticated in
-                    if authenticated {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            currentViewMode = .intervals
-                            focusedTaskId = nil
+        Group {
+            if syncManager.isAuthenticated {
+                mainAppView
+                    .onAppear {
+                        syncManager.start(context: modelContext)
+                        migrationManager.startMonitoring(context: modelContext)
+                        cleanupOldTasks()
+                    }
+                    .onChange(of: syncManager.isAuthenticated) { _, authenticated in
+                        if authenticated {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                currentViewMode = .intervals
+                                focusedTaskId = nil
+                            }
                         }
                     }
-                }
-                .onChange(of: scenePhase) { _, newPhase in
-                    if newPhase == .active {
-                        migrationManager.checkMigrations()
-                        Task {
-                            await syncManager.triggerManualSync()
+                    .onChange(of: scenePhase) { _, newPhase in
+                        if newPhase == .active {
+                            migrationManager.checkMigrations()
+                            Task {
+                                await syncManager.triggerManualSync()
+                            }
                         }
                     }
-                }
-        } else {
-            AuthView()
-                .onAppear {
-                    syncManager.start(context: modelContext)
-                    currentViewMode = .intervals
-                }
+            } else {
+                AuthView()
+                    .onAppear {
+                        syncManager.start(context: modelContext)
+                        currentViewMode = .intervals
+                    }
+            }
         }
+        .environment(\.layoutDirection, locManager.currentLanguage == .arabic ? .rightToLeft : .leftToRight)
     }
     
     // MARK: - Main App View
