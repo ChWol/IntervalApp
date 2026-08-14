@@ -96,6 +96,16 @@ struct SupabaseScratchpadItemDTO: Decodable {
     let updated_at: String?
 }
 
+struct ScratchpadMemberDTO: Codable, Identifiable {
+    let id: String
+    let list_id: String
+    let owner_id: String
+    let invited_email: String
+    let member_user_id: String?
+    let role: String?
+    let created_at: String?
+}
+
 /// Wrapper that turns an undecodable row into `nil` instead of failing the whole array.
 private struct FailableRow<T: Decodable>: Decodable {
     let value: T?
@@ -785,13 +795,13 @@ class SupabaseSyncManager: ObservableObject {
             needsFollowupPush = true
         }
         
-        if let remoteScratchpadLists: [SupabaseScratchpadListDTO] = await fetchAll(table: SyncTable.scratchpadLists, uid: uid) {
+        if let remoteScratchpadLists: [SupabaseScratchpadListDTO] = await fetchAll(table: SyncTable.scratchpadLists, uid: uid, filterByUserId: false) {
             if mergeRemoteScratchpadLists(remoteScratchpadLists, context: context, uid: uid) {
                 needsFollowupPush = true
             }
         }
         
-        if let remoteScratchpadItems: [SupabaseScratchpadItemDTO] = await fetchAll(table: SyncTable.scratchpadItems, uid: uid) {
+        if let remoteScratchpadItems: [SupabaseScratchpadItemDTO] = await fetchAll(table: SyncTable.scratchpadItems, uid: uid, filterByUserId: false) {
             if mergeRemoteScratchpadItems(remoteScratchpadItems, context: context, uid: uid) {
                 needsFollowupPush = true
             }
@@ -979,7 +989,6 @@ class SupabaseSyncManager: ObservableObject {
         var localById = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         
         for dto in dtos {
-            if let owner = dto.user_id, owner != uid { continue }
             let title = (dto.title ?? "").trimmingCharacters(in: .whitespaces)
             let remoteStamp = SyncTimestamp.parse(dto.updated_at).map { clock.toLocal($0) }
             
@@ -1018,7 +1027,6 @@ class SupabaseSyncManager: ObservableObject {
         var localById = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         
         for dto in dtos {
-            if let owner = dto.user_id, owner != uid { continue }
             let text = (dto.text ?? "").trimmingCharacters(in: .whitespaces)
             let remoteStamp = SyncTimestamp.parse(dto.updated_at).map { clock.toLocal($0) }
             
@@ -1254,19 +1262,22 @@ class SupabaseSyncManager: ObservableObject {
     }
     
     /// Reads a whole table in pages. Returns `nil` unless the full snapshot was retrieved.
-    private func fetchAll<T: Decodable>(table: String, uid: String) async -> [T]? {
+    private func fetchAll<T: Decodable>(table: String, uid: String, filterByUserId: Bool = true) async -> [T]? {
         var results: [T] = []
         var offset = 0
         
         for _ in 0..<maxPages {
             guard var components = URLComponents(string: "\(supabaseURL)/rest/v1/\(table)") else { return nil }
-            components.queryItems = [
+            var queryItems = [
                 URLQueryItem(name: "select", value: "*"),
-                URLQueryItem(name: "user_id", value: "eq.\(uid)"),
                 URLQueryItem(name: "order", value: "id.asc"),
                 URLQueryItem(name: "limit", value: "\(pageSize)"),
                 URLQueryItem(name: "offset", value: "\(offset)")
             ]
+            if filterByUserId {
+                queryItems.insert(URLQueryItem(name: "user_id", value: "eq.\(uid)"), at: 1)
+            }
+            components.queryItems = queryItems
             guard let url = components.url else { return nil }
             
             var request = URLRequest(url: url)
@@ -1363,6 +1374,111 @@ class SupabaseSyncManager: ObservableObject {
     private func noteSyncSuccess() {
         backoff.recordSuccess()
         lastSyncedAt = Date()
+    }
+    
+    // MARK: - List Collaborator Management
+    
+    func fetchMembers(for listId: String) async -> [ScratchpadMemberDTO] {
+        guard isAuthenticated, let _ = userId else { return [] }
+        await ensureFreshToken()
+        
+        guard var components = URLComponents(string: "\(supabaseURL)/rest/v1/\(SyncTable.scratchpadListMembers)") else { return [] }
+        components.queryItems = [
+            URLQueryItem(name: "select", value: "*"),
+            URLQueryItem(name: "list_id", value: "eq.\(listId)"),
+            URLQueryItem(name: "order", value: "created_at.asc")
+        ]
+        guard let url = components.url else { return [] }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        
+        guard let (data, response) = await authenticatedRequest(request),
+              validate(response: response, data: data, action: "Fetch members") else { return [] }
+        
+        do {
+            return try JSONDecoder().decode([ScratchpadMemberDTO].self, from: data)
+        } catch {
+            print("[Supabase] Decode members error: \(error)")
+            return []
+        }
+    }
+    
+    func inviteCollaborator(listId: String, email: String) async -> (success: Bool, error: String?) {
+        guard isAuthenticated, let uid = userId else { return (false, "Not authenticated") }
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !trimmedEmail.isEmpty, trimmedEmail.contains("@") else {
+            return (false, "Invalid email address".localized)
+        }
+        await ensureFreshToken()
+        
+        guard let url = URL(string: "\(supabaseURL)/rest/v1/\(SyncTable.scratchpadListMembers)") else {
+            return (false, "Invalid URL")
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let payload: [String: Any] = [
+            "list_id": listId,
+            "owner_id": uid,
+            "invited_email": trimmedEmail,
+            "role": "editor"
+        ]
+        
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else {
+            return (false, "Serialization error")
+        }
+        request.httpBody = httpBody
+        
+        guard let (data, response) = await authenticatedRequest(request) else {
+            return (false, "Network error")
+        }
+        
+        if let httpResp = response as? HTTPURLResponse, httpResp.statusCode >= 400 {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            if body.contains("duplicate") || body.contains("unique") || body.contains("23505") {
+                return (false, "User already invited")
+            }
+            return (false, "Error (HTTP \(httpResp.statusCode)): \(body)")
+        }
+        
+        return (true, nil)
+    }
+    
+    func removeCollaborator(memberId: String) async -> Bool {
+        guard isAuthenticated else { return false }
+        await ensureFreshToken()
+        
+        guard let url = URL(string: "\(supabaseURL)/rest/v1/\(SyncTable.scratchpadListMembers)?id=eq.\(memberId)") else {
+            return false
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        
+        guard let (data, response) = await authenticatedRequest(request) else { return false }
+        return validate(response: response, data: data, action: "Remove member")
+    }
+    
+    func leaveSharedList(listId: String) async -> Bool {
+        guard isAuthenticated, let uid = userId else { return false }
+        await ensureFreshToken()
+        
+        guard let url = URL(string: "\(supabaseURL)/rest/v1/\(SyncTable.scratchpadListMembers)?list_id=eq.\(listId)&member_user_id=eq.\(uid)") else {
+            return false
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        
+        guard let (data, response) = await authenticatedRequest(request) else { return false }
+        return validate(response: response, data: data, action: "Leave list")
     }
 }
 

@@ -479,6 +479,68 @@ class LocalizationManager: ObservableObject {
             .chinese: "输入以搜索所有时间段、习惯和列表",
             .japanese: "入力してすべてのインターバル、習慣、リストを検索",
             .korean: "모든 간격, 습관 및 목록을 검색하려면 입력하세요"
+        ],
+        
+        // List Sharing
+        "Share List": [
+            .english: "Share List", .german: "Liste teilen", .french: "Partager la liste",
+            .spanish: "Compartir lista", .portuguese: "Compartilhar lista", .italian: "Condividi lista",
+            .arabic: "مشاركة القائمة", .chinese: "共享列表", .japanese: "リストを共有", .korean: "목록 공유"
+        ],
+        "Share": [
+            .english: "Share", .german: "Teilen", .french: "Partager",
+            .spanish: "Compartir", .portuguese: "Compartilhar", .italian: "Condividi",
+            .arabic: "مشاركة", .chinese: "共享", .japanese: "共有", .korean: "공유"
+        ],
+        "Enter email address...": [
+            .english: "Enter email address...", .german: "E-Mail-Adresse eingeben...", .french: "Entrez l'adresse e-mail...",
+            .spanish: "Introduce el correo electrónico...", .portuguese: "Digite o endereço de e-mail...", .italian: "Inserisci l'indirizzo email...",
+            .arabic: "أدخل عنوان البريد الإلكتروني...", .chinese: "输入邮箱地址...", .japanese: "メールアドレスを入力...", .korean: "이메일 주소 입력..."
+        ],
+        "Invite": [
+            .english: "Invite", .german: "Einladen", .french: "Inviter",
+            .spanish: "Invitar", .portuguese: "Convidar", .italian: "Invita",
+            .arabic: "دعوة", .chinese: "邀请", .japanese: "招待", .korean: "초대"
+        ],
+        "Owner": [
+            .english: "Owner", .german: "Eigentümer", .french: "Propriétaire",
+            .spanish: "Propietario", .portuguese: "Proprietário", .italian: "Proprietario",
+            .arabic: "المالك", .chinese: "所有者", .japanese: "オーナー", .korean: "소유자"
+        ],
+        "Member": [
+            .english: "Member", .german: "Mitglied", .french: "Membre",
+            .spanish: "Miembro", .portuguese: "Membro", .italian: "Membro",
+            .arabic: "عضو", .chinese: "成员", .japanese: "メンバー", .korean: "멤버"
+        ],
+        "Remove": [
+            .english: "Remove", .german: "Entfernen", .french: "Supprimer",
+            .spanish: "Eliminar", .portuguese: "Remover", .italian: "Rimuovi",
+            .arabic: "إزالة", .chinese: "移除", .japanese: "削除", .korean: "제거"
+        ],
+        "Leave List": [
+            .english: "Leave List", .german: "Liste verlassen", .french: "Quitter la liste",
+            .spanish: "Salir de la lista", .portuguese: "Sair da lista", .italian: "Lascia lista",
+            .arabic: "مغادرة القائمة", .chinese: "离开列表", .japanese: "リストから退出", .korean: "목록에서 나가기"
+        ],
+        "Shared": [
+            .english: "Shared", .german: "Geteilt", .french: "Partagé",
+            .spanish: "Compartido", .portuguese: "Compartilhado", .italian: "Condiviso",
+            .arabic: "مشترك", .chinese: "已共享", .japanese: "共有中", .korean: "공유됨"
+        ],
+        "MEMBERS": [
+            .english: "MEMBERS", .german: "MITGLIEDER", .french: "MEMBRES",
+            .spanish: "MIEMBROS", .portuguese: "MEMBROS", .italian: "MEMBRI",
+            .arabic: "الأعضاء", .chinese: "成员", .japanese: "メンバー", .korean: "멤버"
+        ],
+        "No collaborators yet": [
+            .english: "No collaborators yet", .german: "Noch keine Mitglieder", .french: "Aucun collaborateur pour l'instant",
+            .spanish: "Aún no hay colaboradores", .portuguese: "Nenhum colaborador ainda", .italian: "Ancora nessun collaboratore",
+            .arabic: "لا يوجد أعضاء بعد", .chinese: "暂无协作者", .japanese: "共同作業者はまだいません", .korean: "아직 협업자가 없습니다"
+        ],
+        "Invalid email address": [
+            .english: "Invalid email address", .german: "Ungültige E-Mail-Adresse", .french: "Adresse e-mail invalide",
+            .spanish: "Dirección de correo inválida", .portuguese: "Endereço de e-mail inválido", .italian: "Indirizzo email non valido",
+            .arabic: "عنوان بريد إلكتروني غير صالح", .chinese: "无效的邮箱地址", .japanese: "無効なメールアドレス", .korean: "유효하지 않은 이메일 주소"
         ]
     ]
 }

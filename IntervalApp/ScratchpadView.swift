@@ -51,6 +51,8 @@ struct ScratchpadView: View {
     @State private var isNewListPlusHovered: Bool = false
     @State private var isCreateFirstListHovered: Bool = false
     @State private var isItemPlusHovered: Bool = false
+    @State private var isSharingList: Bool = false
+    @State private var isShareHovered: Bool = false
 
     private var activeLists: [ScratchpadList] {
         lists.filter { $0.deletedAt == nil }.sorted { $0.order < $1.order }
@@ -277,14 +279,32 @@ struct ScratchpadView: View {
                 }
                 .frame(maxWidth: .infinity)
             } else if let currentList = selectedList {
-                // MARK: - List Header with subtle + button
-                HStack {
+                // MARK: - List Header with subtle + and Share buttons
+                HStack(spacing: 10) {
                     Text("ITEMS".localized)
                         .font(.system(size: 10, weight: .light, design: .default))
                         .tracking(2.0)
                         .foregroundColor(.gray)
 
                     Spacer()
+
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            isSharingList = true
+                        }
+                    }) {
+                        Image(systemName: "person.badge.plus")
+                            .font(.system(size: 12, weight: .light))
+                            .foregroundColor(isShareHovered ? .primary : .secondary.opacity(0.6))
+                            .padding(4)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .pointingHandCursor()
+                    .help("Share List".localized)
+                    .onHover { hovering in
+                        isShareHovered = hovering
+                    }
 
                     Button(action: {
                         createNewItemAtEnd()
@@ -426,6 +446,11 @@ struct ScratchpadView: View {
             Button("Cancel".localized, role: .cancel) {}
         } message: { list in
             Text("Delete list message".localized)
+        }
+        .overlay {
+            if isSharingList, let currentList = selectedList {
+                ShareListModalView(list: currentList, isPresented: $isSharingList)
+            }
         }
     }
 

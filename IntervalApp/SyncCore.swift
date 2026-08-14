@@ -10,6 +10,7 @@ enum SyncTable {
     static let habits = "habits"
     static let scratchpadLists = "scratchpad_lists"
     static let scratchpadItems = "scratchpad_items"
+    static let scratchpadListMembers = "scratchpad_list_members"
     static let all = [tasks, habits, scratchpadLists, scratchpadItems]
 }
 
