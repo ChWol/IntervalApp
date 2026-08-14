@@ -304,6 +304,9 @@ struct TaskRowView: View {
                                     TaskHousekeeping.moveToBin(task, in: modelContext)
                                 }
                             },
+                            onPasteMultipleLines: { lines in
+                                handleMultiLinePaste(lines: lines)
+                            },
                             fontSize: fontSize,
                             placeholder: isNew ? "Add task...".localized : ""
                         )
@@ -414,6 +417,80 @@ struct TaskRowView: View {
                 task.updatedAt = Date()
                 try? modelContext.save()
                 SupabaseSyncManager.shared.push()
+            }
+        }
+    }
+    
+    private func handleMultiLinePaste(lines: [String]) {
+        guard lines.count > 1 else { return }
+        let trimmedFirst = lines[0].trimmingCharacters(in: .whitespaces)
+        let rest = Array(lines.dropFirst()).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        
+        let descriptor = FetchDescriptor<TaskItem>()
+        guard let allTasks = try? modelContext.fetch(descriptor) else { return }
+        let now = Date()
+        
+        if isNew {
+            let sorted = allTasks
+                .filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }
+                .sorted { $0.order < $1.order }
+            var nextOrder = (sorted.last?.order ?? -1) + 1
+            
+            var lastCreatedTask: TaskItem? = nil
+            if !trimmedFirst.isEmpty {
+                let firstTask = TaskItem(text: trimmedFirst, intervalType: listTitle, order: nextOrder)
+                modelContext.insert(firstTask)
+                nextOrder += 1
+                lastCreatedTask = firstTask
+            }
+            for line in rest {
+                let newTask = TaskItem(text: line, intervalType: listTitle, order: nextOrder)
+                modelContext.insert(newTask)
+                nextOrder += 1
+                lastCreatedTask = newTask
+            }
+            
+            let trailingNewTask = TaskItem(text: "", intervalType: listTitle, order: nextOrder)
+            modelContext.insert(trailingNewTask)
+            
+            try? modelContext.save()
+            SupabaseSyncManager.shared.push()
+            
+            text = ""
+            DispatchQueue.main.async {
+                focusedTaskId = trailingNewTask.id
+            }
+        } else {
+            task.text = trimmedFirst
+            task.updatedAt = now
+            text = trimmedFirst
+            
+            let sorted = allTasks
+                .filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }
+                .sorted { $0.order < $1.order }
+            
+            var nextOrder = task.order + 1
+            var lastCreatedTask: TaskItem? = nil
+            for line in rest {
+                let newTask = TaskItem(text: line, intervalType: listTitle, order: nextOrder)
+                modelContext.insert(newTask)
+                nextOrder += 1
+                lastCreatedTask = newTask
+            }
+            
+            let subsequentTasks = sorted.filter { $0.order > task.order && $0.id != task.id }
+            for subTask in subsequentTasks {
+                subTask.order = nextOrder
+                nextOrder += 1
+            }
+            
+            try? modelContext.save()
+            SupabaseSyncManager.shared.push()
+            
+            if let lastId = lastCreatedTask?.id {
+                DispatchQueue.main.async {
+                    focusedTaskId = lastId
+                }
             }
         }
     }

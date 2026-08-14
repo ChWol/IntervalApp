@@ -377,10 +377,26 @@ struct ScratchpadView: View {
         }
         #endif
         .background(
-            Button("") {
-                selectedItemIds.removeAll()
+            Group {
+                Button("") {
+                    if focusedTaskId == nil {
+                        selectedItemIds = Set(openItems.map { $0.id })
+                    }
+                }
+                .keyboardShortcut("a", modifiers: .command)
+
+                Button("") {
+                    if focusedTaskId == nil && !selectedItemIds.isEmpty {
+                        copySelectedItems()
+                    }
+                }
+                .keyboardShortcut("c", modifiers: .command)
+
+                Button("") {
+                    selectedItemIds.removeAll()
+                }
+                .keyboardShortcut(.escape, modifiers: [])
             }
-            .keyboardShortcut(.escape, modifiers: [])
             .frame(width: 0, height: 0)
             .opacity(0)
         )
@@ -397,6 +413,21 @@ struct ScratchpadView: View {
         } message: { list in
             Text("Delete list message".localized)
         }
+    }
+
+    private func copySelectedItems() {
+        let selected = openItems
+            .filter { selectedItemIds.contains($0.id) }
+            .sorted { $0.order < $1.order }
+        let textToCopy = selected.map { $0.text }.joined(separator: "\n")
+        guard !textToCopy.isEmpty else { return }
+
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(textToCopy, forType: .string)
+        #elseif os(iOS)
+        UIPasteboard.general.string = textToCopy
+        #endif
     }
 
     private func createList() {
@@ -558,6 +589,9 @@ struct ScratchpadItemRowView: View {
                                     if !isNew {
                                         deleteItem()
                                     }
+                                },
+                                onPasteMultipleLines: { lines in
+                                    handleMultiLinePaste(lines: lines)
                                 },
                                 fontSize: 14,
                                 placeholder: isNew ? "Item...".localized : ""
@@ -965,6 +999,80 @@ struct ScratchpadItemRowView: View {
                     DispatchQueue.main.async {
                         focusedTaskId = newItem.id
                     }
+                }
+            }
+        }
+    }
+
+    private func handleMultiLinePaste(lines: [String]) {
+        guard lines.count > 1 else { return }
+        let trimmedFirst = lines[0].trimmingCharacters(in: .whitespaces)
+        let rest = Array(lines.dropFirst()).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+
+        let descriptor = FetchDescriptor<ScratchpadItem>()
+        guard let allItems = try? modelContext.fetch(descriptor) else { return }
+        let now = Date()
+
+        if isNew {
+            let sorted = allItems
+                .filter { $0.listId == listId && $0.deletedAt == nil && !$0.completed }
+                .sorted { $0.order < $1.order }
+            var nextOrder = (sorted.last?.order ?? -1) + 1
+
+            var lastCreatedItem: ScratchpadItem? = nil
+            if !trimmedFirst.isEmpty {
+                let firstItem = ScratchpadItem(listId: listId, text: trimmedFirst, order: nextOrder)
+                modelContext.insert(firstItem)
+                nextOrder += 1
+                lastCreatedItem = firstItem
+            }
+            for line in rest {
+                let newItem = ScratchpadItem(listId: listId, text: line, order: nextOrder)
+                modelContext.insert(newItem)
+                nextOrder += 1
+                lastCreatedItem = newItem
+            }
+
+            let trailingNewItem = ScratchpadItem(listId: listId, text: "", order: nextOrder)
+            modelContext.insert(trailingNewItem)
+
+            try? modelContext.save()
+            SupabaseSyncManager.shared.push()
+
+            text = ""
+            DispatchQueue.main.async {
+                focusedTaskId = trailingNewItem.id
+            }
+        } else {
+            item.text = trimmedFirst
+            item.updatedAt = now
+            text = trimmedFirst
+
+            let sorted = allItems
+                .filter { $0.listId == listId && $0.deletedAt == nil && !$0.completed }
+                .sorted { $0.order < $1.order }
+
+            var nextOrder = item.order + 1
+            var lastCreatedItem: ScratchpadItem? = nil
+            for line in rest {
+                let newItem = ScratchpadItem(listId: listId, text: line, order: nextOrder)
+                modelContext.insert(newItem)
+                nextOrder += 1
+                lastCreatedItem = newItem
+            }
+
+            let subsequentItems = sorted.filter { $0.order > item.order && $0.id != item.id }
+            for subItem in subsequentItems {
+                subItem.order = nextOrder
+                nextOrder += 1
+            }
+
+            try? modelContext.save()
+            SupabaseSyncManager.shared.push()
+
+            if let lastId = lastCreatedItem?.id {
+                DispatchQueue.main.async {
+                    focusedTaskId = lastId
                 }
             }
         }
