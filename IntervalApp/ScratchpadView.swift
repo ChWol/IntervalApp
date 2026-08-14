@@ -50,6 +50,7 @@ struct ScratchpadView: View {
 
     @State private var isNewListPlusHovered: Bool = false
     @State private var isCreateFirstListHovered: Bool = false
+    @State private var isItemPlusHovered: Bool = false
 
     private var activeLists: [ScratchpadList] {
         lists.filter { $0.deletedAt == nil }.sorted { $0.order < $1.order }
@@ -276,6 +277,32 @@ struct ScratchpadView: View {
                 }
                 .frame(maxWidth: .infinity)
             } else if let currentList = selectedList {
+                // MARK: - List Header with subtle + button
+                HStack {
+                    Text("ITEMS".localized)
+                        .font(.system(size: 10, weight: .light, design: .default))
+                        .tracking(2.0)
+                        .foregroundColor(.gray)
+
+                    Spacer()
+
+                    Button(action: {
+                        createNewItemAtEnd()
+                    }) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 10, weight: .light))
+                            .foregroundColor(isItemPlusHovered ? .primary : .secondary.opacity(0.6))
+                            .padding(4)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .pointingHandCursor()
+                    .onHover { hovering in
+                        isItemPlusHovered = hovering
+                    }
+                }
+                .padding(.bottom, 2)
+
                 // MARK: - Open Scratchpad Items List
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(openItems) { item in
@@ -291,18 +318,16 @@ struct ScratchpadView: View {
                         )
                     }
 
-                    if openItems.isEmpty {
-                        ScratchpadItemRowView(
-                            item: ScratchpadItem(listId: currentList.id, text: ""),
-                            isNew: true,
-                            listId: currentList.id,
-                            currentListId: currentList.id,
-                            focusedTaskId: $focusedTaskId,
-                            selectedItemIds: $selectedItemIds,
-                            lastClickedItemId: $lastClickedItemId,
-                            allItemsInList: []
-                        )
-                    }
+                    ScratchpadItemRowView(
+                        item: ScratchpadItem(listId: currentList.id, text: ""),
+                        isNew: true,
+                        listId: currentList.id,
+                        currentListId: currentList.id,
+                        focusedTaskId: $focusedTaskId,
+                        selectedItemIds: $selectedItemIds,
+                        lastClickedItemId: $lastClickedItemId,
+                        allItemsInList: openItems
+                    )
                 }
 
                 // MARK: - Completed Items Section with Divider & Clear All
