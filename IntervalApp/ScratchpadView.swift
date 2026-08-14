@@ -296,7 +296,7 @@ struct ScratchpadView: View {
                             isSharingList = true
                         }
                     }) {
-                        Image(systemName: isListOwner ? "person.badge.plus" : "person")
+                        Image(systemName: isListOwner ? "person.badge.plus" : "person.2")
                             .font(.system(size: 12, weight: .light))
                             .foregroundColor(isShareHovered ? .primary : .secondary.opacity(0.6))
                             .padding(4)
@@ -502,7 +502,7 @@ struct ScratchpadView: View {
         }
         newListName = ""
         let maxOrder = (activeLists.map { $0.order }.max() ?? -1) + 1
-        let newList = ScratchpadList(title: trimmed, order: maxOrder, ownerId: SupabaseSyncManager.shared.userId)
+        let newList = ScratchpadList(title: trimmed, order: maxOrder, ownerId: SupabaseSyncManager.shared.userId, ownerEmail: SupabaseSyncManager.shared.userEmail)
         modelContext.insert(newList)
         try? modelContext.save()
         SupabaseSyncManager.shared.push()

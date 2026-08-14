@@ -190,17 +190,20 @@ struct ShareListModalView: View {
                                     }
                                 } else {
                                     // 1. List Owner
+                                    let ownerEmailDisplay = members.first(where: { $0.owner_email != nil && !$0.owner_email!.isEmpty })?.owner_email ?? list.ownerEmail ?? "Owner".localized
+                                    let ownerInitial = String(ownerEmailDisplay.prefix(1)).uppercased()
+                                    
                                     HStack(spacing: 8) {
                                         Circle()
                                             .fill(Color.secondary.opacity(0.2))
                                             .frame(width: 24, height: 24)
                                             .overlay(
-                                                Image(systemName: "crown")
+                                                Text(ownerInitial)
                                                     .font(.system(size: 10, weight: .medium))
                                                     .foregroundColor(.secondary)
                                             )
                                         
-                                        Text("Owner".localized)
+                                        Text(ownerEmailDisplay)
                                             .font(.system(size: 13, weight: .light))
                                         
                                         Spacer()

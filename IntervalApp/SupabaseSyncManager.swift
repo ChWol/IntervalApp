@@ -100,6 +100,7 @@ struct ScratchpadMemberDTO: Codable, Identifiable {
     let id: String
     let list_id: String
     let owner_id: String
+    let owner_email: String?
     let invited_email: String
     let member_user_id: String?
     let role: String?
@@ -1423,20 +1424,45 @@ class SupabaseSyncManager: ObservableObject {
         request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "list_id": listId,
             "owner_id": uid,
             "invited_email": trimmedEmail,
             "role": "editor"
         ]
+        if let email = userEmail, !email.isEmpty {
+            payload["owner_email"] = email
+        }
         
-        guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else {
+        func createRequest(with bodyDict: [String: Any]) -> URLRequest? {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = try? JSONSerialization.data(withJSONObject: bodyDict)
+            return req
+        }
+        
+        guard let request = createRequest(with: payload) else {
             return (false, "Serialization error")
         }
-        request.httpBody = httpBody
         
-        guard let (data, response) = await authenticatedRequest(request) else {
+        guard var (data, response) = await authenticatedRequest(request) else {
             return (false, "Network error")
+        }
+        
+        if let httpResp = response as? HTTPURLResponse, httpResp.statusCode >= 400 {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            if body.contains("owner_email") {
+                // If owner_email column is not yet present on remote DB, retry without it
+                var fallbackPayload = payload
+                fallbackPayload.removeValue(forKey: "owner_email")
+                if let fallbackReq = createRequest(with: fallbackPayload),
+                   let (retryData, retryResp) = await authenticatedRequest(fallbackReq) {
+                    data = retryData
+                    response = retryResp
+                }
+            }
         }
         
         if let httpResp = response as? HTTPURLResponse, httpResp.statusCode >= 400 {
