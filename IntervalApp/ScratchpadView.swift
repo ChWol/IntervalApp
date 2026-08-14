@@ -1043,18 +1043,15 @@ struct ScratchpadItemRowView: View {
                 .sorted { $0.order < $1.order }
             var nextOrder = (sorted.last?.order ?? -1) + 1
 
-            var lastCreatedItem: ScratchpadItem? = nil
             if !trimmedFirst.isEmpty {
                 let firstItem = ScratchpadItem(listId: listId, text: trimmedFirst, order: nextOrder)
                 modelContext.insert(firstItem)
                 nextOrder += 1
-                lastCreatedItem = firstItem
             }
             for line in rest {
                 let newItem = ScratchpadItem(listId: listId, text: line, order: nextOrder)
                 modelContext.insert(newItem)
                 nextOrder += 1
-                lastCreatedItem = newItem
             }
 
             let trailingNewItem = ScratchpadItem(listId: listId, text: "", order: nextOrder)

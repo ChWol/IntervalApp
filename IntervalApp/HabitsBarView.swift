@@ -74,8 +74,6 @@ struct WeekdayOption: Identifiable {
     static func option(for id: Int) -> WeekdayOption? {
         allMondayFirst.first(where: { $0.id == id })
     }
-}       allMondayFirst.first(where: { $0.id == id })
-    }
 }
 
 // MARK: - Habits Bar View

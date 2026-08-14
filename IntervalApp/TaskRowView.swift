@@ -436,18 +436,15 @@ struct TaskRowView: View {
                 .sorted { $0.order < $1.order }
             var nextOrder = (sorted.last?.order ?? -1) + 1
             
-            var lastCreatedTask: TaskItem? = nil
             if !trimmedFirst.isEmpty {
                 let firstTask = TaskItem(text: trimmedFirst, intervalType: listTitle, order: nextOrder)
                 modelContext.insert(firstTask)
                 nextOrder += 1
-                lastCreatedTask = firstTask
             }
             for line in rest {
                 let newTask = TaskItem(text: line, intervalType: listTitle, order: nextOrder)
                 modelContext.insert(newTask)
                 nextOrder += 1
-                lastCreatedTask = newTask
             }
             
             let trailingNewTask = TaskItem(text: "", intervalType: listTitle, order: nextOrder)
