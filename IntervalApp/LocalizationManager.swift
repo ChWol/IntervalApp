@@ -6,8 +6,12 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     case german = "de"
     case french = "fr"
     case spanish = "es"
+    case portuguese = "pt"
     case italian = "it"
     case arabic = "ar"
+    case chinese = "zh"
+    case japanese = "ja"
+    case korean = "ko"
     
     var id: String { rawValue }
     
@@ -17,8 +21,12 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         case .german: return "Deutsch"
         case .french: return "Français"
         case .spanish: return "Español"
+        case .portuguese: return "Português"
         case .italian: return "Italiano"
         case .arabic: return "العربية"
+        case .chinese: return "中文"
+        case .japanese: return "日本語"
+        case .korean: return "한국어"
         }
     }
     
@@ -27,8 +35,12 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         if code.hasPrefix("de") { return .german }
         if code.hasPrefix("fr") { return .french }
         if code.hasPrefix("es") { return .spanish }
+        if code.hasPrefix("pt") { return .portuguese }
         if code.hasPrefix("it") { return .italian }
         if code.hasPrefix("ar") { return .arabic }
+        if code.hasPrefix("zh") { return .chinese }
+        if code.hasPrefix("ja") { return .japanese }
+        if code.hasPrefix("ko") { return .korean }
         return .english
     }
 }
@@ -51,285 +63,369 @@ class LocalizationManager: ObservableObject {
         // Categories Upper
         "1 HOUR": [
             .english: "1 HOUR", .german: "1 STUNDE", .french: "1 HEURE",
-            .spanish: "1 HORA", .italian: "1 ORA", .arabic: "ساعة واحدة"
+            .spanish: "1 HORA", .portuguese: "1 HORA", .italian: "1 ORA",
+            .arabic: "ساعة واحدة", .chinese: "1小时", .japanese: "1時間", .korean: "1시간"
         ],
         "1 DAY": [
             .english: "1 DAY", .german: "1 TAG", .french: "1 JOUR",
-            .spanish: "1 DÍA", .italian: "1 GIORNO", .arabic: "يوم واحد"
+            .spanish: "1 DÍA", .portuguese: "1 DIA", .italian: "1 GIORNO",
+            .arabic: "يوم واحد", .chinese: "1天", .japanese: "1日", .korean: "1일"
         ],
         "1 WEEK": [
             .english: "1 WEEK", .german: "1 WOCHE", .french: "1 SEMAINE",
-            .spanish: "1 SEMANA", .italian: "1 SETTIMANA", .arabic: "أسبوع واحد"
+            .spanish: "1 SEMANA", .portuguese: "1 SEMANA", .italian: "1 SETTIMANA",
+            .arabic: "أسبوع واحد", .chinese: "1周", .japanese: "1週間", .korean: "1주일"
         ],
         "1 MONTH": [
             .english: "1 MONTH", .german: "1 MONAT", .french: "1 MOIS",
-            .spanish: "1 MES", .italian: "1 MESE", .arabic: "شهر واحد"
+            .spanish: "1 MES", .portuguese: "1 MÊS", .italian: "1 MESE",
+            .arabic: "شهر واحد", .chinese: "1个月", .japanese: "1ヶ月", .korean: "1개월"
         ],
         "1 YEAR": [
             .english: "1 YEAR", .german: "1 JAHR", .french: "1 AN",
-            .spanish: "1 AÑO", .italian: "1 ANNO", .arabic: "سنة واحدة"
+            .spanish: "1 AÑO", .portuguese: "1 ANO", .italian: "1 ANNO",
+            .arabic: "سنة واحدة", .chinese: "1年", .japanese: "1年", .korean: "1년"
         ],
         
         // Interval Titles (for dropdown menus)
         "1 Hour": [
             .english: "1 Hour", .german: "1 Stunde", .french: "1 Heure",
-            .spanish: "1 Hora", .italian: "1 Ora", .arabic: "ساعة واحدة"
+            .spanish: "1 Hora", .portuguese: "1 Hora", .italian: "1 Ora",
+            .arabic: "ساعة واحدة", .chinese: "1小时", .japanese: "1時間", .korean: "1시간"
         ],
         "1 Day": [
             .english: "1 Day", .german: "1 Tag", .french: "1 Jour",
-            .spanish: "1 Día", .italian: "1 Giorno", .arabic: "يوم واحد"
+            .spanish: "1 Día", .portuguese: "1 Dia", .italian: "1 Giorno",
+            .arabic: "يوم واحد", .chinese: "1天", .japanese: "1日", .korean: "1일"
         ],
         "1 Week": [
             .english: "1 Week", .german: "1 Woche", .french: "1 Semaine",
-            .spanish: "1 Semana", .italian: "1 Settimana", .arabic: "أسبوع واحد"
+            .spanish: "1 Semana", .portuguese: "1 Semana", .italian: "1 Settimana",
+            .arabic: "أسبوع واحد", .chinese: "1周", .japanese: "1週間", .korean: "1주일"
         ],
         "1 Month": [
             .english: "1 Month", .german: "1 Monat", .french: "1 Mois",
-            .spanish: "1 Mes", .italian: "1 Mese", .arabic: "شهر واحد"
+            .spanish: "1 Mes", .portuguese: "1 Mês", .italian: "1 Mese",
+            .arabic: "شهر واحد", .chinese: "1个月", .japanese: "1ヶ月", .korean: "1개월"
         ],
         "1 Year": [
             .english: "1 Year", .german: "1 Jahr", .french: "1 An",
-            .spanish: "1 Año", .italian: "1 Anno", .arabic: "سنة واحدة"
+            .spanish: "1 Año", .portuguese: "1 Ano", .italian: "1 Anno",
+            .arabic: "سنة واحدة", .chinese: "1年", .japanese: "1年", .korean: "1년"
         ],
         
         // UI Action Labels
         "Add task...": [
             .english: "Add task...", .german: "Aufgabe hinzufügen...", .french: "Ajouter une tâche...",
-            .spanish: "Añadir tarea...", .italian: "Aggiungi attività...", .arabic: "إضافة مهمة..."
+            .spanish: "Añadir tarea...", .portuguese: "Adicionar tarefa...", .italian: "Aggiungi attività...",
+            .arabic: "إضافة مهمة...", .chinese: "添加任务...", .japanese: "タスクを追加...", .korean: "할 일 추가..."
         ],
         "New List": [
             .english: "New List", .german: "Neue Liste", .french: "Nouvelle liste",
-            .spanish: "Nueva lista", .italian: "Nuova lista", .arabic: "قائمة جديدة"
+            .spanish: "Nueva lista", .portuguese: "Nova lista", .italian: "Nuova lista",
+            .arabic: "قائمة جديدة", .chinese: "新建列表", .japanese: "新規リスト", .korean: "새 목록"
         ],
         "List name...": [
             .english: "List name...", .german: "Listenname...", .french: "Nom de la liste...",
-            .spanish: "Nombre de la lista...", .italian: "Nome della lista...", .arabic: "اسم القائمة..."
+            .spanish: "Nombre de la lista...", .portuguese: "Nome da lista...", .italian: "Nome della lista...",
+            .arabic: "اسم القائمة...", .chinese: "列表名称...", .japanese: "リスト名...", .korean: "목록 이름..."
         ],
         "No custom lists created yet.": [
             .english: "No custom lists created yet.",
             .german: "Noch keine Listen erstellt.",
             .french: "Aucune liste créée.",
             .spanish: "Aún no se han creado listas.",
+            .portuguese: "Nenhuma lista personalizada criada ainda.",
             .italian: "Nessuna lista personalizzata creata.",
-            .arabic: "لم يتم إنشاء قوائم بعد."
+            .arabic: "لم يتم إنشاء قوائم بعد.",
+            .chinese: "暂无自定义列表。",
+            .japanese: "カスタムリストがまだありません。",
+            .korean: "아직 생성된 목록이 없습니다."
         ],
         "Create First List": [
             .english: "Create First List", .german: "Erste Liste erstellen", .french: "Créer la première liste",
-            .spanish: "Crear primera lista", .italian: "Crea prima lista", .arabic: "إنشاء القائمة الأولى"
+            .spanish: "Crear primera lista", .portuguese: "Criar primeira lista", .italian: "Crea prima lista",
+            .arabic: "إنشاء القائمة الأولى", .chinese: "创建第一个列表", .japanese: "最初のリストを作成", .korean: "첫 번째 목록 만들기"
         ],
         "Item...": [
             .english: "Item...", .german: "Eintrag...", .french: "Élément...",
-            .spanish: "Elemento...", .italian: "Elemento...", .arabic: "عنصر..."
+            .spanish: "Elemento...", .portuguese: "Item...", .italian: "Elemento...",
+            .arabic: "عنصر...", .chinese: "事项...", .japanese: "アイテム...", .korean: "항목..."
         ],
         "Add Item": [
             .english: "Add Item", .german: "Eintrag hinzufügen", .french: "Ajouter un élément",
-            .spanish: "Añadir elemento", .italian: "Aggiungi elemento", .arabic: "إضافة عنصر"
+            .spanish: "Añadir elemento", .portuguese: "Adicionar item", .italian: "Aggiungi elemento",
+            .arabic: "إضافة عنصر", .chinese: "添加事项", .japanese: "アイテムを追加", .korean: "항목 추가"
         ],
         "ITEMS": [
             .english: "ITEMS", .german: "EINTRÄGE", .french: "ÉLÉMENTS",
-            .spanish: "ELEMENTOS", .italian: "ELEMENTI", .arabic: "العناصر"
+            .spanish: "ELEMENTOS", .portuguese: "ITENS", .italian: "ELEMENTI",
+            .arabic: "العناصر", .chinese: "事项", .japanese: "アイテム", .korean: "항목"
         ],
         "COMPLETED": [
             .english: "COMPLETED", .german: "ERLEDIGT", .french: "TERMINÉ",
-            .spanish: "COMPLETADO", .italian: "COMPLETATO", .arabic: "المكتملة"
+            .spanish: "COMPLETADO", .portuguese: "CONCLUÍDO", .italian: "COMPLETATO",
+            .arabic: "المكتملة", .chinese: "已完成", .japanese: "完了済み", .korean: "완료됨"
         ],
         "Completed": [
             .english: "Completed", .german: "Erledigt", .french: "Terminé",
-            .spanish: "Completado", .italian: "Completato", .arabic: "المكتملة"
+            .spanish: "Completado", .portuguese: "Concluído", .italian: "Completato",
+            .arabic: "المكتملة", .chinese: "已完成", .japanese: "完了済み", .korean: "완료됨"
         ],
         "RECENTLY DELETED": [
             .english: "RECENTLY DELETED", .german: "KÜRZLICH GELÖSCHT", .french: "RÉCEMMENT SUPPRIMÉ",
-            .spanish: "ELIMINADO RECIENTEMENTE", .italian: "ELIMINATI DI RECENTE", .arabic: "المحذوفة مؤخراً"
+            .spanish: "ELIMINADO RECIENTEMENTE", .portuguese: "EXCLUÍDO RECENTEMENTE", .italian: "ELIMINATI DI RECENTE",
+            .arabic: "المحذوفة مؤخراً", .chinese: "最近删除", .japanese: "最近削除した項目", .korean: "최근 삭제된 항목"
         ],
         "Recently Deleted": [
             .english: "Recently Deleted", .german: "Kürzlich gelöscht", .french: "Récemment supprimé",
-            .spanish: "Eliminado recientemente", .italian: "Eliminati di recente", .arabic: "المحذوفة مؤخراً"
+            .spanish: "Eliminado recientemente", .portuguese: "Excluído recentemente", .italian: "Eliminati di recente",
+            .arabic: "المحذوفة مؤخراً", .chinese: "最近删除", .japanese: "最近削除した項目", .korean: "최근 삭제된 항목"
         ],
         "Clear All": [
             .english: "Clear All", .german: "Alle löschen", .french: "Tout effacer",
-            .spanish: "Borrar todo", .italian: "Cancella tutto", .arabic: "مسح الكل"
+            .spanish: "Borrar todo", .portuguese: "Limpar tudo", .italian: "Cancella tutto",
+            .arabic: "مسح الكل", .chinese: "清空全部", .japanese: "すべて削除", .korean: "모두 지우기"
         ],
         "Clear all": [
             .english: "Clear all", .german: "Alle löschen", .french: "Tout effacer",
-            .spanish: "Borrar todo", .italian: "Cancella tutto", .arabic: "مسح الكل"
+            .spanish: "Borrar todo", .portuguese: "Limpar tudo", .italian: "Cancella tutto",
+            .arabic: "مسح الكل", .chinese: "清空全部", .japanese: "すべて削除", .korean: "모두 지우기"
         ],
         "Show Less": [
             .english: "Show Less", .german: "Weniger anzeigen", .french: "Afficher moins",
-            .spanish: "Mostrar menos", .italian: "Mostra meno", .arabic: "عرض أقل"
+            .spanish: "Mostrar menos", .portuguese: "Mostrar menos", .italian: "Mostra meno",
+            .arabic: "عرض أقل", .chinese: "收起", .japanese: "折りたたむ", .korean: "간략히 보기"
         ],
         "Show More": [
             .english: "Show More", .german: "Mehr anzeigen", .french: "Afficher plus",
-            .spanish: "Mostrar más", .italian: "Mostra altro", .arabic: "عرض المزيد"
+            .spanish: "Mostrar más", .portuguese: "Mostrar mais", .italian: "Mostra altro",
+            .arabic: "عرض المزيد", .chinese: "展开更多", .japanese: "さらに表示", .korean: "더 보기"
         ],
         "TRANSFER TO TASK": [
             .english: "TRANSFER TO TASK", .german: "IN AUFGABE UMWANDELN", .french: "TRANSFÉRER EN TÂCHE",
-            .spanish: "TRANSFERIR A TAREA", .italian: "TRASFERISCI IN ATTIVITÀ", .arabic: "تحويل إلى مهمة"
+            .spanish: "TRANSFERIR A TAREA", .portuguese: "TRANSFERIR PARA TAREFA", .italian: "TRASFERISCI IN ATTIVITÀ",
+            .arabic: "تحويل إلى مهمة", .chinese: "转换为任务", .japanese: "タスクに変換", .korean: "할 일로 전환"
         ],
         
         // Migration Modals
         "Skip": [
             .english: "Skip", .german: "Überspringen", .french: "Ignorer",
-            .spanish: "Omitir", .italian: "Salta", .arabic: "تخطي"
+            .spanish: "Omitir", .portuguese: "Pular", .italian: "Salta",
+            .arabic: "تخطي", .chinese: "跳过", .japanese: "スキップ", .korean: "건너뛰기"
         ],
         "Migrate": [
             .english: "Migrate", .german: "Übertragen", .french: "Transférer",
-            .spanish: "Transferir", .italian: "Trasferisci", .arabic: "نقل"
+            .spanish: "Transferir", .portuguese: "Transferir", .italian: "Trasferisci",
+            .arabic: "نقل", .chinese: "迁移", .japanese: "移行", .korean: "이동"
         ],
         "Commit": [
             .english: "Commit", .german: "Festlegen", .french: "Valider",
-            .spanish: "Confirmar", .italian: "Conferma", .arabic: "تأكيد"
+            .spanish: "Confirmar", .portuguese: "Confirmar", .italian: "Conferma",
+            .arabic: "تأكيد", .chinese: "确定", .japanese: "確定", .korean: "확인"
         ],
         "FROM YOUR DAY": [
             .english: "FROM YOUR DAY", .german: "AUS DEINEM TAG", .french: "DE VOTRE JOURNÉE",
-            .spanish: "DE TU DÍA", .italian: "DALLA TUA GIORNATA", .arabic: "من يومك"
+            .spanish: "DE TU DÍA", .portuguese: "DO SEU DIA", .italian: "DALLA TUA GIORNATA",
+            .arabic: "من يومك", .chinese: "来自今日", .japanese: "本日のリストから", .korean: "오늘의 목록에서"
         ],
         "Migrate Tasks": [
             .english: "Migrate Tasks", .german: "Aufgaben übertragen", .french: "Transférer les tâches",
-            .spanish: "Transferir tareas", .italian: "Trasferisci attività", .arabic: "نقل المهام"
+            .spanish: "Transferir tareas", .portuguese: "Transferir tarefas", .italian: "Trasferisci attività",
+            .arabic: "نقل المهام", .chinese: "迁移任务", .japanese: "タスクを移行", .korean: "할 일 이동"
         ],
         "Nothing left in your 1 Day list.": [
             .english: "Nothing left in your 1 Day list.",
             .german: "Keine offenen Aufgaben in deiner 1-Tag-Liste.",
             .french: "Rien dans votre liste 1 Jour.",
             .spanish: "No queda nada en tu lista de 1 Día.",
+            .portuguese: "Nada restante na sua lista de 1 Dia.",
             .italian: "Niente rimasto nella lista di 1 Giorno.",
-            .arabic: "لا توجد مهام متبقية في قائمة اليوم."
+            .arabic: "لا توجد مهام متبقية في قائمة اليوم.",
+            .chinese: "今日列表中已无任务。",
+            .japanese: "本日のリストに残っているタスクはありません。",
+            .korean: "오늘 목록에 남은 할 일이 없습니다."
         ],
         "No habits left for this period.": [
             .english: "No habits left for this period.",
             .german: "Keine Gewohnheiten für diesen Zeitraum offen.",
             .french: "Aucune habitude restante pour cette période.",
             .spanish: "No quedan hábitos para este periodo.",
+            .portuguese: "Nenhum hábito restante para este período.",
             .italian: "Nessuna abitudine rimasta per questo periodo.",
-            .arabic: "لا توجد عادات متبقية لهذه الفترة."
+            .arabic: "لا توجد عادات متبقية لهذه الفترة.",
+            .chinese: "本周期暂无待办习惯。",
+            .japanese: "この期間に残っている習慣はありません。",
+            .korean: "이 기간에 남은 습관이 없습니다."
         ],
         "No incomplete tasks available to transfer.": [
             .english: "No incomplete tasks available to transfer.",
             .german: "Keine offenen Aufgaben zum Übertragen vorhanden.",
             .french: "Aucune tâche incomplète à transférer.",
             .spanish: "No hay tareas incompletas para transferir.",
+            .portuguese: "Nenhuma tarefa incompleta para transferir.",
             .italian: "Nessuna attività incompleta da trasferire.",
-            .arabic: "لا توجد مهام غير مكتملة للنقل."
+            .arabic: "لا توجد مهام غير مكتملة للنقل.",
+            .chinese: "无未完成任务可迁移。",
+            .japanese: "移行可能な未完了タスクはありません。",
+            .korean: "이동할 미완료 할 일이 없습니다."
         ],
         
         // Settings & Preferences
         "SETTINGS": [
             .english: "SETTINGS", .german: "EINSTELLUNGEN", .french: "PARAMÈTRES",
-            .spanish: "AJUSTES", .italian: "IMPOSTAZIONI", .arabic: "الإعدادات"
+            .spanish: "AJUSTES", .portuguese: "CONFIGURAÇÕES", .italian: "IMPOSTAZIONI",
+            .arabic: "الإعدادات", .chinese: "设置", .japanese: "設定", .korean: "설정"
         ],
         "LANGUAGE": [
             .english: "LANGUAGE", .german: "SPRACHE", .french: "LANGUE",
-            .spanish: "IDIOMA", .italian: "LINGUA", .arabic: "اللغة"
+            .spanish: "IDIOMA", .portuguese: "IDIOMA", .italian: "LINGUA",
+            .arabic: "اللغة", .chinese: "语言", .japanese: "言語", .korean: "언어"
         ],
         "Settings": [
             .english: "Settings", .german: "Einstellungen", .french: "Paramètres",
-            .spanish: "Ajustes", .italian: "Impostazioni", .arabic: "الإعدادات"
+            .spanish: "Ajustes", .portuguese: "Configurações", .italian: "Impostazioni",
+            .arabic: "الإعدادات", .chinese: "设置", .japanese: "設定", .korean: "설정"
         ],
         "Language": [
             .english: "Language", .german: "Sprache", .french: "Langue",
-            .spanish: "Idioma", .italian: "Lingua", .arabic: "اللغة"
+            .spanish: "Idioma", .portuguese: "Idioma", .italian: "Lingua",
+            .arabic: "اللغة", .chinese: "语言", .japanese: "言語", .korean: "언어"
         ],
         "PREFERENCES": [
             .english: "PREFERENCES", .german: "EINSTELLUNGEN", .french: "PRÉFÉRENCES",
-            .spanish: "PREFERENCIAS", .italian: "PREFERENZE", .arabic: "التفضيلات"
+            .spanish: "PREFERENCIAS", .portuguese: "PREFERÊNCIAS", .italian: "PREFERENZE",
+            .arabic: "التفضيلات", .chinese: "偏好设置", .japanese: "環境設定", .korean: "환경설정"
         ],
         "DISPLAY": [
             .english: "DISPLAY", .german: "ANZEIGE", .french: "AFFICHAGE",
-            .spanish: "PANTALLA", .italian: "VISUALIZZAZIONE", .arabic: "العرض"
+            .spanish: "PANTALLA", .portuguese: "EXIBIÇÃO", .italian: "VISUALIZZAZIONE",
+            .arabic: "العرض", .chinese: "显示", .japanese: "表示", .korean: "화면 표시"
         ],
         "Show Habits Bar": [
             .english: "Show Habits Bar", .german: "Habits-Leiste anzeigen", .french: "Afficher la barre d'habitudes",
-            .spanish: "Mostrar barra de hábitos", .italian: "Mostra barra delle abitudini", .arabic: "إظهار شريط العادات"
+            .spanish: "Mostrar barra de hábitos", .portuguese: "Mostrar barra de hábitos", .italian: "Mostra barra delle abitudini",
+            .arabic: "إظهار شريط العادات", .chinese: "显示习惯栏", .japanese: "習慣バーを表示", .korean: "습관 바 표시"
         ],
         "Sound Effects": [
             .english: "Sound Effects", .german: "Soundeffekte", .french: "Effets sonores",
-            .spanish: "Efectos de sonido", .italian: "Effetti sonori", .arabic: "المؤثرات الصوتية"
+            .spanish: "Efectos de sonido", .portuguese: "Efeitos sonoros", .italian: "Effetti sonori",
+            .arabic: "المؤثرات الصوتية", .chinese: "音效", .japanese: "効果音", .korean: "효과음"
         ],
         "ACCOUNT": [
             .english: "ACCOUNT", .german: "KONTO", .french: "COMPTE",
-            .spanish: "CUENTA", .italian: "ACCOUNT", .arabic: "الحساب"
+            .spanish: "CUENTA", .portuguese: "CONTA", .italian: "ACCOUNT",
+            .arabic: "الحساب", .chinese: "账户", .japanese: "アカウント", .korean: "계정"
         ],
         "Sign Out": [
             .english: "Sign Out", .german: "Abmelden", .french: "Se déconnecter",
-            .spanish: "Cerrar sesión", .italian: "Disconnettiti", .arabic: "تسجيل الخروج"
+            .spanish: "Cerrar sesión", .portuguese: "Sair", .italian: "Disconnettiti",
+            .arabic: "تسجيل الخروج", .chinese: "退出登录", .japanese: "サインアウト", .korean: "로그아웃"
         ],
         "Delete Account": [
             .english: "Delete Account", .german: "Account löschen", .french: "Supprimer le compte",
-            .spanish: "Eliminar cuenta", .italian: "Elimina account", .arabic: "حذف الحساب"
+            .spanish: "Eliminar cuenta", .portuguese: "Excluir conta", .italian: "Elimina account",
+            .arabic: "حذف الحساب", .chinese: "删除账户", .japanese: "アカウントを削除", .korean: "계정 삭제"
         ],
         
         // Tooltips & Navigation
         "Switch to Scratchpad Lists": [
             .english: "Switch to Scratchpad Lists", .german: "Zu Notizlisten wechseln", .french: "Passer aux listes de notes",
-            .spanish: "Cambiar a listas de notas", .italian: "Passa alle liste di appunti", .arabic: "الانتقال إلى قوائم الملاحظات"
+            .spanish: "Cambiar a listas de notas", .portuguese: "Alternar para listas de notas", .italian: "Passa alle liste di appunti",
+            .arabic: "الانتقال إلى قوائم الملاحظات", .chinese: "切换到便签列表", .japanese: "メモリストに切り替え", .korean: "메모 목록으로 전환"
         ],
         "Switch to Interval Tasks": [
             .english: "Switch to Interval Tasks", .german: "Zu Intervall-Aufgaben wechseln", .french: "Passer aux tâches d'intervalle",
-            .spanish: "Cambiar a tareas de intervalos", .italian: "Passa alle attività a intervalli", .arabic: "الانتقال إلى مهام الفترات"
+            .spanish: "Cambiar a tareas de intervalos", .portuguese: "Alternar para tarefas de intervalo", .italian: "Passa alle attività a intervalli",
+            .arabic: "الانتقال إلى مهام الفترات", .chinese: "切换到时间间隔任务", .japanese: "インターバルタスクに切り替え", .korean: "간격 할 일로 전환"
         ],
         "Manual Sync (⌘R)": [
             .english: "Manual Sync (⌘R)", .german: "Manuelle Synchronisation (⌘R)", .french: "Synchronisation manuelle (⌘R)",
-            .spanish: "Sincronización manual (⌘R)", .italian: "Sincronizzazione manuale (⌘R)", .arabic: "مزامنة يدوية (⌘R)"
+            .spanish: "Sincronización manual (⌘R)", .portuguese: "Sincronização manual (⌘R)", .italian: "Sincronizzazione manuale (⌘R)",
+            .arabic: "مزامنة يدوية (⌘R)", .chinese: "手动同步 (⌘R)", .japanese: "手動同期 (⌘R)", .korean: "수동 동기화 (⌘R)"
         ],
         "Delete List?": [
             .english: "Delete List?", .german: "Liste löschen?", .french: "Supprimer la liste ?",
-            .spanish: "¿Eliminar lista?", .italian: "Eliminare la lista?", .arabic: "حذف القائمة؟"
+            .spanish: "¿Eliminar lista?", .portuguese: "Excluir lista?", .italian: "Eliminare la lista?",
+            .arabic: "حذف القائمة؟", .chinese: "删除列表？", .japanese: "リストを削除しますか？", .korean: "목록을 삭제하시겠습니까?"
         ],
         "Delete": [
             .english: "Delete", .german: "Löschen", .french: "Supprimer",
-            .spanish: "Eliminar", .italian: "Elimina", .arabic: "حذف"
+            .spanish: "Eliminar", .portuguese: "Excluir", .italian: "Elimina",
+            .arabic: "حذف", .chinese: "删除", .japanese: "削除", .korean: "삭제"
         ],
         "Cancel": [
             .english: "Cancel", .german: "Abbrechen", .french: "Annuler",
-            .spanish: "Cancelar", .italian: "Annulla", .arabic: "إلغاء"
+            .spanish: "Cancelar", .portuguese: "Cancelar", .italian: "Annulla",
+            .arabic: "إلغاء", .chinese: "取消", .japanese: "キャンセル", .korean: "취소"
         ],
         "Delete list message": [
             .english: "Are you sure you want to delete this list and all its items?",
             .german: "Möchtest du diese Liste und alle ihre Einträge wirklich löschen?",
             .french: "Voulez-vous vraiment supprimer cette liste et tous ses éléments ?",
             .spanish: "¿Seguro que quieres eliminar esta lista y todos sus elementos?",
+            .portuguese: "Tem certeza de que deseja excluir esta lista e todos os seus itens?",
             .italian: "Sei sicuro di voler eliminare questa lista e tutti i suoi elementi?",
-            .arabic: "هل أنت متأكد من رغبتك في حذف هذه القائمة وجميع عناصرها؟"
+            .arabic: "هل أنت متأكد من رغبتك في حذف هذه القائمة وجميع عناصرها؟",
+            .chinese: "确定要删除此列表及其所有事项吗？",
+            .japanese: "このリストとすべてのアイテムを削除してもよろしいですか？",
+            .korean: "이 목록과 모든 항목을 삭제하시겠습니까?"
         ],
         "Untitled List": [
             .english: "Untitled List", .german: "Unbenannte Liste", .french: "Liste sans titre",
-            .spanish: "Lista sin título", .italian: "Lista senza titolo", .arabic: "قائمة بدون عنوان"
+            .spanish: "Lista sin título", .portuguese: "Lista sem título", .italian: "Lista senza titolo",
+            .arabic: "قائمة بدون عنوان", .chinese: "无标题列表", .japanese: "無題のリスト", .korean: "제목 없는 목록"
         ],
         "SUPPORT & FEEDBACK": [
             .english: "SUPPORT & FEEDBACK", .german: "SUPPORT & FEEDBACK", .french: "SUPPORT ET RETOURS",
-            .spanish: "SOPORTE Y COMENTARIOS", .italian: "SUPPORTO E FEEDBACK", .arabic: "الدعم والملاحظات"
+            .spanish: "SOPORTE Y COMENTARIOS", .portuguese: "SUPORTE E FEEDBACK", .italian: "SUPPORTO E FEEDBACK",
+            .arabic: "الدعم والملاحظات", .chinese: "支持与反馈", .japanese: "サポートとフィードバック", .korean: "지원 및 피드백"
         ],
         "For feedback, inspiration or help:": [
             .english: "For feedback, inspiration or help:",
             .german: "Für Feedback, Inspiration oder Hilfe:",
             .french: "Pour retours, inspiration ou aide :",
             .spanish: "Para comentarios, inspiración o ayuda:",
+            .portuguese: "Para feedback, inspiração ou ajuda:",
             .italian: "Per feedback, ispirazione o aiuto:",
-            .arabic: "للملاحظات أو الدعم أو الاقتراحات:"
+            .arabic: "للملاحظات أو الدعم أو الاقتراحات:",
+            .chinese: "获取反馈、灵感或帮助：",
+            .japanese: "フィードバック、ご提案、サポート：",
+            .korean: "피드백, 아이디어 또는 도움말:"
         ],
         "For feedback, inspiration or help contact:": [
             .english: "For feedback, inspiration or help contact:",
             .german: "Für Feedback, Inspiration oder Hilfe wende dich an:",
             .french: "Pour des retours, de l'inspiration ou de l'aide :",
             .spanish: "Para comentarios, inspiración o ayuda contacta con:",
+            .portuguese: "Para feedback, inspiração ou ajuda entre em contato:",
             .italian: "Per feedback, ispirazione o supporto contatta:",
-            .arabic: "للملاحظات أو الدعم أو المساعدة:"
+            .arabic: "للملاحظات أو الدعم أو المساعدة:",
+            .chinese: "如需反馈、灵感或帮助请联系：",
+            .japanese: "ご意見、ご要望、お問い合わせ：",
+            .korean: "피드백, 문의 및 지원 연락처:"
         ],
         "Donations & Support:": [
             .english: "Donations & Support:",
             .german: "Spenden & Unterstützung:",
             .french: "Dons et soutien :",
             .spanish: "Donaciones y soporte:",
+            .portuguese: "Doações e suporte:",
             .italian: "Donazioni e supporto:",
-            .arabic: "التبرعات والدعم:"
+            .arabic: "التبرعات والدعم:",
+            .chinese: "赞助与支持：",
+            .japanese: "寄付とサポート：",
+            .korean: "후원 및 지원:"
         ],
         "HABITS": [
             .english: "HABITS", .german: "GEWOHNHEITEN", .french: "HABITUDES",
-            .spanish: "HÁBITOS", .italian: "ABITUDINI", .arabic: "العادات"
+            .spanish: "HÁBITOS", .portuguese: "HÁBITOS", .italian: "ABITUDINI",
+            .arabic: "العادات", .chinese: "习惯", .japanese: "習慣", .korean: "습관"
         ],
         "New habit...": [
             .english: "New habit...", .german: "Neue Gewohnheit...", .french: "Nouvelle habitude...",
-            .spanish: "Nuevo hábito...", .italian: "Nuova abitudine...", .arabic: "عادة جديدة..."
+            .spanish: "Nuevo hábito...", .portuguese: "Novo hábito...", .italian: "Nuova abitudine...",
+            .arabic: "عادة جديدة...", .chinese: "新习惯...", .japanese: "新しい習慣...", .korean: "새 습관..."
         ]
     ]
 }

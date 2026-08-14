@@ -45,13 +45,13 @@ final class HabitItem {
             if parts.count > 1 {
                 let name = String(parts[1]).lowercased()
                 switch name {
-                case "sunday", "sun", "so", "sonntag", "dimanche", "dim", "domingo", "dom", "domenica", "الأحد", "أحد", "اح": return 1
-                case "monday", "mon", "mo", "montag", "lundi", "lun", "lunes", "lunedì", "lunedi", "الإثنين", "إثنين", "اثنين", "اث": return 2
-                case "tuesday", "tue", "di", "dienstag", "mardi", "mar", "martes", "martedì", "martedi", "الثلاثاء", "ثلاثاء", "ثل": return 3
-                case "wednesday", "wed", "mi", "mittwoch", "mercredi", "mer", "miércoles", "miercoles", "mie", "mercoledì", "mercoledi", "الأربعاء", "أربعاء", "اربعاء", "ار": return 4
-                case "thursday", "thu", "do", "donnerstag", "jeudi", "jeu", "jueves", "jue", "giovedì", "giovedi", "gio", "الخميس", "خميس", "خم": return 5
-                case "friday", "fri", "fr", "freitag", "vendredi", "ven", "viernes", "vie", "venerdì", "venerdi", "الجمعة", "جمعة", "جم": return 6
-                case "saturday", "sat", "sa", "samstag", "samedi", "sam", "sábado", "sabado", "sab", "sabato", "السبت", "سبت", "سب": return 7
+                case "sunday", "sun", "so", "sonntag", "dimanche", "dim", "domingo", "dom", "domenica", "周日", "星期日", "日", "日曜日", "일", "일요일", "الأحد", "أحد", "اح": return 1
+                case "monday", "mon", "mo", "montag", "lundi", "lun", "lunes", "segunda", "segunda-feira", "seg", "lunedì", "lunedi", "周一", "星期一", "月", "月曜日", "월", "월요일", "الإثنين", "إثنين", "اثنين", "اث": return 2
+                case "tuesday", "tue", "di", "dienstag", "mardi", "mar", "martes", "terça", "terca", "terça-feira", "ter", "martedì", "martedi", "周二", "星期二", "火", "火曜日", "화", "화요일", "الثلاثاء", "ثلاثاء", "ثل": return 3
+                case "wednesday", "wed", "mi", "mittwoch", "mercredi", "mer", "miércoles", "miercoles", "quarta", "quarta-feira", "qua", "mie", "mercoledì", "mercoledi", "周三", "星期三", "水", "水曜日", "수", "수요일", "الأربعاء", "أربعاء", "اربعاء", "ار": return 4
+                case "thursday", "thu", "do", "donnerstag", "jeudi", "jeu", "jueves", "quinta", "quinta-feira", "qui", "jue", "giovedì", "giovedi", "gio", "周四", "星期四", "木", "木曜日", "목", "목요일", "الخميس", "خميس", "خم": return 5
+                case "friday", "fri", "fr", "freitag", "vendredi", "ven", "viernes", "sexta", "sexta-feira", "sex", "vie", "venerdì", "venerdi", "周五", "星期五", "金", "金曜日", "금", "금요일", "الجمعة", "جمعة", "جم": return 6
+                case "saturday", "sat", "sa", "samstag", "samedi", "sam", "sábado", "sabado", "sab", "sabato", "周六", "星期六", "土", "土曜日", "토", "토요일", "السبت", "سبت", "سب": return 7
                 default: return nil
                 }
             }
