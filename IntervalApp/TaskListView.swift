@@ -28,7 +28,7 @@ struct TaskListView: View {
                     createNewTaskAtEnd()
                 }) {
                     Image(systemName: "plus")
-                        .font(.system(size: 10, weight: .light))
+                        .font(.system(size: 13, weight: .regular))
                         .foregroundColor(isPlusHovered ? .primary : .secondary.opacity(0.6))
                         .padding(4)
                         .contentShape(Rectangle())

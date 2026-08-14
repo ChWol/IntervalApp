@@ -9,7 +9,6 @@ class NoHighlightTextField: NSTextField {
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
         if let editor = currentEditor() as? NSTextView {
-            editor.delegate = delegate as? NSTextViewDelegate
             editor.setSelectedRange(NSRange(location: editor.string.count, length: 0))
         }
         return result
@@ -24,6 +23,23 @@ class NoHighlightTextField: NSTextField {
                 self.window?.makeFirstResponder(self)
             }
         }
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers?.lowercased() == "v" {
+            if let str = NSPasteboard.general.string(forType: .string) {
+                let rawLines = str.components(separatedBy: .newlines)
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+                if rawLines.count > 1 {
+                    if let coord = delegate as? CustomTextField.Coordinator {
+                        coord.onPasteMultipleLines?(rawLines)
+                        return true
+                    }
+                }
+            }
+        }
+        return super.performKeyEquivalent(with: event)
     }
 }
 
@@ -50,6 +66,9 @@ struct CustomTextField: NSViewRepresentable {
         tf.cell?.wraps = true
         tf.cell?.isScrollable = false
         tf.stringValue = text
+        if isFocused {
+            tf.pendingFocus = true
+        }
         return tf
     }
 
@@ -114,7 +133,7 @@ struct CustomTextField: NSViewRepresentable {
         Coordinator(textBinding: $text)
     }
 
-    class Coordinator: NSObject, NSTextFieldDelegate, NSTextViewDelegate {
+    class Coordinator: NSObject, NSTextFieldDelegate {
         var textBinding: Binding<String>
         var onFocusChanged: ((Bool) -> Void)?
         var onSubmit: ((_ isAtBeginning: Bool) -> Void)?
@@ -133,9 +152,6 @@ struct CustomTextField: NSViewRepresentable {
 
         func controlTextDidBeginEditing(_ obj: Notification) {
             isEditing = true
-            if let tf = obj.object as? NSTextField, let tv = tf.currentEditor() as? NSTextView {
-                tv.delegate = self
-            }
             onFocusChanged?(true)
         }
 
@@ -160,25 +176,6 @@ struct CustomTextField: NSViewRepresentable {
                 }
             }
             return false
-        }
-
-        func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
-            guard let str = replacementString, let onPaste = onPasteMultipleLines else { return true }
-            if str.contains("\n") || str.contains("\r") {
-                let rawLines = str.components(separatedBy: .newlines)
-                    .map { $0.trimmingCharacters(in: .whitespaces) }
-                    .filter { !$0.isEmpty }
-                if rawLines.count > 1 {
-                    let currentStr = (textView.string as NSString)
-                    let prefix = affectedCharRange.location <= currentStr.length ? currentStr.substring(to: affectedCharRange.location) : ""
-                    let suffix = (affectedCharRange.location + affectedCharRange.length) <= currentStr.length ? currentStr.substring(from: affectedCharRange.location + affectedCharRange.length) : ""
-                    var allLinesToInsert = rawLines
-                    allLinesToInsert[0] = prefix + rawLines[0] + suffix
-                    onPaste(allLinesToInsert)
-                    return false
-                }
-            }
-            return true
         }
     }
 }

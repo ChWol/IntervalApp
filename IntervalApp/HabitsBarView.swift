@@ -110,7 +110,7 @@ struct HabitsBarView: View {
                             }
                         }) {
                             Image(systemName: "plus")
-                                .font(.system(size: 11, weight: .light))
+                                .font(.system(size: 13, weight: .regular))
                                 .foregroundColor(isPlusHovered ? .primary : .gray)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 5)

@@ -169,9 +169,9 @@ struct ScratchpadView: View {
                                     isNewListFocused = true
                                 }
                             }) {
-                                HStack(spacing: 4) {
+                                HStack(spacing: 5) {
                                     Image(systemName: "plus")
-                                        .font(.system(size: 10, weight: .light))
+                                        .font(.system(size: 12, weight: .regular))
                                     Text("New List".localized)
                                         .font(.system(size: 11, weight: .light))
                                 }
@@ -290,7 +290,7 @@ struct ScratchpadView: View {
                         createNewItemAtEnd()
                     }) {
                         Image(systemName: "plus")
-                            .font(.system(size: 10, weight: .light))
+                            .font(.system(size: 13, weight: .regular))
                             .foregroundColor(isItemPlusHovered ? .primary : .secondary.opacity(0.6))
                             .padding(4)
                             .contentShape(Rectangle())
@@ -317,17 +317,6 @@ struct ScratchpadView: View {
                             allItemsInList: openItems
                         )
                     }
-
-                    ScratchpadItemRowView(
-                        item: ScratchpadItem(listId: currentList.id, text: ""),
-                        isNew: true,
-                        listId: currentList.id,
-                        currentListId: currentList.id,
-                        focusedTaskId: $focusedTaskId,
-                        selectedItemIds: $selectedItemIds,
-                        lastClickedItemId: $lastClickedItemId,
-                        allItemsInList: openItems
-                    )
                 }
 
                 // MARK: - Completed Items Section with Divider & Clear All
