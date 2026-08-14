@@ -601,6 +601,16 @@ struct ScratchpadItemRowView: View {
                                 },
                                 onDeleteEmpty: {
                                     if !isNew {
+                                        let descriptor = FetchDescriptor<ScratchpadItem>()
+                                        if let all = try? modelContext.fetch(descriptor) {
+                                            let sorted = all.filter { $0.listId == listId && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+                                            if let idx = sorted.firstIndex(where: { $0.id == item.id }), idx > 0 {
+                                                let prevId = sorted[idx - 1].id
+                                                DispatchQueue.main.async {
+                                                    focusedTaskId = prevId
+                                                }
+                                            }
+                                        }
                                         deleteItem()
                                     }
                                 },

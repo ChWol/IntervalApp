@@ -170,7 +170,7 @@ struct CustomTextField: NSViewRepresentable {
                 return true
             }
             if sel == #selector(NSResponder.deleteBackward(_:)) {
-                if textBinding.wrappedValue.isEmpty {
+                if textBinding.wrappedValue.isEmpty || textView.string.isEmpty {
                     onDeleteEmpty?()
                     return true
                 }
