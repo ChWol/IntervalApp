@@ -994,6 +994,9 @@ class SupabaseSyncManager: ObservableObject {
             let remoteStamp = SyncTimestamp.parse(dto.updated_at).map { clock.toLocal($0) }
             
             if let existing = localById[dto.id] {
+                if existing.ownerId != dto.user_id {
+                    existing.ownerId = dto.user_id
+                }
                 switch MergePolicy.resolve(remoteUpdatedAt: remoteStamp, localUpdatedAt: existing.updatedAt, localSyncedAt: existing.syncedAt) {
                 case .adoptRemote(let stamp):
                     assign(title, to: existing, \.title)

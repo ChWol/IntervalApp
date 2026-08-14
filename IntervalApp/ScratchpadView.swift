@@ -105,6 +105,8 @@ struct ScratchpadView: View {
                                         .onExitCommand { finishEditingListTitle(list) }
                                         #endif
                                 } else {
+                                    let isSharedList = list.ownerId != nil && list.ownerId != syncManager.userId
+
                                     Button(action: {
                                         withAnimation(.easeInOut(duration: 0.15)) {
                                             selectedListId = list.id
@@ -112,32 +114,47 @@ struct ScratchpadView: View {
                                             focusedTaskId = nil
                                         }
                                     }) {
-                                        Text(list.title.isEmpty ? "Untitled List".localized : list.title)
-                                            .font(.system(size: 12, weight: isSelected ? .medium : .light))
-                                            .foregroundColor(isSelected ? .primary : .secondary)
+                                        HStack(spacing: 5) {
+                                            if isSharedList {
+                                                Image(systemName: "person.2")
+                                                    .font(.system(size: 9, weight: .light))
+                                                    .foregroundColor(isSelected ? .primary.opacity(0.8) : .secondary.opacity(0.7))
+                                            }
+                                            Text(list.title.isEmpty ? "Untitled List".localized : list.title)
+                                                .font(.system(size: 12, weight: isSelected ? .medium : .light))
+                                                .foregroundColor(isSelected ? .primary : .secondary)
+                                        }
                                     }
                                     .buttonStyle(.plain)
                                     .pointingHandCursor()
 
                                     if isSelected {
-                                        Button(action: {
-                                            editingListTitleId = list.id
-                                            editingListTitleText = list.title
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                                isEditingListTitleFocused = true
+                                        if !isSharedList {
+                                            Button(action: {
+                                                editingListTitleId = list.id
+                                                editingListTitleText = list.title
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                                    isEditingListTitleFocused = true
+                                                }
+                                            }) {
+                                                Image(systemName: "pencil")
+                                                    .font(.system(size: 8))
+                                                    .foregroundColor(.secondary.opacity(0.6))
                                             }
-                                        }) {
-                                            Image(systemName: "pencil")
-                                                .font(.system(size: 8))
-                                                .foregroundColor(.secondary.opacity(0.6))
+                                            .buttonStyle(.plain)
+                                            .pointingHandCursor()
+                                            .help("Edit list name")
                                         }
-                                        .buttonStyle(.plain)
-                                        .pointingHandCursor()
-                                        .help("Edit list name")
 
                                         Button(action: {
-                                            listToDelete = list
-                                            showDeleteListAlert = true
+                                            if isSharedList {
+                                                withAnimation(.easeInOut(duration: 0.15)) {
+                                                    isSharingList = true
+                                                }
+                                            } else {
+                                                listToDelete = list
+                                                showDeleteListAlert = true
+                                            }
                                         }) {
                                             Image(systemName: "xmark")
                                                 .font(.system(size: 8))
@@ -145,6 +162,7 @@ struct ScratchpadView: View {
                                         }
                                         .buttonStyle(.plain)
                                         .pointingHandCursor()
+                                        .help(isSharedList ? "Leave List".localized : "Delete List".localized)
                                     }
                                 }
                             }
