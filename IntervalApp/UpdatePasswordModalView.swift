@@ -63,10 +63,14 @@ struct UpdatePasswordModalView: View {
                                 TextField("", text: $newPassword)
                                     .textFieldStyle(.plain)
                                     .font(.system(size: 14, weight: .light))
+                                    .textContentType(.newPassword)
+                                    .autocorrectionDisabled()
                             } else {
                                 SecureField("", text: $newPassword)
                                     .textFieldStyle(.plain)
                                     .font(.system(size: 14, weight: .light))
+                                    .textContentType(.newPassword)
+                                    .autocorrectionDisabled()
                             }
                             
                             Button(action: { isPasswordVisible.toggle() }) {
@@ -98,6 +102,8 @@ struct UpdatePasswordModalView: View {
                             TextField("", text: $confirmPassword)
                                 .textFieldStyle(.plain)
                                 .font(.system(size: 14, weight: .light))
+                                .textContentType(.newPassword)
+                                .autocorrectionDisabled()
                                 .padding(.bottom, 6)
                                 .overlay(
                                     Rectangle()
@@ -109,6 +115,8 @@ struct UpdatePasswordModalView: View {
                             SecureField("", text: $confirmPassword)
                                 .textFieldStyle(.plain)
                                 .font(.system(size: 14, weight: .light))
+                                .textContentType(.newPassword)
+                                .autocorrectionDisabled()
                                 .padding(.bottom, 6)
                                 .overlay(
                                     Rectangle()

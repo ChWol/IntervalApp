@@ -328,6 +328,8 @@ class SupabaseSyncManager: ObservableObject {
         }
     }
     
+    private var recoveryAccessToken: String? = nil
+    
     @discardableResult
     func handleIncomingURL(_ url: URL) -> Bool {
         let urlString = url.absoluteString
@@ -358,16 +360,25 @@ class SupabaseSyncManager: ObservableObject {
         }
         
         if let token = tokenMap["access_token"] {
-            self.accessToken = token
+            // Keep as recoveryAccessToken so background doesn't prematurely switch to main tasks view!
+            self.recoveryAccessToken = token
             if let refresh = tokenMap["refresh_token"] {
                 self.refreshToken = refresh
             }
             if let expiresInStr = tokenMap["expires_in"], let expiresIn = Double(expiresInStr) {
                 self.accessTokenExpiry = Date().addingTimeInterval(expiresIn)
             }
-            self.isAuthenticated = true
             
-            // Trigger UI to show the password reset modal
+            #if os(macOS)
+            DispatchQueue.main.async {
+                NSApp.activate(ignoringOtherApps: true)
+                if let window = NSApp.windows.first(where: { $0.isVisible && !$0.isMiniaturized }) ?? NSApp.windows.first {
+                    window.makeKeyAndOrderFront(nil)
+                }
+            }
+            #endif
+            
+            // Trigger UI to show the password reset modal on top of AuthView
             DispatchQueue.main.async {
                 NotificationCenter.default.post(name: .promptPasswordUpdate, object: nil)
             }
@@ -378,7 +389,7 @@ class SupabaseSyncManager: ObservableObject {
     }
     
     func updateUserPassword(newPassword: String) async -> (success: Bool, error: String?) {
-        guard let token = accessToken else {
+        guard let token = recoveryAccessToken ?? accessToken else {
             return (false, "Not authenticated")
         }
         guard newPassword.count >= 6 else {
@@ -400,6 +411,17 @@ class SupabaseSyncManager: ObservableObject {
             let (data, response) = try await session.data(for: request)
             if let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode >= 400 {
                 let body = String(data: data, encoding: .utf8) ?? ""
+                if let errObj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if let errCode = errObj["error_code"] as? String, errCode == "same_password" {
+                        return (false, "New password must be different from the old password".localized)
+                    }
+                    if let msg = errObj["msg"] as? String ?? errObj["message"] as? String ?? errObj["error_description"] as? String {
+                        if msg.contains("different from the old password") {
+                            return (false, "New password must be different from the old password".localized)
+                        }
+                        return (false, msg)
+                    }
+                }
                 return (false, "Update failed (\(statusCode)): \(body)")
             }
             
@@ -410,6 +432,13 @@ class SupabaseSyncManager: ObservableObject {
                     UserDefaults.standard.set(email, forKey: StoreKey.userEmail)
                 }
             }
+            
+            // Successfully updated! Now authenticate and promote token
+            if let recoveryToken = self.recoveryAccessToken {
+                self.accessToken = recoveryToken
+                self.recoveryAccessToken = nil
+            }
+            self.isAuthenticated = true
             
             return (true, nil)
         } catch {

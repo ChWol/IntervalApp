@@ -1,8 +1,22 @@
 import SwiftUI
 import SwiftData
 
+#if os(macOS)
+class AppDelegate: NSObject, NSApplicationDelegate {
+    func application(_ application: NSApplication, open urls: [URL]) {
+        if let url = urls.first {
+            SupabaseSyncManager.shared.handleIncomingURL(url)
+        }
+    }
+}
+#endif
+
 @main
 struct IntervalApp: App {
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    #endif
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             TaskItem.self,
@@ -26,10 +40,12 @@ struct IntervalApp: App {
     }()
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             ContentView()
+                .handlesExternalEvents(preferring: Set(arrayLiteral: "main"), allowing: Set(arrayLiteral: "*"))
         }
         .modelContainer(sharedModelContainer)
+        .handlesExternalEvents(matching: Set(arrayLiteral: "*"))
         #if os(macOS)
         .windowStyle(HiddenTitleBarWindowStyle())
         #endif

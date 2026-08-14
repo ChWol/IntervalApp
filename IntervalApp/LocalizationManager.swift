@@ -641,6 +641,18 @@ class LocalizationManager: ObservableObject {
             .english: "Confirm Password", .german: "Passwort bestätigen", .french: "Confirmer le mot de passe",
             .spanish: "Confirmar contraseña", .portuguese: "Confirmar senha", .italian: "Conferma password",
             .arabic: "تأكيد كلمة المرور", .chinese: "确认密码", .japanese: "パスワードの確認", .korean: "비밀번호 확인"
+        ],
+        "New password must be different from the old password": [
+            .english: "New password must be different from the old password",
+            .german: "Das neue Passwort muss sich vom alten Passwort unterscheiden",
+            .french: "Le nouveau mot de passe doit être différent de l'ancien",
+            .spanish: "La nueva contraseña debe ser diferente de la anterior",
+            .portuguese: "A nova senha deve ser diferente da antiga",
+            .italian: "La nuova password deve essere diversa da quella precedente",
+            .arabic: "يجب أن تكون كلمة المرور الجديدة مختلفة عن القديمة",
+            .chinese: "新密码必须与旧密码不同",
+            .japanese: "新しいパスワードは古いパスワードと異なる必要があります",
+            .korean: "새 비밀번호는 이전 비밀번호와 달라야 합니다"
         ]
     ]
 }

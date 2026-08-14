@@ -57,6 +57,12 @@ struct AuthView: View {
                         TextField("", text: $email)
                             .textFieldStyle(.plain)
                             .font(.system(size: 14, weight: .light))
+                            .textContentType(.username)
+                            .autocorrectionDisabled()
+                            #if os(iOS)
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            #endif
                             .padding(.bottom, 6)
                             .overlay(
                                 Rectangle()
@@ -64,12 +70,6 @@ struct AuthView: View {
                                     .frame(height: 0.5),
                                 alignment: .bottom
                             )
-                            #if os(iOS)
-                            .textContentType(.username)
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
-                            .disableAutocorrection(true)
-                            #endif
                     }
                     
                     // Password Field (Only for Sign In / Sign Up)
@@ -90,10 +90,10 @@ struct AuthView: View {
                                 }
                                 .textFieldStyle(.plain)
                                 .font(.system(size: 14, weight: .light))
-                                #if os(iOS)
                                 .textContentType(authMode == .signUp ? .newPassword : .password)
-                                .autocapitalization(.none)
-                                .disableAutocorrection(true)
+                                .autocorrectionDisabled()
+                                #if os(iOS)
+                                .textInputAutocapitalization(.never)
                                 #endif
                                 .onSubmit {
                                     if isFormValid { submit() }
