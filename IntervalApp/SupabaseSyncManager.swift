@@ -1499,11 +1499,20 @@ class SupabaseSyncManager: ObservableObject {
         guard isAuthenticated, let uid = userId else { return false }
         await ensureFreshToken()
         
-        let email = (userEmail ?? "").lowercased()
-        let condition = !email.isEmpty ? "or=(member_user_id.eq.\(uid),invited_email.eq.\(email))" : "member_user_id=eq.\(uid)"
-        guard let url = URL(string: "\(supabaseURL)/rest/v1/\(SyncTable.scratchpadListMembers)?list_id=eq.\(listId)&\(condition)") else {
+        let email = (userEmail ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard var components = URLComponents(string: "\(supabaseURL)/rest/v1/\(SyncTable.scratchpadListMembers)") else {
             return false
         }
+        
+        var queryItems = [URLQueryItem(name: "list_id", value: "eq.\(listId)")]
+        if !email.isEmpty {
+            queryItems.append(URLQueryItem(name: "or", value: "(member_user_id.eq.\(uid),invited_email.ilike.\(email))"))
+        } else {
+            queryItems.append(URLQueryItem(name: "member_user_id", value: "eq.\(uid)"))
+        }
+        components.queryItems = queryItems
+        
+        guard let url = components.url else { return false }
         
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"

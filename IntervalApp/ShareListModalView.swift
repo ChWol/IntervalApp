@@ -421,6 +421,11 @@ struct ShareListModalView: View {
             await MainActor.run {
                 self.isLeaving = false
                 if success {
+                    if let allItems = try? modelContext.fetch(FetchDescriptor<ScratchpadItem>()) {
+                        for item in allItems where item.listId == list.id {
+                            modelContext.delete(item)
+                        }
+                    }
                     modelContext.delete(list)
                     try? modelContext.save()
                     closeModal()
