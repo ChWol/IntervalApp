@@ -481,6 +481,7 @@ struct HabitChipView: View {
 
 // MARK: - Habit Drag & Drop Reordering
 
+@MainActor
 class HabitDragState: ObservableObject {
     static let shared = HabitDragState()
     @Published var draggedHabit: HabitItem?

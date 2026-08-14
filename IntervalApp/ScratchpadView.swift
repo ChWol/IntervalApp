@@ -14,6 +14,7 @@ extension Notification.Name {
 
 // MARK: - Drag State for Scratchpad Items & Lists
 
+@MainActor
 class ScratchpadDragState: ObservableObject {
     static let shared = ScratchpadDragState()
     @Published var draggedItem: ScratchpadItem?

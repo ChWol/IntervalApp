@@ -67,7 +67,7 @@ struct SpotlightSearchView: View {
                 id: "habit-\(h.id)",
                 title: h.text,
                 badge: "HABITS".localized,
-                isCompleted: h.completed,
+                isCompleted: h.isCompletedCurrentPeriod,
                 isDeleted: false,
                 destination: .habit,
                 targetId: h.id

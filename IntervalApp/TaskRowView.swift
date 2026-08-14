@@ -495,6 +495,7 @@ struct TaskRowView: View {
 
 // MARK: - Drag State
 
+@MainActor
 class DragState: ObservableObject {
     static let shared = DragState()
     
