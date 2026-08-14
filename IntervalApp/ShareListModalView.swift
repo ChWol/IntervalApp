@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct ShareListModalView: View {
     let list: ScratchpadList

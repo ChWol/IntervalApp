@@ -160,7 +160,7 @@ class SupabaseSyncManager: ObservableObject {
     private var refreshToken: String? {
         didSet { UserDefaults.standard.set(refreshToken, forKey: StoreKey.refreshToken) }
     }
-    private var userId: String? {
+    private(set) var userId: String? {
         didSet { UserDefaults.standard.set(userId, forKey: StoreKey.userId) }
     }
     private var accessTokenExpiry: Date? {
