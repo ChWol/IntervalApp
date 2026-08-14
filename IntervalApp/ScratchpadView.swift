@@ -30,6 +30,7 @@ struct ScratchpadView: View {
     @Query(sort: \ScratchpadList.order) private var lists: [ScratchpadList]
     @Query(sort: \ScratchpadItem.order) private var items: [ScratchpadItem]
     @ObservedObject private var locManager = LocalizationManager.shared
+    @ObservedObject private var syncManager = SupabaseSyncManager.shared
 
     @Binding var focusedTaskId: String?
     @Binding var selectedListId: String?
@@ -288,12 +289,14 @@ struct ScratchpadView: View {
 
                     Spacer()
 
+                    let isListOwner = currentList.ownerId == nil || currentList.ownerId == syncManager.userId
+
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.15)) {
                             isSharingList = true
                         }
                     }) {
-                        Image(systemName: "person.badge.plus")
+                        Image(systemName: isListOwner ? "person.badge.plus" : "person")
                             .font(.system(size: 12, weight: .light))
                             .foregroundColor(isShareHovered ? .primary : .secondary.opacity(0.6))
                             .padding(4)
@@ -301,7 +304,7 @@ struct ScratchpadView: View {
                     }
                     .buttonStyle(.plain)
                     .pointingHandCursor()
-                    .help("Share List".localized)
+                    .help(isListOwner ? "Share List".localized : "Shared List".localized)
                     .onHover { hovering in
                         isShareHovered = hovering
                     }
@@ -452,6 +455,14 @@ struct ScratchpadView: View {
             if selectedListId == nil {
                 selectedListId = activeLists.first?.id
             }
+            #if os(macOS)
+            setupEscKeyMonitor()
+            #endif
+        }
+        .onDisappear {
+            #if os(macOS)
+            removeEscKeyMonitor()
+            #endif
         }
         .alert("Delete List?".localized, isPresented: $showDeleteListAlert, presenting: listToDelete) { list in
             Button("Delete".localized, role: .destructive) {
@@ -491,7 +502,7 @@ struct ScratchpadView: View {
         }
         newListName = ""
         let maxOrder = (activeLists.map { $0.order }.max() ?? -1) + 1
-        let newList = ScratchpadList(title: trimmed, order: maxOrder)
+        let newList = ScratchpadList(title: trimmed, order: maxOrder, ownerId: SupabaseSyncManager.shared.userId)
         modelContext.insert(newList)
         try? modelContext.save()
         SupabaseSyncManager.shared.push()
@@ -549,6 +560,29 @@ struct ScratchpadView: View {
             SupabaseSyncManager.shared.push()
         }
     }
+    
+    #if os(macOS)
+    @State private var escKeyMonitor: Any?
+
+    private func setupEscKeyMonitor() {
+        escKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.keyCode == 53 { // ESC
+                if !isSharingList && !selectedItemIds.isEmpty {
+                    selectedItemIds.removeAll()
+                    return nil // Handled & deselect!
+                }
+            }
+            return event
+        }
+    }
+
+    private func removeEscKeyMonitor() {
+        if let monitor = escKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            escKeyMonitor = nil
+        }
+    }
+    #endif
 }
 
 // MARK: - Scratchpad Item Row Component

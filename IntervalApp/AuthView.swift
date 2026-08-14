@@ -5,6 +5,7 @@ struct AuthView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var isSignUp = false
+    @State private var isToggleHovered = false
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
@@ -26,67 +27,77 @@ struct AuthView: View {
                         .fill(Color.primary.opacity(0.15))
                         .frame(width: 40, height: 0.5)
                     
-                    Text(isSignUp ? "Create your account" : "Sign in to sync your devices")
+                    Text(isSignUp ? "Create your account".localized : "Sign in to sync your devices".localized)
                         .font(.system(size: 12, weight: .light))
                         .foregroundColor(.secondary)
                 }
                 
-                // Form
-                VStack(spacing: 28) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("EMAIL")
-                            .font(.system(size: 9, weight: .medium))
+                // Form fields
+                VStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("EMAIL".localized)
+                            .font(.system(size: 10, weight: .light))
+                            .tracking(2)
                             .foregroundColor(.secondary)
-                            .tracking(3)
+                        
                         TextField("", text: $email)
                             .textFieldStyle(.plain)
-                            .font(.system(size: 15, weight: .light))
+                            .font(.system(size: 14, weight: .light))
+                            .padding(.bottom, 6)
+                            .overlay(
+                                Rectangle()
+                                    .fill(Color.primary.opacity(0.15))
+                                    .frame(height: 0.5),
+                                alignment: .bottom
+                            )
                             #if os(iOS)
-                            .textInputAutocapitalization(.never)
+                            .autocapitalization(.none)
                             .keyboardType(.emailAddress)
                             #endif
-                            .autocorrectionDisabled()
-                        Rectangle()
-                            .fill(Color.primary.opacity(0.15))
-                            .frame(height: 0.5)
                     }
                     
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("PASSWORD")
-                            .font(.system(size: 9, weight: .medium))
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("PASSWORD".localized)
+                            .font(.system(size: 10, weight: .light))
+                            .tracking(2)
                             .foregroundColor(.secondary)
-                            .tracking(3)
+                        
                         SecureField("", text: $password)
                             .textFieldStyle(.plain)
-                            .font(.system(size: 15, weight: .light))
-                        Rectangle()
-                            .fill(Color.primary.opacity(0.15))
-                            .frame(height: 0.5)
+                            .font(.system(size: 14, weight: .light))
+                            .padding(.bottom, 6)
+                            .overlay(
+                                Rectangle()
+                                    .fill(Color.primary.opacity(0.15))
+                                    .frame(height: 0.5),
+                                alignment: .bottom
+                            )
+                            .onSubmit {
+                                if isFormValid { submit() }
+                            }
                     }
                 }
                 .frame(maxWidth: 300)
                 
-                // Error
+                // Error display
                 if let error = syncManager.authError {
                     Text(error)
                         .font(.system(size: 11, weight: .light))
-                        .foregroundColor(.red.opacity(0.7))
+                        .foregroundColor(.red)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: 300)
-                        .transition(.opacity)
                 }
                 
-                // Submit
+                // Submit button
                 Button(action: submit) {
-                    Group {
+                    ZStack {
                         if syncManager.isLoading {
                             ProgressView()
                                 .controlSize(.small)
-                                .tint(colorScheme == .dark ? .black : .white)
                         } else {
-                            Text(isSignUp ? "REGISTER" : "SIGN IN")
-                                .font(.system(size: 12, weight: .medium))
-                                .tracking(3)
+                            Text(isSignUp ? "REGISTER".localized : "SIGN IN".localized)
+                                .font(.system(size: 11, weight: .medium))
+                                .tracking(2)
                         }
                     }
                     .foregroundColor(colorScheme == .dark ? .black : .white)
@@ -98,18 +109,38 @@ struct AuthView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
                 .disabled(!isFormValid || syncManager.isLoading)
                 
-                // Toggle mode
+                // Toggle mode with accented text and clickhand cursor
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.2)) { isSignUp.toggle() }
                     syncManager.authError = nil
                 }) {
-                    Text(isSignUp ? "Already have an account? Sign In" : "No account? Register")
-                        .font(.system(size: 11, weight: .light))
-                        .foregroundColor(.secondary)
+                    HStack(spacing: 4) {
+                        Text(isSignUp ? "Already have an account?".localized : "No account?".localized)
+                            .font(.system(size: 11, weight: .light))
+                            .foregroundColor(.secondary)
+                        
+                        Text(isSignUp ? "Sign In".localized : "Register".localized)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(isToggleHovered ? .primary : .primary.opacity(0.85))
+                            .underline(isToggleHovered, color: .primary)
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8)
+                    .background(
+                        Capsule()
+                            .fill(isToggleHovered ? Color.primary.opacity(0.06) : Color.clear)
+                    )
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.12)) {
+                        isToggleHovered = hovering
+                    }
+                }
                 
                 Spacer()
                 Spacer()

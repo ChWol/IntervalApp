@@ -5,6 +5,7 @@ struct ShareListModalView: View {
     @Binding var isPresented: Bool
     
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
     @ObservedObject private var syncManager = SupabaseSyncManager.shared
     @ObservedObject private var locManager = LocalizationManager.shared
     
@@ -12,10 +13,28 @@ struct ShareListModalView: View {
     @State private var members: [ScratchpadMemberDTO] = []
     @State private var isLoading: Bool = false
     @State private var isInviting: Bool = false
+    @State private var isLeaving: Bool = false
     @State private var errorMessage: String? = nil
     @State private var successMessage: String? = nil
     @State private var isCloseHovered: Bool = false
+    @State private var isLeaveHovered: Bool = false
     @FocusState private var isEmailFieldFocused: Bool
+    
+    private var isOwner: Bool {
+        if let ownerId = list.ownerId, let myUid = syncManager.userId {
+            return ownerId == myUid
+        }
+        if let first = members.first, let myUid = syncManager.userId {
+            return first.owner_id == myUid
+        }
+        return true
+    }
+    
+    /// Filter out current user's email from collaborator list to avoid duplicate entries
+    private var otherCollaborators: [ScratchpadMemberDTO] {
+        let myEmail = (syncManager.userEmail ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return members.filter { $0.invited_email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != myEmail }
+    }
     
     var body: some View {
         ZStack {
@@ -30,7 +49,7 @@ struct ShareListModalView: View {
                 // Header Row
                 HStack(alignment: .center) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Share List".localized)
+                        Text(isOwner ? "Share List".localized : "Shared List".localized)
                             .font(.system(size: 18, weight: .regular))
                         
                         Text(list.title)
@@ -55,54 +74,56 @@ struct ShareListModalView: View {
                     }
                 }
                 
-                // Email Invitation Input
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 10) {
-                        TextField("Enter email address...".localized, text: $emailInput)
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 14, weight: .light))
-                            .focused($isEmailFieldFocused)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-                            )
-                            .onSubmit {
-                                invite()
-                            }
-                        
-                        Button(action: invite) {
-                            HStack(spacing: 6) {
-                                if isInviting {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                } else {
-                                    Text("Invite".localized)
-                                        .font(.system(size: 13, weight: .medium))
+                // Email Invitation Input (ONLY FOR OWNER)
+                if isOwner {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 10) {
+                            TextField("Enter email address...".localized, text: $emailInput)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 14, weight: .light))
+                                .focused($isEmailFieldFocused)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                                    )
+                                .onSubmit {
+                                    invite()
                                 }
+                            
+                            Button(action: invite) {
+                                HStack(spacing: 6) {
+                                    if isInviting {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    } else {
+                                        Text("Invite".localized)
+                                            .font(.system(size: 13, weight: .medium))
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(Color.primary)
+                                .foregroundColor(Color(colorScheme == .dark ? .black : .white))
+                                .cornerRadius(8)
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Color.primary)
-                            .foregroundColor(Color(colorScheme == .dark ? .black : .white))
-                            .cornerRadius(8)
+                            .buttonStyle(.plain)
+                            .pointingHandCursor()
+                            .disabled(emailInput.trimmingCharacters(in: .whitespaces).isEmpty || isInviting)
                         }
-                        .buttonStyle(.plain)
-                        .pointingHandCursor()
-                        .disabled(emailInput.trimmingCharacters(in: .whitespaces).isEmpty || isInviting)
-                    }
-                    
-                    if let err = errorMessage {
-                        Text(err)
-                            .font(.system(size: 11, weight: .light))
-                            .foregroundColor(.red)
-                    }
-                    
-                    if let succ = successMessage {
-                        Text(succ)
-                            .font(.system(size: 11, weight: .light))
-                            .foregroundColor(.green)
+                        
+                        if let err = errorMessage {
+                            Text(err)
+                                .font(.system(size: 11, weight: .light))
+                                .foregroundColor(.red)
+                        }
+                        
+                        if let succ = successMessage {
+                            Text(succ)
+                                .font(.system(size: 11, weight: .light))
+                                .foregroundColor(.green)
+                        }
                     }
                 }
                 
@@ -127,41 +148,151 @@ struct ShareListModalView: View {
                     } else {
                         ScrollView {
                             VStack(spacing: 8) {
-                                // Current User as Owner / Member
-                                HStack {
-                                    Circle()
-                                        .fill(Color.secondary.opacity(0.2))
-                                        .frame(width: 24, height: 24)
-                                        .overlay(
-                                            Text(String((syncManager.userEmail ?? "U").prefix(1)).uppercased())
-                                                .font(.system(size: 10, weight: .medium))
-                                                .foregroundColor(.secondary)
-                                        )
+                                if isOwner {
+                                    // 1. Current User as Owner
+                                    HStack(spacing: 8) {
+                                        Circle()
+                                            .fill(Color.secondary.opacity(0.2))
+                                            .frame(width: 24, height: 24)
+                                            .overlay(
+                                                Text(String((syncManager.userEmail ?? "Y").prefix(1)).uppercased())
+                                                    .font(.system(size: 10, weight: .medium))
+                                                    .foregroundColor(.secondary)
+                                            )
+                                        
+                                        Text(syncManager.userEmail ?? "You")
+                                            .font(.system(size: 13, weight: .light))
+                                        
+                                        Spacer()
+                                        
+                                        Text("Owner".localized)
+                                            .font(.system(size: 10, weight: .regular))
+                                            .foregroundColor(.secondary)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                                    }
+                                    .padding(.vertical, 4)
                                     
-                                    Text(syncManager.userEmail ?? "You")
-                                        .font(.system(size: 13, weight: .light))
+                                    // 2. Collaborators with accented remove button
+                                    ForEach(otherCollaborators) { member in
+                                        MemberRowView(member: member, canRemove: true) {
+                                            remove(member)
+                                        }
+                                    }
                                     
-                                    Spacer()
+                                    if otherCollaborators.isEmpty {
+                                        Text("No collaborators yet".localized)
+                                            .font(.system(size: 12, weight: .light))
+                                            .foregroundColor(.secondary.opacity(0.7))
+                                            .padding(.vertical, 8)
+                                    }
+                                } else {
+                                    // 1. List Owner
+                                    HStack(spacing: 8) {
+                                        Circle()
+                                            .fill(Color.secondary.opacity(0.2))
+                                            .frame(width: 24, height: 24)
+                                            .overlay(
+                                                Image(systemName: "crown")
+                                                    .font(.system(size: 10, weight: .medium))
+                                                    .foregroundColor(.secondary)
+                                            )
+                                        
+                                        Text("Owner".localized)
+                                            .font(.system(size: 13, weight: .light))
+                                        
+                                        Spacer()
+                                        
+                                        Text("Owner".localized)
+                                            .font(.system(size: 10, weight: .regular))
+                                            .foregroundColor(.secondary)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                                    }
+                                    .padding(.vertical, 4)
                                     
-                                    Text("Owner".localized)
-                                        .font(.system(size: 10, weight: .regular))
-                                        .foregroundColor(.secondary)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Capsule().fill(Color.secondary.opacity(0.12)))
-                                }
-                                .padding(.vertical, 4)
-                                
-                                // Collaborators
-                                ForEach(members) { member in
-                                    MemberRowView(member: member) {
-                                        remove(member)
+                                    // 2. Current User (as Member)
+                                    HStack(spacing: 8) {
+                                        Circle()
+                                            .fill(Color.secondary.opacity(0.2))
+                                            .frame(width: 24, height: 24)
+                                            .overlay(
+                                                Text(String((syncManager.userEmail ?? "Y").prefix(1)).uppercased())
+                                                    .font(.system(size: 10, weight: .medium))
+                                                    .foregroundColor(.secondary)
+                                            )
+                                        
+                                        Text(syncManager.userEmail ?? "You")
+                                            .font(.system(size: 13, weight: .light))
+                                        
+                                        Spacer()
+                                        
+                                        Text("Member".localized)
+                                            .font(.system(size: 10, weight: .regular))
+                                            .foregroundColor(.secondary)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                                    }
+                                    .padding(.vertical, 4)
+                                    
+                                    // 3. Other Collaborators (view-only)
+                                    ForEach(otherCollaborators) { member in
+                                        MemberRowView(member: member, canRemove: false, onRemove: {})
                                     }
                                 }
                             }
                         }
                         .frame(maxHeight: 180)
                     }
+                }
+                
+                // LEAVE LIST BUTTON (FOR NON-OWNER MEMBERS)
+                if !isOwner {
+                    Divider()
+                        .opacity(0.3)
+                    
+                    HStack {
+                        Spacer()
+                        
+                        Button(action: leaveList) {
+                            HStack(spacing: 6) {
+                                if isLeaving {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                                        .font(.system(size: 11, weight: .light))
+                                    Text("Leave List".localized)
+                                        .font(.system(size: 12, weight: .medium))
+                                }
+                            }
+                            .foregroundColor(isLeaveHovered ? .red : .red.opacity(0.8))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(
+                                Capsule()
+                                    .fill(isLeaveHovered ? Color.red.opacity(0.12) : Color.red.opacity(0.06))
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.red.opacity(isLeaveHovered ? 0.3 : 0.15), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .pointingHandCursor()
+                        .disabled(isLeaving)
+                        .onHover { hovering in
+                            withAnimation(.easeInOut(duration: 0.12)) {
+                                isLeaveHovered = hovering
+                            }
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(.top, 4)
                 }
             }
             .padding(28)
@@ -191,7 +322,9 @@ struct ShareListModalView: View {
         }
         #endif
         .onAppear {
-            isEmailFieldFocused = true
+            if isOwner {
+                isEmailFieldFocused = true
+            }
             loadMembers()
             #if os(macOS)
             setupKeyboardMonitor()
@@ -276,12 +409,30 @@ struct ShareListModalView: View {
             }
         }
     }
+    
+    private func leaveList() {
+        isLeaving = true
+        Task {
+            let success = await syncManager.leaveSharedList(listId: list.id)
+            await MainActor.run {
+                self.isLeaving = false
+                if success {
+                    modelContext.delete(list)
+                    try? modelContext.save()
+                    closeModal()
+                } else {
+                    self.errorMessage = "Failed to leave list".localized
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Member Row Component
 
 private struct MemberRowView: View {
     let member: ScratchpadMemberDTO
+    var canRemove: Bool = true
     let onRemove: () -> Void
     
     @State private var isRemoveHovered: Bool = false
@@ -309,26 +460,28 @@ private struct MemberRowView: View {
                 .padding(.vertical, 2)
                 .background(Capsule().fill(Color.secondary.opacity(0.12)))
             
-            // Accented remove button with pointer / clickhand
-            Button(action: onRemove) {
-                ZStack {
-                    if isRemoveHovered {
-                        Circle()
-                            .fill(Color.red.opacity(0.12))
+            if canRemove {
+                // Accented remove button with pointer / clickhand
+                Button(action: onRemove) {
+                    ZStack {
+                        if isRemoveHovered {
+                            Circle()
+                                .fill(Color.red.opacity(0.12))
+                        }
+                        Image(systemName: "xmark")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundColor(isRemoveHovered ? .red : .secondary.opacity(0.6))
                     }
-                    Image(systemName: "xmark")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(isRemoveHovered ? .red : .secondary.opacity(0.6))
+                    .frame(width: 22, height: 22)
+                    .contentShape(Circle())
                 }
-                .frame(width: 22, height: 22)
-                .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .pointingHandCursor()
-            .help("Remove".localized)
-            .onHover { hovering in
-                withAnimation(.easeInOut(duration: 0.12)) {
-                    isRemoveHovered = hovering
+                .buttonStyle(.plain)
+                .pointingHandCursor()
+                .help("Remove".localized)
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.12)) {
+                        isRemoveHovered = hovering
+                    }
                 }
             }
         }

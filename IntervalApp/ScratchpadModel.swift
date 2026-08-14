@@ -6,15 +6,17 @@ final class ScratchpadList {
     var id: String = UUID().uuidString
     var title: String = ""
     var order: Int = 0
+    var ownerId: String? = nil
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
     var deletedAt: Date? = nil
     var syncedAt: Date? = nil
 
-    init(title: String, order: Int = 0) {
+    init(title: String, order: Int = 0, ownerId: String? = nil) {
         self.id = UUID().uuidString
         self.title = title
         self.order = order
+        self.ownerId = ownerId
         self.createdAt = Date()
         self.updatedAt = Date()
         self.deletedAt = nil

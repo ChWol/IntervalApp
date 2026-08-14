@@ -541,6 +541,36 @@ class LocalizationManager: ObservableObject {
             .english: "Invalid email address", .german: "Ungültige E-Mail-Adresse", .french: "Adresse e-mail invalide",
             .spanish: "Dirección de correo inválida", .portuguese: "Endereço de e-mail inválido", .italian: "Indirizzo email non valido",
             .arabic: "عنوان بريد إلكتروني غير صالح", .chinese: "无效的邮箱地址", .japanese: "無効なメールアドレス", .korean: "유효하지 않은 이메일 주소"
+        ],
+        "Already have an account?": [
+            .english: "Already have an account?", .german: "Bereits ein Konto?", .french: "Vous avez déjà un compte ?",
+            .spanish: "¿Ya tienes una cuenta?", .portuguese: "Já tem uma conta?", .italian: "Hai già un account?",
+            .arabic: "هل لديك حساب بالفعل؟", .chinese: "已有账号？", .japanese: "すでにアカウントをお持ちですか？", .korean: "이미 계정이 있으신가요?"
+        ],
+        "Sign In": [
+            .english: "Sign In", .german: "Anmelden", .french: "Se connecter",
+            .spanish: "Iniciar sesión", .portuguese: "Entrar", .italian: "Accedi",
+            .arabic: "تسجيل الدخول", .chinese: "登录", .japanese: "サインイン", .korean: "로그인"
+        ],
+        "No account?": [
+            .english: "No account?", .german: "Noch kein Konto?", .french: "Pas de compte ?",
+            .spanish: "¿No tienes cuenta?", .portuguese: "Não tem conta?", .italian: "Non hai un account?",
+            .arabic: "ليس لديك حساب؟", .chinese: "没有账号？", .japanese: "アカウントをお持ちでないですか？", .korean: "계정이 없으신가요?"
+        ],
+        "Register": [
+            .english: "Register", .german: "Registrieren", .french: "S'inscrire",
+            .spanish: "Registrarse", .portuguese: "Registrar", .italian: "Registrati",
+            .arabic: "تسجيل", .chinese: "注册", .japanese: "登録", .korean: "회원가입"
+        ],
+        "Shared List": [
+            .english: "Shared List", .german: "Geteilte Liste", .french: "Liste partagée",
+            .spanish: "Lista compartida", .portuguese: "Lista compartilhada", .italian: "Lista condivisa",
+            .arabic: "قائمة مشتركة", .chinese: "共享列表", .japanese: "共有リスト", .korean: "공유된 목록"
+        ],
+        "Failed to leave list": [
+            .english: "Failed to leave list", .german: "Liste konnte nicht verlassen werden", .french: "Impossible de quitter la liste",
+            .spanish: "Error al salir de la lista", .portuguese: "Falha ao sair da lista", .italian: "Impossibile lasciare la lista",
+            .arabic: "فشل في مغادرة القائمة", .chinese: "退出列表失败", .japanese: "リストからの退出に失敗しました", .korean: "목록 나가기에 실패했습니다"
         ]
     ]
 }

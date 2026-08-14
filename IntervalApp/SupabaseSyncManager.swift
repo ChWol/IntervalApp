@@ -997,6 +997,7 @@ class SupabaseSyncManager: ObservableObject {
                 case .adoptRemote(let stamp):
                     assign(title, to: existing, \.title)
                     assign(dto.order ?? existing.order, to: existing, \.order)
+                    assign(dto.user_id, to: existing, \.ownerId)
                     assign(SyncTimestamp.parse(dto.created_at) ?? existing.createdAt, to: existing, \.createdAt)
                     assign(SyncTimestamp.parse(dto.deleted_at), to: existing, \.deletedAt)
                     assign(stamp, to: existing, \.updatedAt)
@@ -1007,7 +1008,7 @@ class SupabaseSyncManager: ObservableObject {
                     break
                 }
             } else {
-                let list = ScratchpadList(title: title, order: dto.order ?? 0)
+                let list = ScratchpadList(title: title, order: dto.order ?? 0, ownerId: dto.user_id)
                 list.id = dto.id
                 list.createdAt = SyncTimestamp.parse(dto.created_at) ?? Date()
                 list.deletedAt = SyncTimestamp.parse(dto.deleted_at)
@@ -1469,7 +1470,9 @@ class SupabaseSyncManager: ObservableObject {
         guard isAuthenticated, let uid = userId else { return false }
         await ensureFreshToken()
         
-        guard let url = URL(string: "\(supabaseURL)/rest/v1/\(SyncTable.scratchpadListMembers)?list_id=eq.\(listId)&member_user_id=eq.\(uid)") else {
+        let email = (userEmail ?? "").lowercased()
+        let condition = !email.isEmpty ? "or=(member_user_id.eq.\(uid),invited_email.eq.\(email))" : "member_user_id=eq.\(uid)"
+        guard let url = URL(string: "\(supabaseURL)/rest/v1/\(SyncTable.scratchpadListMembers)?list_id=eq.\(listId)&\(condition)") else {
             return false
         }
         
