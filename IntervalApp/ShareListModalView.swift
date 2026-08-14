@@ -14,16 +14,8 @@ struct ShareListModalView: View {
     @State private var isInviting: Bool = false
     @State private var errorMessage: String? = nil
     @State private var successMessage: String? = nil
+    @State private var isCloseHovered: Bool = false
     @FocusState private var isEmailFieldFocused: Bool
-    
-    private var isOwner: Bool {
-        guard let currentUid = syncManager.userEmail else { return true }
-        // If there are members and none match our email as invited_email, or if we created it
-        if let first = members.first, first.owner_id != syncManager.testingUserId {
-            return false
-        }
-        return true
-    }
     
     var body: some View {
         ZStack {
@@ -52,11 +44,15 @@ struct ShareListModalView: View {
                     Button(action: closeModal) {
                         Image(systemName: "xmark")
                             .font(.system(size: 12, weight: .light))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(isCloseHovered ? .primary : .secondary.opacity(0.7))
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .pointingHandCursor()
+                    .onHover { hovering in
+                        isCloseHovered = hovering
+                    }
                 }
                 
                 // Email Invitation Input
@@ -93,6 +89,7 @@ struct ShareListModalView: View {
                             .cornerRadius(8)
                         }
                         .buttonStyle(.plain)
+                        .pointingHandCursor()
                         .disabled(emailInput.trimmingCharacters(in: .whitespaces).isEmpty || isInviting)
                     }
                     
@@ -157,38 +154,9 @@ struct ShareListModalView: View {
                                 
                                 // Collaborators
                                 ForEach(members) { member in
-                                    HStack {
-                                        Circle()
-                                            .fill(Color.secondary.opacity(0.2))
-                                            .frame(width: 24, height: 24)
-                                            .overlay(
-                                                Text(String(member.invited_email.prefix(1)).uppercased())
-                                                    .font(.system(size: 10, weight: .medium))
-                                                    .foregroundColor(.secondary)
-                                            )
-                                        
-                                        Text(member.invited_email)
-                                            .font(.system(size: 13, weight: .light))
-                                        
-                                        Spacer()
-                                        
-                                        Text("Member".localized)
-                                            .font(.system(size: 10, weight: .regular))
-                                            .foregroundColor(.secondary)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.secondary.opacity(0.12)))
-                                        
-                                        Button(action: { remove(member) }) {
-                                            Image(systemName: "xmark")
-                                                .font(.system(size: 10, weight: .light))
-                                                .foregroundColor(.secondary.opacity(0.7))
-                                                .frame(width: 20, height: 20)
-                                                .contentShape(Rectangle())
-                                        }
-                                        .buttonStyle(.plain)
+                                    MemberRowView(member: member) {
+                                        remove(member)
                                     }
-                                    .padding(.vertical, 4)
                                 }
                             }
                         }
@@ -264,5 +232,63 @@ struct ShareListModalView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Member Row Component
+
+private struct MemberRowView: View {
+    let member: ScratchpadMemberDTO
+    let onRemove: () -> Void
+    
+    @State private var isRemoveHovered: Bool = false
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(Color.secondary.opacity(0.2))
+                .frame(width: 24, height: 24)
+                .overlay(
+                    Text(String(member.invited_email.prefix(1)).uppercased())
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                )
+            
+            Text(member.invited_email)
+                .font(.system(size: 13, weight: .light))
+            
+            Spacer()
+            
+            Text("Member".localized)
+                .font(.system(size: 10, weight: .regular))
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Capsule().fill(Color.secondary.opacity(0.12)))
+            
+            // Accented remove button with pointer / clickhand
+            Button(action: onRemove) {
+                ZStack {
+                    if isRemoveHovered {
+                        Circle()
+                            .fill(Color.red.opacity(0.12))
+                    }
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(isRemoveHovered ? .red : .secondary.opacity(0.6))
+                }
+                .frame(width: 22, height: 22)
+                .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .help("Remove".localized)
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.12)) {
+                    isRemoveHovered = hovering
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
