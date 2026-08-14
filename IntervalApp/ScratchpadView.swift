@@ -798,6 +798,7 @@ struct ScratchpadItemRowView: View {
     // MARK: - Transfer / Move
 
     private func transferToMain(intervalType: String) {
+        SoundManager.playTransfer()
         let itemsToTransfer: [ScratchpadItem]
         if selectedItemIds.contains(myId) && selectedItemIds.count > 1 {
             itemsToTransfer = allItemsInList.filter { selectedItemIds.contains($0.id) }
@@ -852,6 +853,11 @@ struct ScratchpadItemRowView: View {
         #if os(iOS)
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         #endif
+        if !item.completed {
+            SoundManager.playTaskCompleted()
+        } else {
+            SoundManager.playUndo()
+        }
         withAnimation(.easeOut(duration: 0.2)) {
             item.completed.toggle()
             item.completedAt = item.completed ? Date() : nil
@@ -888,6 +894,7 @@ struct ScratchpadItemRowView: View {
     }
 
     private func deleteItem() {
+        SoundManager.playTaskDeleted()
         let now = Date()
         let itemsToDelete: [ScratchpadItem]
         if selectedItemIds.contains(myId) && selectedItemIds.count > 1 {

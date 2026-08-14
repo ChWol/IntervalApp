@@ -36,6 +36,7 @@ enum TaskHousekeeping {
                           in context: ModelContext,
                           now: Date = Date(),
                           sync: SupabaseSyncManager = .shared) {
+        SoundManager.playTaskDeleted()
         task.deletedAt = now
         task.updatedAt = now
         try? context.save()
@@ -46,6 +47,7 @@ enum TaskHousekeeping {
                         in context: ModelContext,
                         now: Date = Date(),
                         sync: SupabaseSyncManager = .shared) {
+        SoundManager.playUndo()
         task.deletedAt = nil
         task.completed = false
         task.completedAt = nil

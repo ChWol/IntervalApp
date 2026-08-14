@@ -197,6 +197,7 @@ class MigrationManager: ObservableObject {
         
         if MigrationSchedule.shouldPresent(migration, sourceTaskCount: sourceCount, selectableHabitCount: habitCount) {
             defaults.set(marker, forKey: key)
+            SoundManager.playTransitionChime()
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentMigration = migration
             }
@@ -230,6 +231,7 @@ class MigrationManager: ObservableObject {
         if MigrationSchedule.shouldPresent(migration, sourceTaskCount: sourceCount, selectableHabitCount: habitCount) {
             let currentHour = Self.hourFormatter.string(from: Date())
             UserDefaults.standard.set(currentHour, forKey: StoreKey.lastHandledHour)
+            SoundManager.playTransitionChime()
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentMigration = migration
             }

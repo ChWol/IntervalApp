@@ -409,7 +409,13 @@ struct HabitChipView: View {
     private func toggleCompletion() {
         withAnimation(.easeInOut(duration: 0.2)) {
             let now = Date()
-            HabitTaskLink.setHabitCompleted(!habit.isCompletedCurrentPeriod, on: habit, now: now)
+            let willBeCompleted = !habit.isCompletedCurrentPeriod
+            if willBeCompleted {
+                SoundManager.playHabitCompleted()
+            } else {
+                SoundManager.playUndo()
+            }
+            HabitTaskLink.setHabitCompleted(willBeCompleted, on: habit, now: now)
             // Keep any hour task created from this habit in step with it.
             if let tasks = try? modelContext.fetch(FetchDescriptor<TaskItem>()) {
                 HabitTaskLink.applyHabitCompletionToTasks(habit, tasks: tasks, now: now)
@@ -420,6 +426,7 @@ struct HabitChipView: View {
     }
     
     private func deleteHabit() {
+        SoundManager.playTaskDeleted()
         withAnimation {
             let now = Date()
             habit.deletedAt = now

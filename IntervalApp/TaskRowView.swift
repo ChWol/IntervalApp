@@ -152,6 +152,7 @@ struct TaskRowView: View {
                     #if os(iOS)
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                     #endif
+                    SoundManager.playTaskCompleted()
                     withAnimation(.easeOut(duration: 0.2)) {
                         localCompleted = true
                     }
@@ -520,6 +521,7 @@ struct TaskDropDelegate: DropDelegate {
     }
     
     func performDrop(info: DropInfo) -> Bool {
+        SoundManager.playTaskDropped()
         let descriptor = FetchDescriptor<TaskItem>()
         if let allTasks = try? context.fetch(descriptor) {
             let now = Date()

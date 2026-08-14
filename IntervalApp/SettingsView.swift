@@ -74,6 +74,7 @@ struct SettingsView: View {
     @ObservedObject private var syncManager = SupabaseSyncManager.shared
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("showHabits") private var showHabits: Bool = true
+    @AppStorage("soundEffectsEnabled") private var soundEffectsEnabled: Bool = true
 
     @State private var hoveredLang: AppLanguage? = nil
     @State private var activeModal: SettingsModalType? = nil
@@ -136,11 +137,12 @@ struct SettingsView: View {
                     }
                 }
 
-                // MARK: Display / Habits Toggle (Aesthetic minimal sliding switch)
-                VStack(alignment: .leading, spacing: 12) {
-                    sectionLabel("DISPLAY".localized)
+                // MARK: Preferences (Habits & Sound Effects)
+                VStack(alignment: .leading, spacing: 14) {
+                    sectionLabel("PREFERENCES".localized)
 
                     MinimalistToggle(isOn: $showHabits, label: "Show Habits Bar".localized)
+                    MinimalistToggle(isOn: $soundEffectsEnabled, label: "Sound Effects".localized)
                 }
 
                 // MARK: Support & Feedback
