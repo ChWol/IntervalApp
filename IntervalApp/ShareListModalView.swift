@@ -176,12 +176,55 @@ struct ShareListModalView: View {
             )
             .frame(maxWidth: 460)
             .padding(20)
+            .background(
+                Button(action: closeModal) {
+                    EmptyView()
+                }
+                .keyboardShortcut(.escape, modifiers: [])
+                .opacity(0)
+                .frame(width: 0, height: 0)
+            )
         }
+        #if os(macOS)
+        .onExitCommand {
+            closeModal()
+        }
+        #endif
         .onAppear {
             isEmailFieldFocused = true
             loadMembers()
+            #if os(macOS)
+            setupKeyboardMonitor()
+            #endif
+        }
+        .onDisappear {
+            #if os(macOS)
+            removeKeyboardMonitor()
+            #endif
         }
     }
+    
+    #if os(macOS)
+    @State private var eventMonitor: Any?
+    
+    private func setupKeyboardMonitor() {
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard isPresented else { return event }
+            if event.keyCode == 53 { // Escape
+                closeModal()
+                return nil
+            }
+            return event
+        }
+    }
+    
+    private func removeKeyboardMonitor() {
+        if let monitor = eventMonitor {
+            NSEvent.removeMonitor(monitor)
+            eventMonitor = nil
+        }
+    }
+    #endif
     
     private func closeModal() {
         withAnimation(.easeInOut(duration: 0.15)) {
