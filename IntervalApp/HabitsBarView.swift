@@ -13,16 +13,22 @@ struct WeekdayOption: Identifiable {
     let shortNameEn: String
     let shortNameDe: String
     let shortNameFr: String
+    let shortNameEs: String
+    let shortNameIt: String
     let shortNameAr: String
     let fullNameEn: String
     let fullNameDe: String
     let fullNameFr: String
+    let fullNameEs: String
+    let fullNameIt: String
     let fullNameAr: String
     
     var shortName: String {
         switch LocalizationManager.shared.currentLanguage {
         case .german: return shortNameDe
         case .french: return shortNameFr
+        case .spanish: return shortNameEs
+        case .italian: return shortNameIt
         case .arabic: return shortNameAr
         case .english: return shortNameEn
         }
@@ -32,23 +38,27 @@ struct WeekdayOption: Identifiable {
         switch LocalizationManager.shared.currentLanguage {
         case .german: return fullNameDe
         case .french: return fullNameFr
+        case .spanish: return fullNameEs
+        case .italian: return fullNameIt
         case .arabic: return fullNameAr
         case .english: return fullNameEn
         }
     }
     
     static let allMondayFirst: [WeekdayOption] = [
-        WeekdayOption(id: 2, shortNameEn: "Mon", shortNameDe: "Mo", shortNameFr: "Lun", shortNameAr: "إث", fullNameEn: "Monday", fullNameDe: "Montag", fullNameFr: "Lundi", fullNameAr: "الإثنين"),
-        WeekdayOption(id: 3, shortNameEn: "Tue", shortNameDe: "Di", shortNameFr: "Mar", shortNameAr: "ثل", fullNameEn: "Tuesday", fullNameDe: "Dienstag", fullNameFr: "Mardi", fullNameAr: "الثلاثاء"),
-        WeekdayOption(id: 4, shortNameEn: "Wed", shortNameDe: "Mi", shortNameFr: "Mer", shortNameAr: "أر", fullNameEn: "Wednesday", fullNameDe: "Mittwoch", fullNameFr: "Mercredi", fullNameAr: "الأربعاء"),
-        WeekdayOption(id: 5, shortNameEn: "Thu", shortNameDe: "Do", shortNameFr: "Jeu", shortNameAr: "خم", fullNameEn: "Thursday", fullNameDe: "Donnerstag", fullNameFr: "Jeudi", fullNameAr: "الخميس"),
-        WeekdayOption(id: 6, shortNameEn: "Fri", shortNameDe: "Fr", shortNameFr: "Ven", shortNameAr: "جم", fullNameEn: "Friday", fullNameDe: "Freitag", fullNameFr: "Vendredi", fullNameAr: "الجمعة"),
-        WeekdayOption(id: 7, shortNameEn: "Sat", shortNameDe: "Sa", shortNameFr: "Sam", shortNameAr: "سب", fullNameEn: "Saturday", fullNameDe: "Samstag", fullNameFr: "Samedi", fullNameAr: "السبت"),
-        WeekdayOption(id: 1, shortNameEn: "Sun", shortNameDe: "So", shortNameFr: "Dim", shortNameAr: "أح", fullNameEn: "Sunday", fullNameDe: "Sonntag", fullNameFr: "Dimanche", fullNameAr: "الأحد")
+        WeekdayOption(id: 2, shortNameEn: "Mon", shortNameDe: "Mo", shortNameFr: "Lun", shortNameEs: "Lun", shortNameIt: "Lun", shortNameAr: "إث", fullNameEn: "Monday", fullNameDe: "Montag", fullNameFr: "Lundi", fullNameEs: "Lunes", fullNameIt: "Lunedì", fullNameAr: "الإثنين"),
+        WeekdayOption(id: 3, shortNameEn: "Tue", shortNameDe: "Di", shortNameFr: "Mar", shortNameEs: "Mar", shortNameIt: "Mar", shortNameAr: "ثل", fullNameEn: "Tuesday", fullNameDe: "Dienstag", fullNameFr: "Mardi", fullNameEs: "Martes", fullNameIt: "Martedì", fullNameAr: "الثلاثاء"),
+        WeekdayOption(id: 4, shortNameEn: "Wed", shortNameDe: "Mi", shortNameFr: "Mer", shortNameEs: "Mié", shortNameIt: "Mer", shortNameAr: "أر", fullNameEn: "Wednesday", fullNameDe: "Mittwoch", fullNameFr: "Mercredi", fullNameEs: "Miércoles", fullNameIt: "Mercoledì", fullNameAr: "الأربعاء"),
+        WeekdayOption(id: 5, shortNameEn: "Thu", shortNameDe: "Do", shortNameFr: "Jeu", shortNameEs: "Jue", shortNameIt: "Gio", shortNameAr: "خم", fullNameEn: "Thursday", fullNameDe: "Donnerstag", fullNameFr: "Jeudi", fullNameEs: "Jueves", fullNameIt: "Giovedì", fullNameAr: "الخميس"),
+        WeekdayOption(id: 6, shortNameEn: "Fri", shortNameDe: "Fr", shortNameFr: "Ven", shortNameEs: "Vie", shortNameIt: "Ven", shortNameAr: "جم", fullNameEn: "Friday", fullNameDe: "Freitag", fullNameFr: "Vendredi", fullNameEs: "Viernes", fullNameIt: "Venerdì", fullNameAr: "الجمعة"),
+        WeekdayOption(id: 7, shortNameEn: "Sat", shortNameDe: "Sa", shortNameFr: "Sam", shortNameEs: "Sáb", shortNameIt: "Sab", shortNameAr: "سب", fullNameEn: "Saturday", fullNameDe: "Samstag", fullNameFr: "Samedi", fullNameEs: "Sábado", fullNameIt: "Sabato", fullNameAr: "السبت"),
+        WeekdayOption(id: 1, shortNameEn: "Sun", shortNameDe: "So", shortNameFr: "Dim", shortNameEs: "Dom", shortNameIt: "Dom", shortNameAr: "أح", fullNameEn: "Sunday", fullNameDe: "Sonntag", fullNameFr: "Dimanche", fullNameEs: "Domingo", fullNameIt: "Domenica", fullNameAr: "الأحد")
     ]
     
     static func option(for id: Int) -> WeekdayOption? {
         allMondayFirst.first(where: { $0.id == id })
+    }
+}       allMondayFirst.first(where: { $0.id == id })
     }
 }
 

@@ -45,13 +45,13 @@ final class HabitItem {
             if parts.count > 1 {
                 let name = String(parts[1]).lowercased()
                 switch name {
-                case "sunday", "sun", "so", "sonntag", "dimanche", "dim", "الأحد", "أحد", "اح": return 1
-                case "monday", "mon", "mo", "montag", "lundi", "lun", "الإثنين", "إثنين", "اثنين", "اث": return 2
-                case "tuesday", "tue", "di", "dienstag", "mardi", "mar", "الثلاثاء", "ثلاثاء", "ثل": return 3
-                case "wednesday", "wed", "mi", "mittwoch", "mercredi", "mer", "الأربعاء", "أربعاء", "اربعاء", "ار": return 4
-                case "thursday", "thu", "do", "donnerstag", "jeudi", "jeu", "الخميس", "خميس", "خم": return 5
-                case "friday", "fri", "fr", "freitag", "vendredi", "ven", "الجمعة", "جمعة", "جم": return 6
-                case "saturday", "sat", "sa", "samstag", "samedi", "sam", "السبت", "سبت", "سب": return 7
+                case "sunday", "sun", "so", "sonntag", "dimanche", "dim", "domingo", "dom", "domenica", "الأحد", "أحد", "اح": return 1
+                case "monday", "mon", "mo", "montag", "lundi", "lun", "lunes", "lunedì", "lunedi", "الإثنين", "إثنين", "اثنين", "اث": return 2
+                case "tuesday", "tue", "di", "dienstag", "mardi", "mar", "martes", "martedì", "martedi", "الثلاثاء", "ثلاثاء", "ثل": return 3
+                case "wednesday", "wed", "mi", "mittwoch", "mercredi", "mer", "miércoles", "miercoles", "mie", "mercoledì", "mercoledi", "الأربعاء", "أربعاء", "اربعاء", "ار": return 4
+                case "thursday", "thu", "do", "donnerstag", "jeudi", "jeu", "jueves", "jue", "giovedì", "giovedi", "gio", "الخميس", "خميس", "خم": return 5
+                case "friday", "fri", "fr", "freitag", "vendredi", "ven", "viernes", "vie", "venerdì", "venerdi", "الجمعة", "جمعة", "جم": return 6
+                case "saturday", "sat", "sa", "samstag", "samedi", "sam", "sábado", "sabado", "sab", "sabato", "السبت", "سبت", "سب": return 7
                 default: return nil
                 }
             }
