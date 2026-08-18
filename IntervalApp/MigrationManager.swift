@@ -66,10 +66,24 @@ class MigrationManager: ObservableObject {
         return f
     }()
     
-    // MARK: - Synchronized Marker Storage (Local + iCloud NSUbiquitousKeyValueStore)
+    // MARK: - Synchronized Marker Storage (Local + iCloud NSUbiquitousKeyValueStore + Supabase user_metadata)
     
     private var isCloudAvailable: Bool {
         FileManager.default.ubiquityIdentityToken != nil
+    }
+    
+    func applyRemoteMarkers(_ markers: [String: String]) {
+        var didUpdate = false
+        for (key, val) in markers {
+            let local = UserDefaults.standard.string(forKey: key) ?? ""
+            if val > local {
+                UserDefaults.standard.set(val, forKey: key)
+                didUpdate = true
+            }
+        }
+        if didUpdate {
+            syncFromCloudStore()
+        }
     }
     
     private func getMarker(for key: String, defaultVal: String) -> String {
@@ -99,9 +113,13 @@ class MigrationManager: ObservableObject {
     
     private func setMarker(_ value: String, for key: String) {
         UserDefaults.standard.set(value, forKey: key)
-        guard isCloudAvailable else { return }
-        NSUbiquitousKeyValueStore.default.set(value, forKey: key)
-        NSUbiquitousKeyValueStore.default.synchronize()
+        if isCloudAvailable {
+            NSUbiquitousKeyValueStore.default.set(value, forKey: key)
+            NSUbiquitousKeyValueStore.default.synchronize()
+        }
+        Task { @MainActor in
+            await SupabaseSyncManager.shared.updateUserMetadata([key: value])
+        }
     }
     
     func startMonitoring(context: ModelContext) {

@@ -22,6 +22,7 @@ struct AuthResponse: Codable {
 struct AuthUser: Codable {
     let id: String
     let email: String?
+    let user_metadata: [String: String]?
 }
 
 struct AuthErrorResponse: Codable {
@@ -583,6 +584,39 @@ class SupabaseSyncManager: ObservableObject {
         }
     }
     
+    // MARK: - User Metadata (Cross-Device Migration Markers)
+    
+    func updateUserMetadata(_ data: [String: String]) async {
+        guard isAuthenticated, let token = accessToken, let url = URL(string: "\(supabaseURL)/auth/v1/user") else { return }
+        await ensureFreshToken()
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue(supabaseKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["data": data])
+        
+        _ = try? await session.data(for: request)
+    }
+    
+    func fetchUserMetadata() async -> [String: String]? {
+        guard isAuthenticated, let token = accessToken, let url = URL(string: "\(supabaseURL)/auth/v1/user") else { return nil }
+        await ensureFreshToken()
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue(supabaseKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        guard let (data, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse, http.statusCode == 200,
+              let user = try? JSONDecoder().decode(AuthUser.self, from: data) else {
+            return nil
+        }
+        return user.user_metadata
+    }
+    
     // MARK: - Sync Control
     
     func start(context: ModelContext) {
@@ -964,6 +998,11 @@ class SupabaseSyncManager: ObservableObject {
         persist(context)
         completeLegacyBinPurge()
         noteSyncSuccess()
+        
+        if let metadata = await fetchUserMetadata() {
+            MigrationManager.shared.applyRemoteMarkers(metadata)
+        }
+        
         NotificationCenter.default.post(name: .syncPullDidComplete, object: nil)
         
         if needsFollowupPush {
