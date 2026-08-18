@@ -68,8 +68,15 @@ class MigrationManager: ObservableObject {
     
     // MARK: - Synchronized Marker Storage (Local + iCloud NSUbiquitousKeyValueStore)
     
+    private var isCloudAvailable: Bool {
+        FileManager.default.ubiquityIdentityToken != nil
+    }
+    
     private func getMarker(for key: String, defaultVal: String) -> String {
         let local = UserDefaults.standard.string(forKey: key)
+        guard isCloudAvailable else {
+            return local ?? defaultVal
+        }
         let cloud = NSUbiquitousKeyValueStore.default.string(forKey: key)
         
         if let l = local, let c = cloud {
@@ -92,6 +99,7 @@ class MigrationManager: ObservableObject {
     
     private func setMarker(_ value: String, for key: String) {
         UserDefaults.standard.set(value, forKey: key)
+        guard isCloudAvailable else { return }
         NSUbiquitousKeyValueStore.default.set(value, forKey: key)
         NSUbiquitousKeyValueStore.default.synchronize()
     }
@@ -102,8 +110,7 @@ class MigrationManager: ObservableObject {
         
         // Initial setup for first install
         let now = Date()
-        if UserDefaults.standard.string(forKey: StoreKey.lastHandledHour) == nil &&
-           NSUbiquitousKeyValueStore.default.string(forKey: StoreKey.lastHandledHour) == nil {
+        if UserDefaults.standard.string(forKey: StoreKey.lastHandledHour) == nil {
             setMarker(Self.hourFormatter.string(from: now), for: StoreKey.lastHandledHour)
             setMarker(Self.dayFormatter.string(from: now), for: StoreKey.lastHandledDay)
             setMarker(Self.weekFormatter.string(from: now), for: StoreKey.lastHandledWeek)
@@ -130,11 +137,13 @@ class MigrationManager: ObservableObject {
             .store(in: &cancellables)
             
         // 3. React when iCloud Key-Value store syncs markers from other devices
-        NotificationCenter.default.publisher(for: NSUbiquitousKeyValueStore.didChangeExternallyNotification)
-            .sink { [weak self] _ in
-                self?.syncFromCloudStore()
-            }
-            .store(in: &cancellables)
+        if isCloudAvailable {
+            NotificationCenter.default.publisher(for: NSUbiquitousKeyValueStore.didChangeExternallyNotification)
+                .sink { [weak self] _ in
+                    self?.syncFromCloudStore()
+                }
+                .store(in: &cancellables)
+        }
         
         // 4. System calendar and clock notifications
         #if os(macOS)
