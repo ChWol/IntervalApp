@@ -22,7 +22,6 @@ struct AuthResponse: Codable {
 struct AuthUser: Codable {
     let id: String
     let email: String?
-    let user_metadata: [String: String]?
 }
 
 struct AuthErrorResponse: Codable {
@@ -621,10 +620,18 @@ class SupabaseSyncManager: ObservableObject {
         
         guard let (data, response) = try? await session.data(for: request),
               let http = response as? HTTPURLResponse, http.statusCode == 200,
-              let user = try? JSONDecoder().decode(AuthUser.self, from: data) else {
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let userMeta = json["user_metadata"] as? [String: Any] else {
             return nil
         }
-        return user.user_metadata
+        
+        var result: [String: String] = [:]
+        for (k, v) in userMeta {
+            if let str = v as? String {
+                result[k] = str
+            }
+        }
+        return result
     }
     
     // MARK: - Sync Control
