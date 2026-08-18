@@ -7,6 +7,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \TaskItem.order) private var allTasks: [TaskItem]
     @Query(sort: \HabitItem.order) private var allHabits: [HabitItem]
+    @Query(sort: \ScratchpadList.order) private var allScratchpadLists: [ScratchpadList]
     
     @StateObject private var migrationManager = MigrationManager()
     @StateObject private var syncManager = SupabaseSyncManager.shared
@@ -14,6 +15,7 @@ struct ContentView: View {
     
     @ObservedObject private var locManager = LocalizationManager.shared
     @AppStorage("showHabits") private var showHabits: Bool = true
+    @AppStorage("hasDismissedOnboardingImport") private var hasDismissedOnboardingImport: Bool = false
     
     @State private var isCompletedExpanded = false
     @State private var isDeletedExpanded = false
@@ -24,6 +26,7 @@ struct ContentView: View {
     @State private var isSearchPresented = false
     @State private var scratchpadSelectedListId: String? = nil
     @State private var showUpdatePasswordModal = false
+    @State private var showImportModal = false
     
     enum ViewMode {
         case intervals
@@ -111,6 +114,10 @@ struct ContentView: View {
                             if currentViewMode == .scratchpad {
                                 ScratchpadView(focusedTaskId: $focusedTaskId, selectedListId: $scratchpadSelectedListId)
                             } else {
+                                if isAccountEmpty && !hasDismissedOnboardingImport {
+                                    onboardingImportCard
+                                }
+                                
                                 if showHabits {
                                     HabitsBarView()
                                 }
@@ -442,6 +449,11 @@ struct ContentView: View {
                 .zIndex(100)
             }
             
+            if showImportModal {
+                MigrationImportModalView(isPresented: $showImportModal)
+                    .zIndex(150)
+            }
+            
             if let migration = migrationManager.currentMigration {
                 MigrationModalView(
                     migration: migration,
@@ -475,6 +487,90 @@ struct ContentView: View {
                 )
             }
         }
+    }
+    
+    // MARK: - Onboarding Import Card
+    
+    private var isAccountEmpty: Bool {
+        allTasks.filter { $0.deletedAt == nil }.isEmpty &&
+        allHabits.filter { $0.deletedAt == nil }.isEmpty &&
+        allScratchpadLists.filter { $0.deletedAt == nil }.isEmpty
+    }
+    
+    @ViewBuilder
+    private var onboardingImportCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("WELCOME TO INTERVAL".localized)
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(2.0)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        hasDismissedOnboardingImport = true
+                    }
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .light))
+                        .foregroundColor(.secondary.opacity(0.7))
+                        .padding(4)
+                }
+                .buttonStyle(.plain)
+            }
+            
+            Text("Import your existing tasks from TickTick, Microsoft To Do, Todoist or Apple Reminders, or start fresh.".localized)
+                .font(.system(size: 13, weight: .light))
+                .foregroundColor(.primary.opacity(0.85))
+                .fixedSize(horizontal: false, vertical: true)
+            
+            HStack(spacing: 16) {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showImportModal = true
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 11))
+                        Text("Import Tasks".localized)
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundColor(colorScheme == .dark ? .black : .white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 7)
+                    .background(
+                        Capsule()
+                            .fill(Color.primary)
+                    )
+                }
+                .buttonStyle(.plain)
+                
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        hasDismissedOnboardingImport = true
+                    }
+                }) {
+                    Text("Start Fresh".localized)
+                        .font(.system(size: 12, weight: .light))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.top, 4)
+        }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.primary.opacity(colorScheme == .dark ? 0.05 : 0.03))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                )
+        )
+        .padding(.bottom, 10)
     }
     
     // MARK: - Actions

@@ -92,6 +92,8 @@ struct SettingsView: View {
     @State private var isSignOutHovered: Bool = false
     @State private var isDeleteHovered: Bool = false
     @State private var isSystemSettingsHovered: Bool = false
+    @State private var isImportHovered: Bool = false
+    @State private var showImportModal: Bool = false
     @State private var playingEffect: SoundEffect? = nil
     @State private var hoveredSoundId: String? = nil
     
@@ -278,6 +280,29 @@ struct SettingsView: View {
                         .transition(.opacity)
                     }
 
+                    // MARK: - Data & Import
+                    VStack(alignment: .leading, spacing: 12) {
+                        sectionLabel("DATA & IMPORT".localized)
+
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showImportModal = true
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "square.and.arrow.down")
+                                    .font(.system(size: 11, weight: .light))
+                                Text("Import from other apps (TickTick, To Do, Todoist...)".localized)
+                                    .font(.system(size: 13, weight: .regular))
+                            }
+                            .foregroundColor(isImportHovered ? .primary : .primary.opacity(0.85))
+                            .underline()
+                        }
+                        .buttonStyle(.plain)
+                        .pointingHandCursor()
+                        .onHover { isImportHovered = $0 }
+                    }
+
                     // MARK: Support & Feedback
                     VStack(alignment: .leading, spacing: 12) {
                         sectionLabel("SUPPORT & FEEDBACK".localized)
@@ -368,6 +393,12 @@ struct SettingsView: View {
                 modalOverlay(for: modal)
                     .transition(.opacity)
                     .zIndex(200)
+            }
+            
+            if showImportModal {
+                MigrationImportModalView(isPresented: $showImportModal)
+                    .transition(.opacity)
+                    .zIndex(300)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: activeModal)
