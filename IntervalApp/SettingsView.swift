@@ -72,9 +72,11 @@ enum SettingsModalType {
 struct SettingsView: View {
     @ObservedObject private var locManager = LocalizationManager.shared
     @ObservedObject private var syncManager = SupabaseSyncManager.shared
+    @ObservedObject private var notificationManager = NotificationManager.shared
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("showHabits") private var showHabits: Bool = true
     @AppStorage("soundEffectsEnabled") private var soundEffectsEnabled: Bool = true
+    @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = false
     
     // Active Sound Choices
     @AppStorage("selectedSoundComplete") private var selectedSoundComplete: String = SoundCompleteOption.clickWood.rawValue
@@ -88,6 +90,7 @@ struct SettingsView: View {
     @State private var activeModal: SettingsModalType? = nil
     @State private var isSignOutHovered: Bool = false
     @State private var isDeleteHovered: Bool = false
+    @State private var isSystemSettingsHovered: Bool = false
     @State private var playingEffect: SoundEffect? = nil
     @State private var hoveredSoundId: String? = nil
     
@@ -149,12 +152,66 @@ struct SettingsView: View {
                         }
                     }
 
-                    // MARK: Preferences (Habits & Sound Effects)
+                    // MARK: Preferences (Habits, Sounds & Notifications)
                     VStack(alignment: .leading, spacing: 14) {
                         sectionLabel("PREFERENCES".localized)
 
                         MinimalistToggle(isOn: $showHabits, label: "Show Habits Bar".localized)
                         MinimalistToggle(isOn: $soundEffectsEnabled, label: "Sound Effects".localized)
+                        
+                        // Notifications Toggle & Permission handler
+                        VStack(alignment: .leading, spacing: 6) {
+                            Button(action: {
+                                handleNotificationToggle()
+                            }) {
+                                HStack(spacing: 12) {
+                                    Text("Migration Notifications".localized)
+                                        .font(.system(size: 12, weight: .light))
+                                        .foregroundColor(.primary)
+
+                                    let isToggleActive = notificationsEnabled && (notificationManager.authorizationStatus == .authorized || notificationManager.authorizationStatus == .provisional)
+                                    ZStack(alignment: isToggleActive ? .trailing : .leading) {
+                                        Capsule()
+                                            .fill(isToggleActive ? Color.primary.opacity(colorScheme == .dark ? 0.85 : 0.75) : Color.primary.opacity(0.12))
+                                            .frame(width: 28, height: 16)
+
+                                        Circle()
+                                            .fill(isToggleActive ? (colorScheme == .dark ? Color.black : Color.white) : Color.gray.opacity(0.5))
+                                            .frame(width: 12, height: 12)
+                                            .padding(2)
+                                            .shadow(color: .black.opacity(isToggleActive ? 0.2 : 0.05), radius: 1, x: 0, y: 0.5)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .pointingHandCursor()
+
+                            if notificationManager.authorizationStatus == .denied {
+                                HStack(spacing: 6) {
+                                    Text("Notifications are disabled in System Settings.".localized)
+                                        .font(.system(size: 10, weight: .light))
+                                        .foregroundColor(.red.opacity(0.85))
+
+                                    Button(action: {
+                                        notificationManager.openSystemNotificationSettings()
+                                    }) {
+                                        HStack(spacing: 4) {
+                                            Text("Open System Settings".localized)
+                                                .font(.system(size: 10, weight: .medium))
+                                            Image(systemName: "arrow.up.forward.app")
+                                                .font(.system(size: 9))
+                                        }
+                                        .foregroundColor(isSystemSettingsHovered ? .primary : .primary.opacity(0.85))
+                                        .underline()
+                                    }
+                                    .buttonStyle(.plain)
+                                    .pointingHandCursor()
+                                    .onHover { isSystemSettingsHovered = $0 }
+                                }
+                                .padding(.top, 2)
+                            }
+                        }
                     }
 
                     // MARK: - Sound Laboratory
@@ -313,6 +370,33 @@ struct SettingsView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: activeModal)
+        .onAppear {
+            Task {
+                await notificationManager.refreshAuthorizationStatus()
+            }
+        }
+    }
+
+    private func handleNotificationToggle() {
+        Task {
+            await notificationManager.refreshAuthorizationStatus()
+            if notificationManager.authorizationStatus == .notDetermined {
+                let granted = await notificationManager.requestAuthorization()
+                if granted {
+                    notificationsEnabled = true
+                    notificationManager.scheduleUpcomingBoundaryNotifications()
+                } else {
+                    notificationsEnabled = false
+                }
+            } else if notificationManager.authorizationStatus == .denied {
+                notificationManager.openSystemNotificationSettings()
+            } else {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    notificationsEnabled.toggle()
+                }
+                notificationManager.scheduleUpcomingBoundaryNotifications()
+            }
+        }
     }
 
     // MARK: - Sound Category Group Component

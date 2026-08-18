@@ -285,6 +285,8 @@ class MigrationManager: ObservableObject {
         if MigrationSchedule.shouldPresent(migration, sourceTaskCount: sourceCount, selectableHabitCount: habitCount) {
             setMarker(marker, for: key)
             SoundManager.playTransitionChime()
+            NotificationManager.shared.sendMigrationNotification(for: migration)
+            NotificationManager.shared.scheduleUpcomingBoundaryNotifications()
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentMigration = migration
             }
@@ -317,6 +319,8 @@ class MigrationManager: ObservableObject {
             let currentHour = Self.hourFormatter.string(from: Date())
             setMarker(currentHour, for: StoreKey.lastHandledHour)
             SoundManager.playTransitionChime()
+            NotificationManager.shared.sendMigrationNotification(for: migration)
+            NotificationManager.shared.scheduleUpcomingBoundaryNotifications()
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentMigration = migration
             }

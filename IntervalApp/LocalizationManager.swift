@@ -803,6 +803,100 @@ class LocalizationManager: ObservableObject {
             .english: "Harmonic Bell", .german: "Harmonische Glocke", .french: "Cloche harmonique",
             .spanish: "Campana armónica", .portuguese: "Sino harmônico", .italian: "Campana armonica",
             .arabic: "جرس متناغم", .chinese: "和声铃音", .japanese: "ハーモニックベル", .korean: "하모닉 벨"
+        ],
+        "NOTIFICATIONS": [
+            .english: "NOTIFICATIONS", .german: "MITTEILUNGEN", .french: "NOTIFICATIONS",
+            .spanish: "NOTIFICACIONES", .portuguese: "NOTIFICAÇÕES", .italian: "NOTIFICHE",
+            .arabic: "الإشعارات", .chinese: "通知", .japanese: "通知", .korean: "알림"
+        ],
+        "Migration Notifications": [
+            .english: "Migration Notifications", .german: "Migrations-Mitteilungen", .french: "Notifications de migration",
+            .spanish: "Notificaciones de migración", .portuguese: "Notificações de migração", .italian: "Notifiche di migrazione",
+            .arabic: "إشعارات الترحيل", .chinese: "迁移提醒通知", .japanese: "移行通知", .korean: "마이그레이션 알림"
+        ],
+        "Notifications are disabled in System Settings.": [
+            .english: "Notifications are disabled in System Settings.",
+            .german: "Mitteilungen sind in den Systemeinstellungen deaktiviert.",
+            .french: "Les notifications sont désactivées dans les Réglages Système.",
+            .spanish: "Las notificaciones están desactivadas en Ajustes del Sistema.",
+            .portuguese: "As notificações estão desativadas nos Ajustes do Sistema.",
+            .italian: "Le notifiche sono disattivate nelle Impostazioni di Sistema.",
+            .arabic: "تم تعطيل الإشعارات في إعدادات النظام.",
+            .chinese: "通知已在系统设置中被禁用。",
+            .japanese: "システム設定で通知が無効になっています。",
+            .korean: "시스템 설정에서 알림이 비활성화되어 있습니다."
+        ],
+        "Open System Settings": [
+            .english: "Open System Settings", .german: "Systemeinstellungen öffnen", .french: "Ouvrir les Réglages Système",
+            .spanish: "Abrir Ajustes del Sistema", .portuguese: "Abrir Ajustes do Sistema", .italian: "Apri Impostazioni di Sistema",
+            .arabic: "فتح إعدادات النظام", .chinese: "打开系统设置", .japanese: "システム設定を開く", .korean: "시스템 설정 열기"
+        ],
+        "Hour Migration Ready": [
+            .english: "Hour Migration Ready", .german: "Stunden-Migration bereit", .french: "Migration horaire prête",
+            .spanish: "Migración de hora lista", .portuguese: "Migração horária pronta", .italian: "Migrazione oraria pronta",
+            .arabic: "الترحيل بالساعة جاهز", .chinese: "小时迁移已就绪", .japanese: "時間移行の準備完了", .korean: "시간 마이그레이션 준비됨"
+        ],
+        "Time to choose your tasks for the upcoming hour.": [
+            .english: "Time to choose your tasks for the upcoming hour.",
+            .german: "Zeit, deine Aufgaben für die nächste Stunde auszuwählen.",
+            .french: "Il est temps de choisir vos tâches pour l'heure à venir.",
+            .spanish: "Es hora de elegir tus tareas para la próxima hora.",
+            .portuguese: "Hora de escolher suas tarefas para a próxima hora.",
+            .italian: "È ora di scegliere i compiti per la prossima ora.",
+            .arabic: "حان الوقت لاختيار مهامك للساعة القادمة.",
+            .chinese: "该选择下一小时要完成的任务了。",
+            .japanese: "次の1時間のタスクを選択する時間です。",
+            .korean: "다음 1시간 동안 진행할 작업을 선택할 시간입니다."
+        ],
+        "Day Migration Ready": [
+            .english: "Day Migration Ready", .german: "Tages-Migration bereit", .french: "Migration quotidienne prête",
+            .spanish: "Migración diaria lista", .portuguese: "Migração diária pronta", .italian: "Migrazione giornaliera pronta",
+            .arabic: "الترحيل اليومي جاهز", .chinese: "每日迁移已就绪", .japanese: "日次移行の準備完了", .korean: "일일 마이그레이션 준비됨"
+        ],
+        "Plan your tasks for today.": [
+            .english: "Plan your tasks for today.", .german: "Plane deine Aufgaben für den heutigen Tag.", .french: "Planifiez vos tâches pour aujourd'hui.",
+            .spanish: "Planifica tus tareas para hoy.", .portuguese: "Planeje suas tarefas para hoje.", .italian: "Pianifica i tuoi compiti per oggi.",
+            .arabic: "خطط لمهامك لهذا اليوم.", .chinese: "规划您今天的任务。", .japanese: "今日のタスクを計画しましょう。", .korean: "오늘의 작업을 계획하세요."
+        ],
+        "Week Migration Ready": [
+            .english: "Week Migration Ready", .german: "Wochen-Migration bereit", .french: "Migration hebdomadaire prête",
+            .spanish: "Migración semanal lista", .portuguese: "Migração semanal pronta", .italian: "Migrazione settimanale pronta",
+            .arabic: "الترحيل الأسبوعي جاهز", .chinese: "每周迁移已就绪", .japanese: "週次移行の準備完了", .korean: "주간 마이그레이션 준비됨"
+        ],
+        "Review and organize your week.": [
+            .english: "Review and organize your week.", .german: "Überprüfe und plane deine neue Woche.", .french: "Passez en revue et organisez votre semaine.",
+            .spanish: "Revisa y organiza tu semana.", .portuguese: "Revise e organize sua semana.", .italian: "Rivedi e organizza la tua settimana.",
+            .arabic: "راجع ونظم أسبوعك.", .chinese: "回顾并规划新的一周。", .japanese: "週のタスクを確認して整理しましょう。", .korean: "한 주를 검토하고 정리하세요."
+        ],
+        "Month Migration Ready": [
+            .english: "Month Migration Ready", .german: "Monats-Migration bereit", .french: "Migration mensuelle prête",
+            .spanish: "Migración mensual lista", .portuguese: "Migração mensal pronta", .italian: "Migrazione mensile pronta",
+            .arabic: "الترحيل الشهري جاهز", .chinese: "每月迁移已就绪", .japanese: "月次移行の準備完了", .korean: "월간 마이그레이션 준비됨"
+        ],
+        "Set your priorities for the new month.": [
+            .english: "Set your priorities for the new month.", .german: "Setze deine Prioritäten für den neuen Monat.", .french: "Définissez vos priorités pour le nouveau mois.",
+            .spanish: "Establece tus prioridades para el nuevo mes.", .portuguese: "Defina suas prioridades para o novo mês.", .italian: "Imposta le tue priorità per il nuovo mese.",
+            .arabic: "حدد أولوياتك للشهر الجديد.", .chinese: "设定新月份的优先事项。", .japanese: "新しい月の優先順位を設定しましょう。", .korean: "새로운 달의 우선순위를 정하세요."
+        ],
+        "Year Migration Ready": [
+            .english: "Year Migration Ready", .german: "Jahres-Migration bereit", .french: "Migration annuelle prête",
+            .spanish: "Migración anual lista", .portuguese: "Migração anual pronta", .italian: "Migrazione annuale pronta",
+            .arabic: "الترحيل السنوي جاهز", .chinese: "年度迁移已就绪", .japanese: "年次移行の準備完了", .korean: "연간 마이그레이션 준비됨"
+        ],
+        "Review your year and set new goals.": [
+            .english: "Review your year and set new goals.", .german: "Blicke auf das Jahr zurück und setze neue Ziele.", .french: "Passez en revue votre année et fixez de nouveaux objectifs.",
+            .spanish: "Revisa tu año y establece nuevas metas.", .portuguese: "Revise seu ano e defina novas metas.", .italian: "Rivedi il tuo anno e stabilisci nuovi obiettivi.",
+            .arabic: "راجع عامك وحدد أهدافًا جديدة.", .chinese: "回顾您的一年并设定新目标。", .japanese: "1年を振り返り、新しい目標を設定しましょう。", .korean: "한 해를 돌아보고 새로운 목표를 설정하세요."
+        ],
+        "Migration Ready": [
+            .english: "Migration Ready", .german: "Migration bereit", .french: "Migration prête",
+            .spanish: "Migración lista", .portuguese: "Migração pronta", .italian: "Migrazione pronta",
+            .arabic: "الترحيل جاهز", .chinese: "迁移已就绪", .japanese: "移行の準備完了", .korean: "마이그레이션 준비됨"
+        ],
+        "New interval migration is available.": [
+            .english: "New interval migration is available.", .german: "Neue Intervall-Migration ist verfügbar.", .french: "Une nouvelle migration d'intervalle est disponible.",
+            .spanish: "Nueva migración de intervalo disponible.", .portuguese: "Nova migração de intervalo disponível.", .italian: "Nuova migrazione di intervallo disponibile.",
+            .arabic: "ترحيل فاصل زمني جديد متاح.", .chinese: "新的区间迁移已可用。", .japanese: "新しいインターバル移行が利用可能です。", .korean: "새로운 간격 마이그레이션을 사용할 수 있습니다."
         ]
     ]
 }
