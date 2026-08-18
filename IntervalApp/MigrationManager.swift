@@ -49,6 +49,12 @@ class MigrationManager: ObservableObject {
         let f = DateFormatter()
         f.dateFormat = "yyyy-'W'ww"
         f.locale = Locale(identifier: "en_US_POSIX")
+        var cal = Calendar(identifier: .iso8601)
+        cal.firstWeekday = 2 // Monday is explicitly the first day of the week
+        cal.minimumDaysInFirstWeek = 4
+        cal.timeZone = TimeZone.current
+        f.calendar = cal
+        f.timeZone = TimeZone.current
         return f
     }()
     
@@ -264,6 +270,7 @@ class MigrationManager: ObservableObject {
         guard let _ = modelContext else { return }
         
         let now = Date()
+        let hour = Calendar.current.component(.hour, from: now)
         
         let currentYear = Self.yearFormatter.string(from: now)
         let currentMonth = Self.monthFormatter.string(from: now)
@@ -281,23 +288,29 @@ class MigrationManager: ObservableObject {
         var targetStoreKey: String? = nil
         var targetMarker: String? = nil
         
-        if lastHandledYear != currentYear {
-            pending = Migration(source: "1 Year", dest: "1 Year")
-            targetStoreKey = StoreKey.lastHandledYear
-            targetMarker = currentYear
-        } else if lastHandledMonth != currentMonth {
-            pending = Migration(source: "1 Year", dest: "1 Month")
-            targetStoreKey = StoreKey.lastHandledMonth
-            targetMarker = currentMonth
-        } else if lastHandledWeek != currentWeek {
-            pending = Migration(source: "1 Month", dest: "1 Week")
-            targetStoreKey = StoreKey.lastHandledWeek
-            targetMarker = currentWeek
-        } else if lastHandledDay != currentDay {
-            pending = Migration(source: "1 Week", dest: "1 Day")
-            targetStoreKey = StoreKey.lastHandledDay
-            targetMarker = currentDay
-        } else if lastHandledHour != currentHour {
+        // Day, Week, Month, and Year migrations only trigger at or after 5:00 AM (05:00)
+        // to avoid interrupting night work sessions between 00:00 and 04:59.
+        if hour >= 5 {
+            if lastHandledYear != currentYear {
+                pending = Migration(source: "1 Year", dest: "1 Year")
+                targetStoreKey = StoreKey.lastHandledYear
+                targetMarker = currentYear
+            } else if lastHandledMonth != currentMonth {
+                pending = Migration(source: "1 Year", dest: "1 Month")
+                targetStoreKey = StoreKey.lastHandledMonth
+                targetMarker = currentMonth
+            } else if lastHandledWeek != currentWeek {
+                pending = Migration(source: "1 Month", dest: "1 Week")
+                targetStoreKey = StoreKey.lastHandledWeek
+                targetMarker = currentWeek
+            } else if lastHandledDay != currentDay {
+                pending = Migration(source: "1 Week", dest: "1 Day")
+                targetStoreKey = StoreKey.lastHandledDay
+                targetMarker = currentDay
+            }
+        }
+        
+        if pending == nil && lastHandledHour != currentHour {
             pending = Migration(source: "1 Day", dest: HabitTaskLink.hourInterval, isFirstHourOfDay: isFirstHourAfterDayMigration)
             targetStoreKey = StoreKey.lastHandledHour
             targetMarker = currentHour

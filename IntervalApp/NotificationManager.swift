@@ -132,8 +132,8 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
             UNUserNotificationCenter.current().add(request)
         }
         
-        // 2. Next Midnight (Day) trigger
-        if let nextDay = cal.nextDate(after: now, matching: DateComponents(hour: 0, minute: 0, second: 0), matchingPolicy: .nextTime) {
+        // 2. Next Day trigger (at 05:00 AM)
+        if let nextDay = cal.nextDate(after: now, matching: DateComponents(hour: 5, minute: 0, second: 0), matchingPolicy: .nextTime) {
             let components = cal.dateComponents([.year, .month, .day, .hour, .minute, .second], from: nextDay)
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             
