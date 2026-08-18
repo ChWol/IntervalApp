@@ -653,6 +653,156 @@ class LocalizationManager: ObservableObject {
             .chinese: "新密码必须与旧密码不同",
             .japanese: "新しいパスワードは古いパスワードと異なる必要があります",
             .korean: "새 비밀번호는 이전 비밀번호와 달라야 합니다"
+        ],
+        "SOUND LABORATORY": [
+            .english: "SOUND LABORATORY", .german: "SOUND-LABOR", .french: "LABORATOIRE SONORE",
+            .spanish: "LABORATORIO DE SONIDO", .portuguese: "LABORATÓRIO DE SOM", .italian: "LABORATORIO SUONI",
+            .arabic: "مختبر الصوت", .chinese: "声音实验室", .japanese: "サウンドラボ", .korean: "사운드 실험실"
+        ],
+        "TASK COMPLETION": [
+            .english: "TASK COMPLETION", .german: "AUFGABE ERLEDIGEN", .french: "TÂCHE TERMINÉE",
+            .spanish: "TAREA COMPLETADA", .portuguese: "TAREFA CONCLUÍDA", .italian: "COMPITO COMPLETATO",
+            .arabic: "إتمام المهمة", .chinese: "完成任务", .japanese: "タスク完了", .korean: "작업 완료"
+        ],
+        "TASK DELETION": [
+            .english: "TASK DELETION", .german: "AUFGABE LÖSCHEN", .french: "SUPPRESSION DE TÂCHE",
+            .spanish: "ELIMINAR TAREA", .portuguese: "EXCLUIR TAREFA", .italian: "ELIMINAZIONE COMPITO",
+            .arabic: "حذف المهمة", .chinese: "删除任务", .japanese: "タスク削除", .korean: "작업 삭제"
+        ],
+        "TRANSFER & MOVE": [
+            .english: "TRANSFER & MOVE", .german: "VERSCHIEBEN & TRANSFER", .french: "TRANSFÉRER & DÉPLACER",
+            .spanish: "TRANSFERIR Y MOVER", .portuguese: "TRANSFERIR E MOVER", .italian: "TRASFERISCI E SPOSTA",
+            .arabic: "نقل وتحريك", .chinese: "转移与移动", .japanese: "転送と移動", .korean: "전송 및 이동"
+        ],
+        "RESTORE & UNDO": [
+            .english: "RESTORE & UNDO", .german: "WIEDERHERSTELLEN & RÜCKGÄNGIG", .french: "RESTAURER & ANNULER",
+            .spanish: "RESTAURAR Y DESHACER", .portuguese: "RESTAURAR E DESFAZER", .italian: "RIPRISTINA E ANNULLA",
+            .arabic: "استعادة وتراجع", .chinese: "恢复与撤销", .japanese: "復元と元に戻す", .korean: "복원 및 실행 취소"
+        ],
+        "TRANSITIONS & MIGRATION": [
+            .english: "TRANSITIONS & MIGRATION", .german: "ÜBERGÄNGE & MIGRATION", .french: "TRANSITIONS & MIGRATION",
+            .spanish: "TRANSICIONES Y MIGRACIÓN", .portuguese: "TRANSIÇÕES E MIGRAÇÃO", .italian: "TRANSIZIONI E MIGRAZIONE",
+            .arabic: "الانتقالات والترحيل", .chinese: "转换与迁移", .japanese: "遷移と移行", .korean: "전환 및 마이그레이션"
+        ],
+        "HABIT CHECK": [
+            .english: "HABIT CHECK", .german: "GEWOHNHEITEN", .french: "HABITUDE",
+            .spanish: "HÁBITO", .portuguese: "HÁBITO", .italian: "ABITUDINE",
+            .arabic: "العادة", .chinese: "习惯打卡", .japanese: "習慣チェック", .korean: "습관 체크"
+        ],
+        "Pencil Stroke": [
+            .english: "Pencil Stroke", .german: "Bleistift", .french: "Crayon",
+            .spanish: "Trazo de lápiz", .portuguese: "Traço de lápis", .italian: "Tratto di matita",
+            .arabic: "ضربة قلم", .chinese: "铅笔划线", .japanese: "鉛筆ストローク", .korean: "연필 스트로크"
+        ],
+        "Wood Switch": [
+            .english: "Wood Switch", .german: "Holz-Klick", .french: "Clic bois",
+            .spanish: "Clic de madera", .portuguese: "Clique de madeira", .italian: "Clic in legno",
+            .arabic: "نقرة خشبية", .chinese: "木质微动", .japanese: "ウッドスイッチ", .korean: "우드 스위치"
+        ],
+        "Crystal Ding": [
+            .english: "Crystal Ding", .german: "Kristallglas", .french: "Teint de cristal",
+            .spanish: "Timbre de cristal", .portuguese: "Sino de cristal", .italian: "Tintinnio cristallo",
+            .arabic: "رنين بلوري", .chinese: "水晶清音", .japanese: "クリスタルリング", .korean: "크리스탈 딩"
+        ],
+        "Kalimba Pluck": [
+            .english: "Kalimba Pluck", .german: "Kalimba", .french: "Pincement kalimba",
+            .spanish: "Punteo kalimba", .portuguese: "Toque de kalimba", .italian: "Tocco kalimba",
+            .arabic: "نغمة كاليمبا", .chinese: "卡林巴琴", .japanese: "カリンバ", .korean: "칼림바 플럭"
+        ],
+        "Deep Sub Tick": [
+            .english: "Deep Sub Tick", .german: "Sub-Tick", .french: "Tic sub-basse",
+            .spanish: "Sub tic profundo", .portuguese: "Sub-tick profundo", .italian: "Sub tick profondo",
+            .arabic: "تكة عميقة", .chinese: "深沉微滴", .japanese: "サブティック", .korean: "딥 서브 틱"
+        ],
+        "Paper Sweep": [
+            .english: "Paper Sweep", .german: "Papier-Wisch", .french: "Balayage papier",
+            .spanish: "Barrer papel", .portuguese: "Varredura de papel", .italian: "Fruscio carta",
+            .arabic: "مسح الورق", .chinese: "纸张拂动", .japanese: "ペーパースイープ", .korean: "페이퍼 스윕"
+        ],
+        "Velvet Poof": [
+            .english: "Velvet Poof", .german: "Samt-Puff", .french: "Souffle velours",
+            .spanish: "Soplo de terciopelo", .portuguese: "Sopro de veludo", .italian: "Soffio di velluto",
+            .arabic: "نفخة مخملية", .chinese: "丝绒轻拂", .japanese: "ベルベットプーフ", .korean: "벨벳 푸프"
+        ],
+        "Parchment Flick": [
+            .english: "Parchment Flick", .german: "Pergament-Flick", .french: "Piqure parchemin",
+            .spanish: "Toque de pergamino", .portuguese: "Toque de pergaminho", .italian: "Tocco pergamena",
+            .arabic: "نفضة رق", .chinese: "羊皮纸弹动", .japanese: "パーチメントフリック", .korean: "양피지 플릭"
+        ],
+        "Sub Dissolve": [
+            .english: "Sub Dissolve", .german: "Sub-Auflösung", .french: "Dissolution douce",
+            .spanish: "Disolución suave", .portuguese: "Dissolução suave", .italian: "Dissolvenza morbida",
+            .arabic: "تلاشي هادئ", .chinese: "低频消散", .japanese: "サブディゾルブ", .korean: "서브 디졸브"
+        ],
+        "Velvet Glide": [
+            .english: "Velvet Glide", .german: "Sanftes Gleiten", .french: "Glissement velouté",
+            .spanish: "Deslizamiento suave", .portuguese: "Deslize suave", .italian: "Scorrimento vellutato",
+            .arabic: "انزلاق ناعم", .chinese: "柔和滑动", .japanese: "ベルベットグライド", .korean: "벨벳 글라이드"
+        ],
+        "Marimba Duo": [
+            .english: "Marimba Duo", .german: "Marimba-Duo", .french: "Duo marimba",
+            .spanish: "Dúo de marimba", .portuguese: "Duo de marimba", .italian: "Duo marimba",
+            .arabic: "ثنائي ماريمبا", .chinese: "马林巴双音", .japanese: "マリンバデュオ", .korean: "마림바 듀오"
+        ],
+        "Magnetic Dock": [
+            .english: "Magnetic Dock", .german: "Magnet-Dock", .french: "Arrimage magnétique",
+            .spanish: "Acople magnético", .portuguese: "Encaixe magnético", .italian: "Aggancio magnetico",
+            .arabic: "قفل مغناطيسي", .chinese: "磁吸定位", .japanese: "マグネットドック", .korean: "마그네틱 독"
+        ],
+        "Air Swell": [
+            .english: "Air Swell", .german: "Luft-Swell", .french: "Onde aérienne",
+            .spanish: "Onda de aire", .portuguese: "Onda de ar", .italian: "Onda d'aria",
+            .arabic: "تموج هوائي", .chinese: "空气涌动", .japanese: "エアスウェル", .korean: "에어 스웰"
+        ],
+        "Reverse Whoosh": [
+            .english: "Reverse Whoosh", .german: "Rückwärts-Whoosh", .french: "Souffle inversé",
+            .spanish: "Zumbido inverso", .portuguese: "Zumbido reverso", .italian: "Fruscio inverso",
+            .arabic: "اندفاع عكسي", .chinese: "反向回溯", .japanese: "リバースフーシュ", .korean: "리버스 후쉬"
+        ],
+        "Rebound Pop": [
+            .english: "Rebound Pop", .german: "Rebound-Pop", .french: "Rebondissement",
+            .spanish: "Rebote ágil", .portuguese: "Ressalto ágil", .italian: "Rimbalzo pop",
+            .arabic: "ارتداد خفيف", .chinese: "回弹轻音", .japanese: "リバウンドポップ", .korean: "리바운드 팝"
+        ],
+        "Paper Unfold": [
+            .english: "Paper Unfold", .german: "Papier entfalten", .french: "Déplier papier",
+            .spanish: "Desplegar papel", .portuguese: "Desdobrar papel", .italian: "Spiegare carta",
+            .arabic: "فتح الورقة", .chinese: "展开纸张", .japanese: "ペーパーアンフォールド", .korean: "종이 펼치기"
+        ],
+        "Elastic Snap": [
+            .english: "Elastic Snap", .german: "Elastischer Snap", .french: "Claquement élastique",
+            .spanish: "Chasquido elástico", .portuguese: "Estalido elástico", .italian: "Scatto elastico",
+            .arabic: "طقطقة مرنة", .chinese: "弹性吸附", .japanese: "エラスティックスナップ", .korean: "탄성 스냅"
+        ],
+        "Singing Bowl": [
+            .english: "Singing Bowl", .german: "Klangschale", .french: "Bol chantant",
+            .spanish: "Cuenco tibetano", .portuguese: "Taça tibetana", .italian: "Campana tibetana",
+            .arabic: "وعاء الغناء", .chinese: "颂钵余音", .japanese: "シンギングボウル", .korean: "싱잉볼"
+        ],
+        "Kalimba Echo": [
+            .english: "Kalimba Echo", .german: "Kalimba-Echo", .french: "Écho kalimba",
+            .spanish: "Eco de kalimba", .portuguese: "Eco de kalimba", .italian: "Eco kalimba",
+            .arabic: "صدى كاليمبا", .chinese: "卡林巴回声", .japanese: "カリンバエコー", .korean: "칼림바 에코"
+        ],
+        "Crystal Chime": [
+            .english: "Crystal Chime", .german: "Kristall-Glocke", .french: "Carillon de cristal",
+            .spanish: "Campana de cristal", .portuguese: "Sino de cristal", .italian: "Campanella cristallo",
+            .arabic: "جرس بلوري", .chinese: "水晶风铃", .japanese: "クリスタルチャイム", .korean: "크리스탈 차임"
+        ],
+        "Bamboo Tap": [
+            .english: "Bamboo Tap", .german: "Bambus-Tap", .french: "Frappe bambou",
+            .spanish: "Toque de bambú", .portuguese: "Toque de bambu", .italian: "Tocco bambù",
+            .arabic: "نقرة خيزران", .chinese: "竹音轻叩", .japanese: "バンブータップ", .korean: "대나무 탭"
+        ],
+        "Water Droplet": [
+            .english: "Water Droplet", .german: "Wassertropfen", .french: "Goutte d'eau",
+            .spanish: "Gota de agua", .portuguese: "Gota d'água", .italian: "Goccia d'acqua",
+            .arabic: "قطرة ماء", .chinese: "清澈水滴", .japanese: "ウォータードロップ", .korean: "물방울"
+        ],
+        "Harmonic Bell": [
+            .english: "Harmonic Bell", .german: "Harmonische Glocke", .french: "Cloche harmonique",
+            .spanish: "Campana armónica", .portuguese: "Sino harmônico", .italian: "Campana armonica",
+            .arabic: "جرس متناغم", .chinese: "和声铃音", .japanese: "ハーモニックベル", .korean: "하모닉 벨"
         ]
     ]
 }

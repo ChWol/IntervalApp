@@ -75,161 +75,237 @@ struct SettingsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("showHabits") private var showHabits: Bool = true
     @AppStorage("soundEffectsEnabled") private var soundEffectsEnabled: Bool = true
+    
+    // Active Sound Choices
+    @AppStorage("selectedSoundComplete") private var selectedSoundComplete: String = SoundCompleteOption.clickWood.rawValue
+    @AppStorage("selectedSoundDelete") private var selectedSoundDelete: String = SoundDeleteOption.paperSweep.rawValue
+    @AppStorage("selectedSoundTransfer") private var selectedSoundTransfer: String = SoundTransferOption.velvetGlide.rawValue
+    @AppStorage("selectedSoundRestore") private var selectedSoundRestore: String = SoundRestoreOption.reverseWhoosh.rawValue
+    @AppStorage("selectedSoundTransition") private var selectedSoundTransition: String = SoundTransitionOption.zenBowl.rawValue
+    @AppStorage("selectedSoundHabit") private var selectedSoundHabit: String = SoundHabitOption.wood.rawValue
 
     @State private var hoveredLang: AppLanguage? = nil
     @State private var activeModal: SettingsModalType? = nil
     @State private var isSignOutHovered: Bool = false
     @State private var isDeleteHovered: Bool = false
+    @State private var playingEffect: SoundEffect? = nil
+    @State private var hoveredSoundId: String? = nil
+    
     var onClose: () -> Void
 
     var body: some View {
         ZStack {
-            VStack(alignment: .leading, spacing: 28) {
-                // Header: Title
-                Text("SETTINGS".localized)
-                    .font(.system(size: 11, weight: .light))
-                    .tracking(3.0)
-                    .foregroundColor(.gray)
-                    .padding(.bottom, 2)
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 28) {
+                    // Header: Title
+                    Text("SETTINGS".localized)
+                        .font(.system(size: 11, weight: .light))
+                        .tracking(3.0)
+                        .foregroundColor(.gray)
+                        .padding(.bottom, 2)
 
-                // MARK: Language
-                VStack(alignment: .leading, spacing: 12) {
-                    sectionLabel("LANGUAGE".localized)
+                    // MARK: Language
+                    VStack(alignment: .leading, spacing: 12) {
+                        sectionLabel("LANGUAGE".localized)
 
-                    HStack(spacing: 10) {
-                        ForEach(AppLanguage.allCases) { lang in
-                            let isSelected = locManager.currentLanguage == lang
-                            let isHov = hoveredLang == lang
+                        HStack(spacing: 8) {
+                            ForEach(AppLanguage.allCases) { lang in
+                                let isSelected = locManager.currentLanguage == lang
+                                let isHov = hoveredLang == lang
 
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    locManager.currentLanguage = lang
-                                }
-                            }) {
-                                HStack(spacing: 6) {
-                                    Text(lang.displayName)
-                                        .font(.system(size: 12, weight: isSelected ? .medium : .light))
-                                        .foregroundColor(isSelected ? .primary : (isHov ? .primary : .secondary))
-
-                                    if isSelected {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 9, weight: .light))
-                                            .foregroundColor(.primary)
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        locManager.currentLanguage = lang
                                     }
+                                }) {
+                                    HStack(spacing: 6) {
+                                        Text(lang.displayName)
+                                            .font(.system(size: 12, weight: isSelected ? .medium : .light))
+                                            .foregroundColor(isSelected ? .primary : (isHov ? .primary : .secondary))
+
+                                        if isSelected {
+                                            Image(systemName: "checkmark")
+                                                .font(.system(size: 9, weight: .light))
+                                                .foregroundColor(.primary)
+                                        }
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        Capsule().fill(isSelected
+                                            ? Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.08)
+                                            : (isHov ? Color.primary.opacity(0.04) : Color.clear))
+                                    )
+                                    .overlay(
+                                        Capsule().stroke(
+                                            Color.primary.opacity(isSelected ? 0.25 : (isHov ? 0.15 : 0.08)),
+                                            lineWidth: 1)
+                                    )
                                 }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(
-                                    Capsule().fill(isSelected
-                                        ? Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.08)
-                                        : (isHov ? Color.primary.opacity(0.04) : Color.clear))
-                                )
-                                .overlay(
-                                    Capsule().stroke(
-                                        Color.primary.opacity(isSelected ? 0.25 : (isHov ? 0.15 : 0.08)),
-                                        lineWidth: 1)
-                                )
+                                .buttonStyle(.plain)
+                                .pointingHandCursor()
+                                .onHover { hoveredLang = $0 ? lang : nil }
                             }
-                            .buttonStyle(.plain)
-                            .pointingHandCursor()
-                            .onHover { hoveredLang = $0 ? lang : nil }
                         }
                     }
-                }
 
-                // MARK: Preferences (Habits & Sound Effects)
-                VStack(alignment: .leading, spacing: 14) {
-                    sectionLabel("PREFERENCES".localized)
-
-                    MinimalistToggle(isOn: $showHabits, label: "Show Habits Bar".localized)
-                    MinimalistToggle(isOn: $soundEffectsEnabled, label: "Sound Effects".localized)
-                }
-
-                // MARK: Support & Feedback
-                VStack(alignment: .leading, spacing: 12) {
-                    sectionLabel("SUPPORT & FEEDBACK".localized)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 6) {
-                            Text("For feedback, inspiration or help:".localized)
-                                .font(.system(size: 12, weight: .light))
-                                .foregroundColor(.secondary)
-
-                            Link("ch.wolters@tum.de", destination: URL(string: "mailto:ch.wolters@tum.de")!)
-                                .font(.system(size: 12, weight: .light))
-                                .foregroundColor(.primary.opacity(0.85))
-                                .underline()
-                                .pointingHandCursor()
-                        }
-
-                        HStack(spacing: 6) {
-                            Text("Donations & Support:".localized)
-                                .font(.system(size: 12, weight: .light))
-                                .foregroundColor(.secondary)
-
-                            Link("paypal.me/chrw0", destination: URL(string: "https://paypal.me/chrw0")!)
-                                .font(.system(size: 12, weight: .light))
-                                .foregroundColor(.primary.opacity(0.85))
-                                .underline()
-                                .pointingHandCursor()
-                        }
-                    }
-                }
-
-                // MARK: Account
-                VStack(alignment: .leading, spacing: 12) {
-                    sectionLabel("ACCOUNT".localized)
-
+                    // MARK: Preferences (Habits & Sound Effects)
                     VStack(alignment: .leading, spacing: 14) {
-                        if let email = syncManager.userEmail {
-                            HStack(spacing: 8) {
-                                Image(systemName: "envelope")
-                                    .font(.system(size: 11, weight: .light))
-                                    .foregroundColor(.secondary)
-                                Text(email)
-                                    .font(.system(size: 13, weight: .light))
-                                    .foregroundColor(.secondary)
+                        sectionLabel("PREFERENCES".localized)
+
+                        MinimalistToggle(isOn: $showHabits, label: "Show Habits Bar".localized)
+                        MinimalistToggle(isOn: $soundEffectsEnabled, label: "Sound Effects".localized)
+                    }
+
+                    // MARK: - Sound Laboratory
+                    if soundEffectsEnabled {
+                        VStack(alignment: .leading, spacing: 18) {
+                            sectionLabel("SOUND LABORATORY".localized)
+
+                            // 1. Task Complete
+                            soundCategoryGroup(
+                                title: "TASK COMPLETION".localized,
+                                options: SoundCompleteOption.allCases.map { ($0.rawValue, $0.displayName, $0.effect) },
+                                selectedRawValue: selectedSoundComplete
+                            ) { raw in
+                                selectedSoundComplete = raw
+                            }
+
+                            // 2. Task Delete
+                            soundCategoryGroup(
+                                title: "TASK DELETION".localized,
+                                options: SoundDeleteOption.allCases.map { ($0.rawValue, $0.displayName, $0.effect) },
+                                selectedRawValue: selectedSoundDelete
+                            ) { raw in
+                                selectedSoundDelete = raw
+                            }
+
+                            // 3. Transfer
+                            soundCategoryGroup(
+                                title: "TRANSFER & MOVE".localized,
+                                options: SoundTransferOption.allCases.map { ($0.rawValue, $0.displayName, $0.effect) },
+                                selectedRawValue: selectedSoundTransfer
+                            ) { raw in
+                                selectedSoundTransfer = raw
+                            }
+
+                            // 4. Restore / Undo
+                            soundCategoryGroup(
+                                title: "RESTORE & UNDO".localized,
+                                options: SoundRestoreOption.allCases.map { ($0.rawValue, $0.displayName, $0.effect) },
+                                selectedRawValue: selectedSoundRestore
+                            ) { raw in
+                                selectedSoundRestore = raw
+                            }
+
+                            // 5. Transitions & Migration
+                            soundCategoryGroup(
+                                title: "TRANSITIONS & MIGRATION".localized,
+                                options: SoundTransitionOption.allCases.map { ($0.rawValue, $0.displayName, $0.effect) },
+                                selectedRawValue: selectedSoundTransition
+                            ) { raw in
+                                selectedSoundTransition = raw
+                            }
+
+                            // 6. Habit Check
+                            soundCategoryGroup(
+                                title: "HABIT CHECK".localized,
+                                options: SoundHabitOption.allCases.map { ($0.rawValue, $0.displayName, $0.effect) },
+                                selectedRawValue: selectedSoundHabit
+                            ) { raw in
+                                selectedSoundHabit = raw
                             }
                         }
+                        .padding(.vertical, 4)
+                        .transition(.opacity)
+                    }
 
-                        // Minimalist text items side by side
-                        HStack(spacing: 24) {
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    activeModal = .signOut
-                                }
-                            }) {
-                                Text("Sign Out".localized)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(isSignOutHovered ? .primary : .primary.opacity(0.85))
+                    // MARK: Support & Feedback
+                    VStack(alignment: .leading, spacing: 12) {
+                        sectionLabel("SUPPORT & FEEDBACK".localized)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 6) {
+                                Text("For feedback, inspiration or help:".localized)
+                                    .font(.system(size: 12, weight: .light))
+                                    .foregroundColor(.secondary)
+
+                                Link("ch.wolters@tum.de", destination: URL(string: "mailto:ch.wolters@tum.de")!)
+                                    .font(.system(size: 12, weight: .light))
+                                    .foregroundColor(.primary.opacity(0.85))
                                     .underline()
+                                    .pointingHandCursor()
                             }
-                            .buttonStyle(.plain)
-                            .pointingHandCursor()
-                            .onHover { isSignOutHovered = $0 }
 
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    activeModal = .deleteAccount
-                                }
-                            }) {
-                                Text("Delete Account".localized)
-                                    .font(.system(size: 13, weight: .light))
-                                    .foregroundColor(isDeleteHovered ? .red : .red.opacity(0.75))
+                            HStack(spacing: 6) {
+                                Text("Donations & Support:".localized)
+                                    .font(.system(size: 12, weight: .light))
+                                    .foregroundColor(.secondary)
+
+                                Link("paypal.me/chrw0", destination: URL(string: "https://paypal.me/chrw0")!)
+                                    .font(.system(size: 12, weight: .light))
+                                    .foregroundColor(.primary.opacity(0.85))
+                                    .underline()
+                                    .pointingHandCursor()
                             }
-                            .buttonStyle(.plain)
-                            .pointingHandCursor()
-                            .onHover { isDeleteHovered = $0 }
                         }
                     }
+
+                    // MARK: Account
+                    VStack(alignment: .leading, spacing: 12) {
+                        sectionLabel("ACCOUNT".localized)
+
+                        VStack(alignment: .leading, spacing: 14) {
+                            if let email = syncManager.userEmail {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "envelope")
+                                        .font(.system(size: 11, weight: .light))
+                                        .foregroundColor(.secondary)
+                                    Text(email)
+                                        .font(.system(size: 13, weight: .light))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+
+                            // Minimalist text items side by side
+                            HStack(spacing: 24) {
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        activeModal = .signOut
+                                    }
+                                }) {
+                                    Text("Sign Out".localized)
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(isSignOutHovered ? .primary : .primary.opacity(0.85))
+                                        .underline()
+                                }
+                                .buttonStyle(.plain)
+                                .pointingHandCursor()
+                                .onHover { isSignOutHovered = $0 }
+
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        activeModal = .deleteAccount
+                                    }
+                                }) {
+                                    Text("Delete Account".localized)
+                                        .font(.system(size: 13, weight: .light))
+                                        .foregroundColor(isDeleteHovered ? .red : .red.opacity(0.75))
+                                }
+                                .buttonStyle(.plain)
+                                .pointingHandCursor()
+                                .onHover { isDeleteHovered = $0 }
+                            }
+                        }
+                    }
+
+                    Spacer(minLength: 40)
                 }
-
-                Spacer()
+                .padding(40)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            .padding(40)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
-            // MARK: - Full Window Centered Custom Modal Popup (MigrationModal style)
+            // MARK: - Full Window Centered Custom Modal Popup
             if let modal = activeModal {
                 modalOverlay(for: modal)
                     .transition(.opacity)
@@ -237,6 +313,95 @@ struct SettingsView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: activeModal)
+    }
+
+    // MARK: - Sound Category Group Component
+
+    @ViewBuilder
+    private func soundCategoryGroup(
+        title: String,
+        options: [(id: String, name: String, effect: SoundEffect)],
+        selectedRawValue: String,
+        onSelect: @escaping (String) -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(size: 9, weight: .medium))
+                .tracking(1.5)
+                .foregroundColor(.secondary.opacity(0.8))
+
+            HStack(spacing: 8) {
+                ForEach(options, id: \.id) { opt in
+                    let isSelected = selectedRawValue == opt.id
+                    let isHov = hoveredSoundId == opt.id
+                    let isPlaying = playingEffect == opt.effect
+
+                    HStack(spacing: 6) {
+                        // Play / Preview Button
+                        Button(action: {
+                            previewSound(opt.effect)
+                        }) {
+                            Image(systemName: isPlaying ? "speaker.wave.2.fill" : "play.fill")
+                                .font(.system(size: 9, weight: .regular))
+                                .foregroundColor(isSelected ? .primary : .secondary)
+                                .frame(width: 16, height: 16)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .pointingHandCursor()
+
+                        // Sound Name (Tap to select)
+                        Button(action: {
+                            previewSound(opt.effect)
+                            withAnimation(.easeInOut(duration: 0.12)) {
+                                onSelect(opt.id)
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                Text(opt.name)
+                                    .font(.system(size: 11, weight: isSelected ? .medium : .light))
+                                    .foregroundColor(isSelected ? .primary : (isHov ? .primary : .secondary))
+
+                                if isSelected {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 8, weight: .light))
+                                        .foregroundColor(.primary)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .pointingHandCursor()
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule().fill(isSelected
+                            ? Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.08)
+                            : (isHov ? Color.primary.opacity(0.04) : Color.clear))
+                    )
+                    .overlay(
+                        Capsule().stroke(
+                            Color.primary.opacity(isSelected ? 0.25 : (isHov ? 0.15 : 0.08)),
+                            lineWidth: 1)
+                    )
+                    .onHover { hoveredSoundId = $0 ? opt.id : nil }
+                }
+            }
+        }
+    }
+
+    private func previewSound(_ effect: SoundEffect) {
+        withAnimation(.easeInOut(duration: 0.1)) {
+            playingEffect = effect
+        }
+        SoundManager.shared.play(effect, volume: 1.0, ignoreMute: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            if playingEffect == effect {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    playingEffect = nil
+                }
+            }
+        }
     }
 
     // MARK: - Modal Overlay
@@ -254,23 +419,27 @@ struct SettingsView: View {
                     }
                 }
 
-            VStack(alignment: .leading, spacing: 20) {
+            // Modal Card Content
+            VStack(alignment: .center, spacing: 20) {
+                // Modal Title
                 Text(modal == .deleteAccount ? "Delete Account".localized : "Sign Out".localized)
-                    .font(.title)
-                    .fontWeight(.light)
-                    .foregroundColor(modal == .deleteAccount ? .red : .primary)
+                    .font(.system(size: 16, weight: .light))
+                    .tracking(1.0)
+                    .foregroundColor(.primary)
 
+                // Modal Body / Warning Text
                 Text(modal == .deleteAccount
-                     ? "Are you sure you want to delete your account? All your tasks, habits, and custom lists will be permanently erased from the database and all devices. This cannot be undone.".localized
-                     : "Are you sure you want to sign out? Your tasks and habits will remain safely synced on the server.".localized)
-                    .font(.system(size: 14, weight: .light))
-                    .foregroundColor(.secondary)
-                    .lineSpacing(4)
-                    .fixedSize(horizontal: false, vertical: true)
+                    ? "Are you sure you want to delete your account? All your tasks, habits and scratchpad items will be permanently erased from all synced devices. This action cannot be undone.".localized
+                    : "Are you sure you want to sign out? Your data will remain safely stored in your account and can be restored whenever you sign back in.".localized
+                )
+                .font(.system(size: 12, weight: .light))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
 
-                HStack(spacing: 12) {
-                    Spacer()
-
+                // Action Buttons (Cancel / Confirm)
+                HStack(spacing: 16) {
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.15)) {
                             activeModal = nil
@@ -279,12 +448,10 @@ struct SettingsView: View {
                         Text("Cancel".localized)
                             .font(.system(size: 13, weight: .light))
                             .foregroundColor(.secondary)
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 18)
                             .padding(.vertical, 8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.secondary.opacity(0.5), lineWidth: 1)
-                            )
+                            .background(Color.primary.opacity(0.06))
+                            .cornerRadius(8)
                     }
                     .buttonStyle(.plain)
                     .pointingHandCursor()
