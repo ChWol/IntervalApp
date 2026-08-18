@@ -149,13 +149,10 @@ struct HabitsBarView: View {
                         }) {
                             Image(systemName: "plus")
                                 .font(.system(size: 13, weight: .regular))
-                                .foregroundColor(isPlusHovered ? .primary : .gray)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 5)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(Color.gray.opacity(colorScheme == .dark ? (isPlusHovered ? 0.2 : 0.12) : (isPlusHovered ? 0.12 : 0.06)))
-                                )
+                                .foregroundColor(isPlusHovered ? .primary : .secondary.opacity(0.5))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 4)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .pointingHandCursor()

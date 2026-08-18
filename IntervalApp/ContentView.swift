@@ -604,7 +604,7 @@ struct ContentView: View {
             .padding(.top, 2)
         }
         .padding(18)
-        .frame(maxWidth: 520, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color.primary.opacity(colorScheme == .dark ? 0.05 : 0.03))
@@ -613,8 +613,8 @@ struct ContentView: View {
                         .stroke(Color.primary.opacity(0.08), lineWidth: 1)
                 )
         )
-        .padding(.top, 6)
-        .padding(.bottom, 12)
+        .padding(.top, 14)
+        .padding(.bottom, 8)
     }
     
     // MARK: - Actions

@@ -27,15 +27,11 @@ struct TaskListView: View {
                 Button(action: {
                     createNewTaskAtEnd()
                 }) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.primary.opacity(isPlusHovered ? 0.08 : 0.0))
-                            .frame(width: 22, height: 22)
-                        Image(systemName: "plus")
-                            .font(.system(size: 12, weight: .regular))
-                            .foregroundColor(isPlusHovered ? .primary : .secondary.opacity(0.6))
-                    }
-                    .contentShape(Rectangle())
+                    Image(systemName: "plus")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(isPlusHovered ? .primary : .secondary.opacity(0.4))
+                        .padding(4)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .pointingHandCursor()
