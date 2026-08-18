@@ -1,15 +1,16 @@
 import Foundation
 import UserNotifications
 import SwiftUI
+import Combine
 #if os(macOS)
 import AppKit
 #endif
 
 @MainActor
-public final class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
-    public static let shared = NotificationManager()
+final class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
+    static let shared = NotificationManager()
     
-    @Published public var authorizationStatus: UNAuthorizationStatus = .notDetermined
+    @Published var authorizationStatus: UNAuthorizationStatus = .notDetermined
     
     private override init() {
         super.init()
@@ -19,13 +20,13 @@ public final class NotificationManager: NSObject, ObservableObject, UNUserNotifi
         }
     }
     
-    public func refreshAuthorizationStatus() async {
+    func refreshAuthorizationStatus() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         self.authorizationStatus = settings.authorizationStatus
     }
     
     @discardableResult
-    public func requestAuthorization() async -> Bool {
+    func requestAuthorization() async -> Bool {
         do {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
             await refreshAuthorizationStatus()
@@ -39,7 +40,7 @@ public final class NotificationManager: NSObject, ObservableObject, UNUserNotifi
         }
     }
     
-    public func openSystemNotificationSettings() {
+    func openSystemNotificationSettings() {
         #if os(macOS)
         if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
             if NSWorkspace.shared.open(url) { return }
@@ -59,7 +60,7 @@ public final class NotificationManager: NSObject, ObservableObject, UNUserNotifi
     
     // MARK: - Migration / Interval Notifications
     
-    public func sendMigrationNotification(for migration: Migration) {
+    func sendMigrationNotification(for migration: Migration) {
         let isEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
         guard isEnabled, authorizationStatus == .authorized || authorizationStatus == .provisional else { return }
         
@@ -103,7 +104,7 @@ public final class NotificationManager: NSObject, ObservableObject, UNUserNotifi
     
     // MARK: - Schedule Upcoming Boundaries (for Background Alerts)
     
-    public func scheduleUpcomingBoundaryNotifications() {
+    func scheduleUpcomingBoundaryNotifications() {
         let isEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
         guard isEnabled, authorizationStatus == .authorized || authorizationStatus == .provisional else {
             UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
@@ -149,7 +150,7 @@ public final class NotificationManager: NSObject, ObservableObject, UNUserNotifi
     
     // MARK: - UNUserNotificationCenterDelegate
     
-    public nonisolated func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
@@ -162,7 +163,7 @@ public final class NotificationManager: NSObject, ObservableObject, UNUserNotifi
         #endif
     }
     
-    public nonisolated func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void

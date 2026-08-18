@@ -583,7 +583,56 @@ class LocalizationManager: ObservableObject {
             .arabic: "إعادة تعيين كلمة المرور", .chinese: "重置密码", .japanese: "パスワードを再設定", .korean: "비밀번호 재설정"
         ],
         "Enter your email to receive a recovery link": [
-"New Password": [
+            .english: "Enter your email to receive a recovery link", .german: "Gib deine E-Mail ein, um einen Link zu erhalten", .french: "Entrez votre e-mail pour recevoir un lien",
+            .spanish: "Introduce tu correo para recibir un enlace", .portuguese: "Digite seu e-mail para receber um link", .italian: "Inserisci la tua email per ricevere un link",
+            .arabic: "أدخل بريدك الإلكتروني لتلقي رابط الاسترداد", .chinese: "输入邮箱以接收重置链接", .japanese: "メールアドレスを入力して再設定リンクを受信", .korean: "복구 링크를 받을 이메일을 입력하세요"
+        ],
+        "SEND RESET LINK": [
+            .english: "SEND RESET LINK", .german: "LINK SENDEN", .french: "ENVOYER LE LIEN",
+            .spanish: "ENVIAR ENLACE", .portuguese: "ENVIAR LINK", .italian: "INVIA LINK",
+            .arabic: "إرسال الرابط", .chinese: "发送重置链接", .japanese: "再設定リンクを送信", .korean: "재설정 링크 보내기"
+        ],
+        "Password reset link sent! Check your inbox.": [
+            .english: "Password reset link sent! Check your inbox.", .german: "Reset-Link gesendet! Prüfe dein Postfach.", .french: "Lien envoyé ! Vérifiez votre boîte de réception.",
+            .spanish: "¡Enlace enviado! Revisa tu bandeja de entrada.", .portuguese: "Link enviado! Verifique sua caixa de entrada.", .italian: "Link inviato! Controlla la tua casella di posta.",
+            .arabic: "تم إرسال الرابط! تحقق من بريدك الوارد.", .chinese: "重置链接已发送！请查看您的收件箱。", .japanese: "リンクを送信しました！受信トレイを確認してください。", .korean: "재설정 링크가 전송되었습니다! 받은편지함을 확인하세요."
+        ],
+        "Back to Sign In": [
+            .english: "Back to Sign In", .german: "Zurück zur Anmeldung", .french: "Retour à la connexion",
+            .spanish: "Volver a iniciar sesión", .portuguese: "Voltar para o login", .italian: "Torna ad accedi",
+            .arabic: "العودة لتسجيل الدخول", .chinese: "返回登录", .japanese: "サインインに戻る", .korean: "로그인으로 돌아가기"
+        ],
+        "Password must be at least 6 characters": [
+            .english: "Password must be at least 6 characters", .german: "Passwort muss mindestens 6 Zeichen lang sein", .french: "Le mot de passe doit comporter au moins 6 caractères",
+            .spanish: "La contraseña debe tener al menos 6 caracteres", .portuguese: "A senha deve ter pelo menos 6 caracteres", .italian: "La password deve contenere almeno 6 caratteri",
+            .arabic: "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل", .chinese: "密码长度至少为 6 个字符", .japanese: "パスワードは6文字以上である必要があります", .korean: "비밀번호는 6자 이상이어야 합니다"
+        ],
+        "Set New Password": [
+            .english: "Set New Password", .german: "Neues Passwort festlegen", .french: "Définir un nouveau mot de passe",
+            .spanish: "Establecer nueva contraseña", .portuguese: "Definir nova senha", .italian: "Imposta nuova password",
+            .arabic: "تعيين كلمة مرور جديدة", .chinese: "设置新密码", .japanese: "新しいパスワードを設定", .korean: "새 비밀번호 설정"
+        ],
+        "Enter your new password below": [
+            .english: "Enter your new password below", .german: "Gib dein neues Passwort unten ein", .french: "Entrez votre nouveau mot de passe ci-dessous",
+            .spanish: "Introduce tu nueva contraseña abajo", .portuguese: "Digite sua nova senha abaixo", .italian: "Inserisci la tua nuova password qui sotto",
+            .arabic: "أدخل كلمة المرور الجديدة أدناه", .chinese: "在下方输入您的新密码", .japanese: "以下に新しいパスワードを入力してください", .korean: "아래에 새 비밀번호를 입력하세요"
+        ],
+        "SAVE NEW PASSWORD": [
+            .english: "SAVE NEW PASSWORD", .german: "NEUES PASSWORT SPEICHERN", .french: "ENREGISTRER LE MOT DE PASSE",
+            .spanish: "GUARDAR NUEVA CONTRASEÑA", .portuguese: "SALVAR NOVA SENHA", .italian: "SALVA NUOVA PASSWORD",
+            .arabic: "حفظ كلمة المرور الجديدة", .chinese: "保存新密码", .japanese: "新しいパスワードを保存", .korean: "새 비밀번호 저장"
+        ],
+        "Password updated successfully!": [
+            .english: "Password updated successfully!", .german: "Passwort erfolgreich aktualisiert!", .french: "Mot de passe mis à jour avec succès !",
+            .spanish: "¡Contraseña actualizada con éxito!", .portuguese: "Senha atualizada com sucesso!", .italian: "Password aggiornata con successo!",
+            .arabic: "تم تحديث كلمة المرور بنجاح!", .chinese: "密码更新成功！", .japanese: "パスワードが正常に更新されました！", .korean: "비밀번호가 성공적으로 업데이트되었습니다!"
+        ],
+        "Passwords do not match": [
+            .english: "Passwords do not match", .german: "Passwörter stimmen nicht überein", .french: "Les mots de passe ne correspondent pas",
+            .spanish: "Las contraseñas no coinciden", .portuguese: "As senhas não coincidem", .italian: "Le password non corrispondono",
+            .arabic: "كلمات المرور غير متطابقة", .chinese: "两次输入的密码不一致", .japanese: "パスワードが一致しません", .korean: "비밀번호가 일치하지 않습니다"
+        ],
+        "New Password": [
             .english: "New Password", .german: "Neues Passwort", .french: "Nouveau mot de passe",
             .spanish: "Nueva contraseña", .portuguese: "Nova senha", .italian: "Nuova password",
             .arabic: "كلمة المرور الجديدة", .chinese: "新密码", .japanese: "新しいパスワード", .korean: "새 비밀번호"
@@ -717,7 +766,7 @@ class LocalizationManager: ObservableObject {
         ],
         "Paper Unfold": [
             .english: "Paper Unfold", .german: "Papier entfalten", .french: "Déplier papier",
-            .spanish: "Desplegar papier", .portuguese: "Desdobrar papel", .italian: "Spiegare carta",
+            .spanish: "Desplegar papel", .portuguese: "Desdobrar papel", .italian: "Spiegare carta",
             .arabic: "فتح الورقة", .chinese: "展开纸张", .japanese: "ペーパーアンフォールド", .korean: "종이 펼치기"
         ],
         "Elastic Snap": [
@@ -883,83 +932,6 @@ class LocalizationManager: ObservableObject {
             .chinese: "该审查并规划您的任务了。",
             .japanese: "タスクを確認して計画しましょう。",
             .korean: "작업을 검토하고 계획할 시간입니다."
-        ]
-            .arabic: "تم تعطيل الإشعارات في إعدادات النظام.",
-            .chinese: "通知已在系统设置中被禁用。",
-            .japanese: "システム設定で通知が無効になっています。",
-            .korean: "시스템 설정에서 알림이 비활성화되어 있습니다."
-        ],
-        "Open System Settings": [
-            .english: "Open System Settings", .german: "Systemeinstellungen öffnen", .french: "Ouvrir les Réglages Système",
-            .spanish: "Abrir Ajustes del Sistema", .portuguese: "Abrir Ajustes do Sistema", .italian: "Apri Impostazioni di Sistema",
-            .arabic: "فتح إعدادات النظام", .chinese: "打开系统设置", .japanese: "システム設定を開く", .korean: "시스템 설정 열기"
-        ],
-        "Hour Migration Ready": [
-            .english: "Hour Migration Ready", .german: "Stunden-Migration bereit", .french: "Migration horaire prête",
-            .spanish: "Migración de hora lista", .portuguese: "Migração horária pronta", .italian: "Migrazione oraria pronta",
-            .arabic: "الترحيل بالساعة جاهز", .chinese: "小时迁移已就绪", .japanese: "時間移行の準備完了", .korean: "시간 마이그레이션 준비됨"
-        ],
-        "Time to choose your tasks for the upcoming hour.": [
-            .english: "Time to choose your tasks for the upcoming hour.",
-            .german: "Zeit, deine Aufgaben für die nächste Stunde auszuwählen.",
-            .french: "Il est temps de choisir vos tâches pour l'heure à venir.",
-            .spanish: "Es hora de elegir tus tareas para la próxima hora.",
-            .portuguese: "Hora de escolher suas tarefas para a próxima hora.",
-            .italian: "È ora di scegliere i compiti per la prossima ora.",
-            .arabic: "حان الوقت لاختيار مهامك للساعة القادمة.",
-            .chinese: "该选择下一小时要完成的任务了。",
-            .japanese: "次の1時間のタスクを選択する時間です。",
-            .korean: "다음 1시간 동안 진행할 작업을 선택할 시간입니다."
-        ],
-        "Day Migration Ready": [
-            .english: "Day Migration Ready", .german: "Tages-Migration bereit", .french: "Migration quotidienne prête",
-            .spanish: "Migración diaria lista", .portuguese: "Migração diária pronta", .italian: "Migrazione giornaliera pronta",
-            .arabic: "الترحيل اليومي جاهز", .chinese: "每日迁移已就绪", .japanese: "日次移行の準備完了", .korean: "일일 마이그레이션 준비됨"
-        ],
-        "Plan your tasks for today.": [
-            .english: "Plan your tasks for today.", .german: "Plane deine Aufgaben für den heutigen Tag.", .french: "Planifiez vos tâches pour aujourd'hui.",
-            .spanish: "Planifica tus tareas para hoy.", .portuguese: "Planeje suas tarefas para hoje.", .italian: "Pianifica i tuoi compiti per oggi.",
-            .arabic: "خطط لمهامك لهذا اليوم.", .chinese: "规划您今天的任务。", .japanese: "今日のタスクを計画しましょう。", .korean: "오늘의 작업을 계획하세요."
-        ],
-        "Week Migration Ready": [
-            .english: "Week Migration Ready", .german: "Wochen-Migration bereit", .french: "Migration hebdomadaire prête",
-            .spanish: "Migración semanal lista", .portuguese: "Migração semanal pronta", .italian: "Migrazione settimanale pronta",
-            .arabic: "الترحيل الأسبوعي جاهز", .chinese: "每周迁移已就绪", .japanese: "週次移行の準備完了", .korean: "주간 마이그레이션 준비됨"
-        ],
-        "Review and organize your week.": [
-            .english: "Review and organize your week.", .german: "Überprüfe und plane deine neue Woche.", .french: "Passez en revue et organisez votre semaine.",
-            .spanish: "Revisa y organiza tu semana.", .portuguese: "Revise e organize sua semana.", .italian: "Rivedi e organizza la tua settimana.",
-            .arabic: "راجع ونظم أسبوعك.", .chinese: "回顾并规划新的一周。", .japanese: "週のタスクを確認して整理しましょう。", .korean: "한 주를 검토하고 정리하세요."
-        ],
-        "Month Migration Ready": [
-            .english: "Month Migration Ready", .german: "Monats-Migration bereit", .french: "Migration mensuelle prête",
-            .spanish: "Migración mensual lista", .portuguese: "Migração mensal pronta", .italian: "Migrazione mensile pronta",
-            .arabic: "الترحيل الشهري جاهز", .chinese: "每月迁移已就绪", .japanese: "月次移行の準備完了", .korean: "월간 마이그레이션 준비됨"
-        ],
-        "Set your priorities for the new month.": [
-            .english: "Set your priorities for the new month.", .german: "Setze deine Prioritäten für den neuen Monat.", .french: "Définissez vos priorités pour le nouveau mois.",
-            .spanish: "Establece tus prioridades para el nuevo mes.", .portuguese: "Defina suas prioridades para o novo mês.", .italian: "Imposta le tue priorità per il nuovo mese.",
-            .arabic: "حدد أولوياتك للشهر الجديد.", .chinese: "设定新月份的优先事项。", .japanese: "新しい月の優先順位を設定しましょう。", .korean: "새로운 달의 우선순위를 정하세요."
-        ],
-        "Year Migration Ready": [
-            .english: "Year Migration Ready", .german: "Jahres-Migration bereit", .french: "Migration annuelle prête",
-            .spanish: "Migración anual lista", .portuguese: "Migração anual pronta", .italian: "Migrazione annuale pronta",
-            .arabic: "الترحيل السنوي جاهز", .chinese: "年度迁移已就绪", .japanese: "年次移行の準備完了", .korean: "연간 마이그레이션 준비됨"
-        ],
-        "Review your year and set new goals.": [
-            .english: "Review your year and set new goals.", .german: "Blicke auf das Jahr zurück und setze neue Ziele.", .french: "Passez en revue votre année et fixez de nouveaux objectifs.",
-            .spanish: "Revisa tu año y establece nuevas metas.", .portuguese: "Revise seu ano e defina novas metas.", .italian: "Rivedi il tuo anno e stabilisci nuovi obiettivi.",
-            .arabic: "راجع عامك وحدد أهدافًا جديدة.", .chinese: "回顾您的一年并设定新目标。", .japanese: "1年を振り返り、新しい目標を設定しましょう。", .korean: "한 해를 돌아보고 새로운 목표를 설정하세요."
-        ],
-        "Migration Ready": [
-            .english: "Migration Ready", .german: "Migration bereit", .french: "Migration prête",
-            .spanish: "Migración lista", .portuguese: "Migração pronta", .italian: "Migrazione pronta",
-            .arabic: "الترحيل جاهز", .chinese: "迁移已就绪", .japanese: "移行の準備完了", .korean: "마이그레이션 준비됨"
-        ],
-        "New interval migration is available.": [
-            .english: "New interval migration is available.", .german: "Neue Intervall-Migration ist verfügbar.", .french: "Une nouvelle migration d'intervalle est disponible.",
-            .spanish: "Nueva migración de intervalo disponible.", .portuguese: "Nova migração de intervalo disponível.", .italian: "Nuova migrazione di intervallo disponibile.",
-            .arabic: "ترحيل فاصل زمني جديد متاح.", .chinese: "新的区间迁移已可用。", .japanese: "新しいインターバル移行が利用可能です。", .korean: "새로운 간격 마이그레이션을 사용할 수 있습니다."
         ]
     ]
 }

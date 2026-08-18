@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 #if os(macOS)
 import AppKit
 #endif

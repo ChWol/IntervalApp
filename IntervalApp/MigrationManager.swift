@@ -356,19 +356,20 @@ class MigrationManager: ObservableObject {
         }
         
         if migration.dest == HabitTaskLink.hourInterval && !selectedHabitIds.isEmpty {
-            let hourHabitTasks = HabitTaskLink.createTasksForSelectedHabits(
-                selectedHabitIds: selectedHabitIds,
-                allHabits: allHabits,
-                existingTasks: allTasks,
-                startingOrder: maxOrder
+            let chosenHabits = allHabits.filter { selectedHabitIds.contains($0.id) }
+            let hourHabitTasks = HabitTaskLink.makeHourTasks(
+                for: chosenHabits,
+                existingHourTasks: allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval },
+                startingOrder: maxOrder,
+                now: now
             )
             for newTask in hourHabitTasks {
                 context.insert(newTask)
             }
         }
         
-        if !droppedTasks.isEmpty {
-            TaskHousekeeping.softDelete(droppedTasks, in: context, now: now)
+        for task in droppedTasks {
+            TaskHousekeeping.moveToBin(task, in: context, now: now)
         }
         
         try? context.save()
