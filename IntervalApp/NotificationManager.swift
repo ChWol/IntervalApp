@@ -57,7 +57,7 @@ public final class NotificationManager: NSObject, ObservableObject, UNUserNotifi
         #endif
     }
     
-    // MARK: - Migration Notifications
+    // MARK: - Migration / Interval Notifications
     
     public func sendMigrationNotification(for migration: Migration) {
         let isEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
@@ -66,30 +66,30 @@ public final class NotificationManager: NSObject, ObservableObject, UNUserNotifi
         let content = UNMutableNotificationContent()
         
         if migration.dest == HabitTaskLink.hourInterval {
-            content.title = "Hour Migration Ready".localized
-            content.body = "Time to choose your tasks for the upcoming hour.".localized
+            content.title = "A new hour begins".localized
+            content.body = "Time to choose your focus for the upcoming hour.".localized
         } else if migration.source == "1 Week" && migration.dest == "1 Day" {
-            content.title = "Day Migration Ready".localized
-            content.body = "Plan your tasks for today.".localized
+            content.title = "A new day begins".localized
+            content.body = "What would you like to focus on today?".localized
         } else if migration.source == "1 Month" && migration.dest == "1 Week" {
-            content.title = "Week Migration Ready".localized
-            content.body = "Review and organize your week.".localized
+            content.title = "A new week begins".localized
+            content.body = "Time to set your priorities for the week.".localized
         } else if migration.source == "1 Year" && migration.dest == "1 Month" {
-            content.title = "Month Migration Ready".localized
-            content.body = "Set your priorities for the new month.".localized
+            content.title = "A new month begins".localized
+            content.body = "Time to review your monthly goals.".localized
         } else if migration.source == "1 Year" && migration.dest == "1 Year" {
-            content.title = "Year Migration Ready".localized
-            content.body = "Review your year and set new goals.".localized
+            content.title = "A new year begins".localized
+            content.body = "Reflect on the past year and set new goals.".localized
         } else {
-            content.title = "Migration Ready".localized
-            content.body = "New interval migration is available.".localized
+            content.title = "A new interval begins".localized
+            content.body = "Time to review and plan your tasks.".localized
         }
         
         content.sound = .default
         content.userInfo = ["type": "migration", "source": migration.source, "dest": migration.dest]
         
         let request = UNNotificationRequest(
-            identifier: "migration_\(Date().timeIntervalSince1970)",
+            identifier: "interval_alert_\(Date().timeIntervalSince1970)",
             content: content,
             trigger: nil // Deliver immediately
         )
@@ -122,8 +122,8 @@ public final class NotificationManager: NSObject, ObservableObject, UNUserNotifi
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             
             let content = UNMutableNotificationContent()
-            content.title = "Hour Migration Ready".localized
-            content.body = "Time to choose your tasks for the upcoming hour.".localized
+            content.title = "A new hour begins".localized
+            content.body = "Time to choose your focus for the upcoming hour.".localized
             content.sound = .default
             content.userInfo = ["type": "migration", "source": "1 Day", "dest": "1 Hour"]
             
@@ -137,8 +137,8 @@ public final class NotificationManager: NSObject, ObservableObject, UNUserNotifi
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             
             let content = UNMutableNotificationContent()
-            content.title = "Day Migration Ready".localized
-            content.body = "Plan your tasks for today.".localized
+            content.title = "A new day begins".localized
+            content.body = "What would you like to focus on today?".localized
             content.sound = .default
             content.userInfo = ["type": "migration", "source": "1 Week", "dest": "1 Day"]
             

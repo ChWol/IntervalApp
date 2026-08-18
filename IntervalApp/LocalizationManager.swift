@@ -583,56 +583,7 @@ class LocalizationManager: ObservableObject {
             .arabic: "إعادة تعيين كلمة المرور", .chinese: "重置密码", .japanese: "パスワードを再設定", .korean: "비밀번호 재설정"
         ],
         "Enter your email to receive a recovery link": [
-            .english: "Enter your email to receive a recovery link", .german: "Gib deine E-Mail ein, um einen Link zu erhalten", .french: "Entrez votre e-mail pour recevoir un lien",
-            .spanish: "Introduce tu correo para recibir un enlace", .portuguese: "Digite seu e-mail para receber um link", .italian: "Inserisci la tua email per ricevere un link",
-            .arabic: "أدخل بريدك الإلكتروني لتلقي رابط الاسترداد", .chinese: "输入邮箱以接收重置链接", .japanese: "メールアドレスを入力して再設定リンクを受信", .korean: "복구 링크를 받을 이메일을 입력하세요"
-        ],
-        "SEND RESET LINK": [
-            .english: "SEND RESET LINK", .german: "LINK SENDEN", .french: "ENVOYER LE LIEN",
-            .spanish: "ENVIAR ENLACE", .portuguese: "ENVIAR LINK", .italian: "INVIA LINK",
-            .arabic: "إرسال الرابط", .chinese: "发送重置链接", .japanese: "再設定リンクを送信", .korean: "재설정 링크 보내기"
-        ],
-        "Password reset link sent! Check your inbox.": [
-            .english: "Password reset link sent! Check your inbox.", .german: "Reset-Link gesendet! Prüfe dein Postfach.", .french: "Lien envoyé ! Vérifiez votre boîte de réception.",
-            .spanish: "¡Enlace enviado! Revisa tu bandeja de entrada.", .portuguese: "Link enviado! Verifique sua caixa de entrada.", .italian: "Link inviato! Controlla la tua casella di posta.",
-            .arabic: "تم إرسال الرابط! تحقق من بريدك الوارد.", .chinese: "重置链接已发送！请查看您的收件箱。", .japanese: "リンクを送信しました！受信トレイを確認してください。", .korean: "재설정 링크가 전송되었습니다! 받은편지함을 확인하세요."
-        ],
-        "Back to Sign In": [
-            .english: "Back to Sign In", .german: "Zurück zur Anmeldung", .french: "Retour à la connexion",
-            .spanish: "Volver a iniciar sesión", .portuguese: "Voltar para o login", .italian: "Torna ad accedi",
-            .arabic: "العودة لتسجيل الدخول", .chinese: "返回登录", .japanese: "サインインに戻る", .korean: "로그인으로 돌아가기"
-        ],
-        "Password must be at least 6 characters": [
-            .english: "Password must be at least 6 characters", .german: "Passwort muss mindestens 6 Zeichen lang sein", .french: "Le mot de passe doit comporter au moins 6 caractères",
-            .spanish: "La contraseña debe tener al menos 6 caracteres", .portuguese: "A senha deve ter pelo menos 6 caracteres", .italian: "La password deve contenere almeno 6 caratteri",
-            .arabic: "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل", .chinese: "密码长度至少为 6 个字符", .japanese: "パスワードは6文字以上である必要があります", .korean: "비밀번호는 6자 이상이어야 합니다"
-        ],
-        "Set New Password": [
-            .english: "Set New Password", .german: "Neues Passwort festlegen", .french: "Définir un nouveau mot de passe",
-            .spanish: "Establecer nueva contraseña", .portuguese: "Definir nova senha", .italian: "Imposta nuova password",
-            .arabic: "تعيين كلمة مرور جديدة", .chinese: "设置新密码", .japanese: "新しいパスワードを設定", .korean: "새 비밀번호 설정"
-        ],
-        "Enter your new password below": [
-            .english: "Enter your new password below", .german: "Gib dein neues Passwort unten ein", .french: "Entrez votre nouveau mot de passe ci-dessous",
-            .spanish: "Introduce tu nueva contraseña abajo", .portuguese: "Digite sua nova senha abaixo", .italian: "Inserisci la tua nuova password qui sotto",
-            .arabic: "أدخل كلمة المرور الجديدة أدناه", .chinese: "在下方输入您的新密码", .japanese: "以下に新しいパスワードを入力してください", .korean: "아래에 새 비밀번호를 입력하세요"
-        ],
-        "SAVE NEW PASSWORD": [
-            .english: "SAVE NEW PASSWORD", .german: "NEUES PASSWORT SPEICHERN", .french: "ENREGISTRER LE MOT DE PASSE",
-            .spanish: "GUARDAR NUEVA CONTRASEÑA", .portuguese: "SALVAR NOVA SENHA", .italian: "SALVA NUOVA PASSWORD",
-            .arabic: "حفظ كلمة المرور الجديدة", .chinese: "保存新密码", .japanese: "新しいパスワードを保存", .korean: "새 비밀번호 저장"
-        ],
-        "Password updated successfully!": [
-            .english: "Password updated successfully!", .german: "Passwort erfolgreich aktualisiert!", .french: "Mot de passe mis à jour avec succès !",
-            .spanish: "¡Contraseña actualizada con éxito!", .portuguese: "Senha atualizada com sucesso!", .italian: "Password aggiornata con successo!",
-            .arabic: "تم تحديث كلمة المرور بنجاح!", .chinese: "密码更新成功！", .japanese: "パスワードが正常に更新されました！", .korean: "비밀번호가 성공적으로 업데이트되었습니다!"
-        ],
-        "Passwords do not match": [
-            .english: "Passwords do not match", .german: "Passwörter stimmen nicht überein", .french: "Les mots de passe ne correspondent pas",
-            .spanish: "Las contraseñas no coinciden", .portuguese: "As senhas não coincidem", .italian: "Le password non corrispondono",
-            .arabic: "كلمات المرور غير متطابقة", .chinese: "两次输入的密码不一致", .japanese: "パスワードが一致しません", .korean: "비밀번호가 일치하지 않습니다"
-        ],
-        "New Password": [
+"New Password": [
             .english: "New Password", .german: "Neues Passwort", .french: "Nouveau mot de passe",
             .spanish: "Nueva contraseña", .portuguese: "Nova senha", .italian: "Nuova password",
             .arabic: "كلمة المرور الجديدة", .chinese: "新密码", .japanese: "新しいパスワード", .korean: "새 비밀번호"
@@ -766,7 +717,7 @@ class LocalizationManager: ObservableObject {
         ],
         "Paper Unfold": [
             .english: "Paper Unfold", .german: "Papier entfalten", .french: "Déplier papier",
-            .spanish: "Desplegar papel", .portuguese: "Desdobrar papel", .italian: "Spiegare carta",
+            .spanish: "Desplegar papier", .portuguese: "Desdobrar papel", .italian: "Spiegare carta",
             .arabic: "فتح الورقة", .chinese: "展开纸张", .japanese: "ペーパーアンフォールド", .korean: "종이 펼치기"
         ],
         "Elastic Snap": [
@@ -809,10 +760,10 @@ class LocalizationManager: ObservableObject {
             .spanish: "NOTIFICACIONES", .portuguese: "NOTIFICAÇÕES", .italian: "NOTIFICHE",
             .arabic: "الإشعارات", .chinese: "通知", .japanese: "通知", .korean: "알림"
         ],
-        "Migration Notifications": [
-            .english: "Migration Notifications", .german: "Migrations-Mitteilungen", .french: "Notifications de migration",
-            .spanish: "Notificaciones de migración", .portuguese: "Notificações de migração", .italian: "Notifiche di migrazione",
-            .arabic: "إشعارات الترحيل", .chinese: "迁移提醒通知", .japanese: "移行通知", .korean: "마이그레이션 알림"
+        "Interval Notifications": [
+            .english: "Interval Notifications", .german: "Intervall-Erinnerungen", .french: "Rappels d'intervalle",
+            .spanish: "Recordatorios de intervalo", .portuguese: "Lembretes de intervalo", .italian: "Promemoria intervalli",
+            .arabic: "تذكيرات الفواصل الزمنية", .chinese: "区间提醒", .japanese: "インターバル通知", .korean: "간격 알림"
         ],
         "Notifications are disabled in System Settings.": [
             .english: "Notifications are disabled in System Settings.",
@@ -821,6 +772,118 @@ class LocalizationManager: ObservableObject {
             .spanish: "Las notificaciones están desactivadas en Ajustes del Sistema.",
             .portuguese: "As notificações estão desativadas nos Ajustes do Sistema.",
             .italian: "Le notifiche sono disattivate nelle Impostazioni di Sistema.",
+            .arabic: "تم تعطيل الإشعارات في إعدادات النظام.",
+            .chinese: "通知已在系统设置中被禁用。",
+            .japanese: "システム設定で通知が無効になっています。",
+            .korean: "시스템 설정에서 알림이 비활성화되어 있습니다."
+        ],
+        "Open System Settings": [
+            .english: "Open System Settings", .german: "Systemeinstellungen öffnen", .french: "Ouvrir les Réglages Système",
+            .spanish: "Abrir Ajustes del Sistema", .portuguese: "Abrir Ajustes do Sistema", .italian: "Apri Impostazioni di Sistema",
+            .arabic: "فتح إعدادات النظام", .chinese: "打开系统设置", .japanese: "システム設定を開く", .korean: "시스템 설정 열기"
+        ],
+        "A new hour begins": [
+            .english: "A new hour begins", .german: "Eine neue Stunde beginnt", .french: "Une nouvelle heure commence",
+            .spanish: "Comienza una nueva hora", .portuguese: "Uma nova hora começa", .italian: "Inizia una nuova ora",
+            .arabic: "تبدأ ساعة جديدة", .chinese: "新的一小时开始了", .japanese: "新しい1時間が始まります", .korean: "새로운 한 시간이 시작됩니다"
+        ],
+        "Time to choose your focus for the upcoming hour.": [
+            .english: "Time to choose your focus for the upcoming hour.",
+            .german: "Zeit, deinen Fokus für die nächste Stunde zu wählen.",
+            .french: "Il est temps de choisir vos priorités pour l'heure à venir.",
+            .spanish: "Es hora de elegir tu enfoque para la próxima hora.",
+            .portuguese: "Hora de escolher seu foco para a próxima hora.",
+            .italian: "È ora di scegliere il tuo obiettivo per la prossima ora.",
+            .arabic: "حان الوقت لاختيار تركيزك للساعة القادمة.",
+            .chinese: "该选择您下一小时的专注目标了。",
+            .japanese: "次の1時間の集中項目を選びましょう。",
+            .korean: "다음 한 시간 동안 집중할 작업을 선택하세요."
+        ],
+        "A new day begins": [
+            .english: "A new day begins", .german: "Ein neuer Tag beginnt", .french: "Une nouvelle journée commence",
+            .spanish: "Comienza un nuevo día", .portuguese: "Um novo dia começa", .italian: "Inizia una nuova giornata",
+            .arabic: "يبدأ يوم جديد", .chinese: "新的一天开始了", .japanese: "新しい一日が始まります", .korean: "새로운 하루가 시작됩니다"
+        ],
+        "What would you like to focus on today?": [
+            .english: "What would you like to focus on today?",
+            .german: "Worauf möchtest du dich heute konzentrieren?",
+            .french: "Sur quoi souhaitez-vous vous concentrer aujourd'hui ?",
+            .spanish: "¿En qué te gustaría enfocarte hoy?",
+            .portuguese: "No que você gostaria de se concentrar hoje?",
+            .italian: "Su cosa vorresti concentrarti oggi?",
+            .arabic: "على ماذا تود أن تركز اليوم؟",
+            .chinese: "今天您想专注于什么？",
+            .japanese: "今日は何に集中しますか？",
+            .korean: "오늘 어떤 일에 집중하고 싶으신가요?"
+        ],
+        "A new week begins": [
+            .english: "A new week begins", .german: "Eine neue Woche startet", .french: "Une nouvelle semaine commence",
+            .spanish: "Comienza una nueva semana", .portuguese: "Uma nova semana começa", .italian: "Inizia una nuova settimana",
+            .arabic: "يبدأ أسبوع جديد", .chinese: "新的一周开始了", .japanese: "新しい一週間が始まります", .korean: "새로운 한 주가 시작됩니다"
+        ],
+        "Time to set your priorities for the week.": [
+            .english: "Time to set your priorities for the week.",
+            .german: "Zeit, deine Prioritäten für die Woche zu setzen.",
+            .french: "Il est temps de définir vos priorités pour la semaine.",
+            .spanish: "Es hora de establecer tus prioridades para la semana.",
+            .portuguese: "Hora de definir suas prioridades para a semana.",
+            .italian: "È ora di stabilire le tue priorità per la settimana.",
+            .arabic: "حان الوقت لتحديد أولوياتك لهذا الأسبوع.",
+            .chinese: "该设定您本周的优先事项了。",
+            .japanese: "今週の優先順位を設定しましょう。",
+            .korean: "이번 주의 우선순위를 정할 시간입니다."
+        ],
+        "A new month begins": [
+            .english: "A new month begins", .german: "Ein neuer Monat bricht an", .french: "Un nouveau mois commence",
+            .spanish: "Comienza un nuevo mes", .portuguese: "Um novo mês começa", .italian: "Inizia un nuovo mese",
+            .arabic: "يبدأ شهر جديد", .chinese: "新的一月开始了", .japanese: "新しい月が始まります", .korean: "새로운 한 달이 시작됩니다"
+        ],
+        "Time to review your monthly goals.": [
+            .english: "Time to review your monthly goals.",
+            .german: "Zeit, deine Monatsziele zu überprüfen.",
+            .french: "Il est temps de revoir vos objectifs du mois.",
+            .spanish: "Es hora de revisar tus objetivos mensuales.",
+            .portuguese: "Hora de revisar seus objetivos do mês.",
+            .italian: "È ora di rivedere i tuoi obiettivi mensili.",
+            .arabic: "حان الوقت لمراجعة أهدافك الشهرية.",
+            .chinese: "该回顾您的月度目标了。",
+            .japanese: "今月の目標を確認しましょう。",
+            .korean: "이번 달의 목표를 점검할 시간입니다."
+        ],
+        "A new year begins": [
+            .english: "A new year begins", .german: "Ein neues Jahr beginnt", .french: "Une nouvelle année commence",
+            .spanish: "Comienza un nuevo año", .portuguese: "Um novo ano começa", .italian: "Inizia un nuovo anno",
+            .arabic: "تبدأ سنة جديدة", .chinese: "新的一年开始了", .japanese: "新しい一年が始まります", .korean: "새로운 한 해가 시작됩니다"
+        ],
+        "Reflect on the past year and set new goals.": [
+            .english: "Reflect on the past year and set new goals.",
+            .german: "Blicke zurück und setze deine Ziele für das neue Jahr.",
+            .french: "Faites le point sur l'année écoulée et fixez vos nouveaux objectifs.",
+            .spanish: "Reflexiona sobre el año pasado y establece nuevos objetivos.",
+            .portuguese: "Reflita sobre o ano que passou e defina novas metas.",
+            .italian: "Rifletti sull'anno passato e stabilisci nuovi obiettivi.",
+            .arabic: "تأمل في العام الماضي وحدد أهدافًا جديدة.",
+            .chinese: "回顾过去的一年，并设定新一年的目标。",
+            .japanese: "昨年を振り返り、新しい年の目標を設定しましょう。",
+            .korean: "지난 한 해를 돌아보고 새해 목표를 설정하세요."
+        ],
+        "A new interval begins": [
+            .english: "A new interval begins", .german: "Ein neues Intervall beginnt", .french: "Un nouvel intervalle commence",
+            .spanish: "Comienza un nuevo intervalo", .portuguese: "Um novo intervalo começa", .italian: "Inizia un nuovo intervallo",
+            .arabic: "يبدأ فاصل زمني جديد", .chinese: "新的区间开始了", .japanese: "新しいインターバルが始まります", .korean: "새로운 간격이 시작됩니다"
+        ],
+        "Time to review and plan your tasks.": [
+            .english: "Time to review and plan your tasks.",
+            .german: "Zeit, deine Aufgaben zu überprüfen und zu planen.",
+            .french: "Il est temps de revoir et planifier vos tâches.",
+            .spanish: "Es hora de revisar y planificar tus tareas.",
+            .portuguese: "Hora de revisar e planejar suas tarefas.",
+            .italian: "È ora di rivedere e pianificare i tuoi compiti.",
+            .arabic: "حان الوقت لمراجعة وتخطيط مهامك.",
+            .chinese: "该审查并规划您的任务了。",
+            .japanese: "タスクを確認して計画しましょう。",
+            .korean: "작업을 검토하고 계획할 시간입니다."
+        ]
             .arabic: "تم تعطيل الإشعارات في إعدادات النظام.",
             .chinese: "通知已在系统设置中被禁用。",
             .japanese: "システム設定で通知が無効になっています。",

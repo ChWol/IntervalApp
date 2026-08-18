@@ -165,7 +165,7 @@ struct SettingsView: View {
                                 handleNotificationToggle()
                             }) {
                                 HStack(spacing: 12) {
-                                    Text("Migration Notifications".localized)
+                                    Text("Interval Notifications".localized)
                                         .font(.system(size: 12, weight: .light))
                                         .foregroundColor(.primary)
 
