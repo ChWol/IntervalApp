@@ -15,6 +15,8 @@ struct Migration: Identifiable {
 
 @MainActor
 class MigrationManager: ObservableObject {
+    public static let shared = MigrationManager()
+    
     @Published var currentMigration: Migration? = nil
     
     private enum StoreKey {
@@ -64,19 +66,49 @@ class MigrationManager: ObservableObject {
         return f
     }()
     
+    // MARK: - Synchronized Marker Storage (Local + iCloud NSUbiquitousKeyValueStore)
+    
+    private func getMarker(for key: String, defaultVal: String) -> String {
+        let local = UserDefaults.standard.string(forKey: key)
+        let cloud = NSUbiquitousKeyValueStore.default.string(forKey: key)
+        
+        if let l = local, let c = cloud {
+            let best = max(l, c)
+            if l != best {
+                UserDefaults.standard.set(best, forKey: key)
+            }
+            return best
+        }
+        if let c = cloud {
+            UserDefaults.standard.set(c, forKey: key)
+            return c
+        }
+        if let l = local {
+            NSUbiquitousKeyValueStore.default.set(l, forKey: key)
+            return l
+        }
+        return defaultVal
+    }
+    
+    private func setMarker(_ value: String, for key: String) {
+        UserDefaults.standard.set(value, forKey: key)
+        NSUbiquitousKeyValueStore.default.set(value, forKey: key)
+        NSUbiquitousKeyValueStore.default.synchronize()
+    }
+    
     func startMonitoring(context: ModelContext) {
         self.modelContext = context
         cancellables.removeAll()
         
         // Initial setup for first install
-        let defaults = UserDefaults.standard
         let now = Date()
-        if defaults.string(forKey: StoreKey.lastHandledHour) == nil {
-            defaults.set(Self.hourFormatter.string(from: now), forKey: StoreKey.lastHandledHour)
-            defaults.set(Self.dayFormatter.string(from: now), forKey: StoreKey.lastHandledDay)
-            defaults.set(Self.weekFormatter.string(from: now), forKey: StoreKey.lastHandledWeek)
-            defaults.set(Self.monthFormatter.string(from: now), forKey: StoreKey.lastHandledMonth)
-            defaults.set(Self.yearFormatter.string(from: now), forKey: StoreKey.lastHandledYear)
+        if UserDefaults.standard.string(forKey: StoreKey.lastHandledHour) == nil &&
+           NSUbiquitousKeyValueStore.default.string(forKey: StoreKey.lastHandledHour) == nil {
+            setMarker(Self.hourFormatter.string(from: now), for: StoreKey.lastHandledHour)
+            setMarker(Self.dayFormatter.string(from: now), for: StoreKey.lastHandledDay)
+            setMarker(Self.weekFormatter.string(from: now), for: StoreKey.lastHandledWeek)
+            setMarker(Self.monthFormatter.string(from: now), for: StoreKey.lastHandledMonth)
+            setMarker(Self.yearFormatter.string(from: now), for: StoreKey.lastHandledYear)
         }
         
         // Check migrations on launch
@@ -96,8 +128,15 @@ class MigrationManager: ObservableObject {
                 self?.checkMigrations()
             }
             .store(in: &cancellables)
+            
+        // 3. React when iCloud Key-Value store syncs markers from other devices
+        NotificationCenter.default.publisher(for: NSUbiquitousKeyValueStore.didChangeExternallyNotification)
+            .sink { [weak self] _ in
+                self?.syncFromCloudStore()
+            }
+            .store(in: &cancellables)
         
-        // 3. System calendar and clock notifications
+        // 4. System calendar and clock notifications
         #if os(macOS)
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
             .sink { [weak self] _ in self?.checkMigrations() }
@@ -127,6 +166,55 @@ class MigrationManager: ObservableObject {
         scheduleNextHourTimer()
     }
     
+    private func syncFromCloudStore() {
+        let keys = [
+            StoreKey.lastHandledHour,
+            StoreKey.lastHandledDay,
+            StoreKey.lastHandledWeek,
+            StoreKey.lastHandledMonth,
+            StoreKey.lastHandledYear
+        ]
+        for key in keys {
+            if let cloudVal = NSUbiquitousKeyValueStore.default.string(forKey: key) {
+                let localVal = UserDefaults.standard.string(forKey: key) ?? ""
+                if cloudVal > localVal {
+                    UserDefaults.standard.set(cloudVal, forKey: key)
+                }
+            }
+        }
+        
+        // If a migration is currently showing but its marker was updated from another device, dismiss it!
+        if let current = currentMigration {
+            let now = Date()
+            let currentHour = Self.hourFormatter.string(from: now)
+            let currentDay = Self.dayFormatter.string(from: now)
+            let currentWeek = Self.weekFormatter.string(from: now)
+            let currentMonth = Self.monthFormatter.string(from: now)
+            let currentYear = Self.yearFormatter.string(from: now)
+            
+            var isAlreadyHandled = false
+            if current.source == "1 Year" && current.dest == "1 Year" && getMarker(for: StoreKey.lastHandledYear, defaultVal: "") >= currentYear {
+                isAlreadyHandled = true
+            } else if current.source == "1 Year" && current.dest == "1 Month" && getMarker(for: StoreKey.lastHandledMonth, defaultVal: "") >= currentMonth {
+                isAlreadyHandled = true
+            } else if current.source == "1 Month" && current.dest == "1 Week" && getMarker(for: StoreKey.lastHandledWeek, defaultVal: "") >= currentWeek {
+                isAlreadyHandled = true
+            } else if current.source == "1 Week" && current.dest == "1 Day" && getMarker(for: StoreKey.lastHandledDay, defaultVal: "") >= currentDay {
+                isAlreadyHandled = true
+            } else if current.dest == HabitTaskLink.hourInterval && getMarker(for: StoreKey.lastHandledHour, defaultVal: "") >= currentHour {
+                isAlreadyHandled = true
+            }
+            
+            if isAlreadyHandled {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    self.currentMigration = nil
+                }
+            }
+        }
+        
+        self.checkMigrations()
+    }
+    
     private func scheduleNextHourTimer() {
         let now = Date()
         let cal = Calendar.current
@@ -148,7 +236,6 @@ class MigrationManager: ObservableObject {
         guard currentMigration == nil else { return }
         guard let _ = modelContext else { return }
         
-        let defaults = UserDefaults.standard
         let now = Date()
         
         let currentYear = Self.yearFormatter.string(from: now)
@@ -157,11 +244,11 @@ class MigrationManager: ObservableObject {
         let currentDay = Self.dayFormatter.string(from: now)
         let currentHour = Self.hourFormatter.string(from: now)
         
-        let lastHandledYear = defaults.string(forKey: StoreKey.lastHandledYear) ?? currentYear
-        let lastHandledMonth = defaults.string(forKey: StoreKey.lastHandledMonth) ?? currentMonth
-        let lastHandledWeek = defaults.string(forKey: StoreKey.lastHandledWeek) ?? currentWeek
-        let lastHandledDay = defaults.string(forKey: StoreKey.lastHandledDay) ?? currentDay
-        let lastHandledHour = defaults.string(forKey: StoreKey.lastHandledHour) ?? currentHour
+        let lastHandledYear = getMarker(for: StoreKey.lastHandledYear, defaultVal: currentYear)
+        let lastHandledMonth = getMarker(for: StoreKey.lastHandledMonth, defaultVal: currentMonth)
+        let lastHandledWeek = getMarker(for: StoreKey.lastHandledWeek, defaultVal: currentWeek)
+        let lastHandledDay = getMarker(for: StoreKey.lastHandledDay, defaultVal: currentDay)
+        let lastHandledHour = getMarker(for: StoreKey.lastHandledHour, defaultVal: currentHour)
         
         var pending: Migration? = nil
         var targetStoreKey: String? = nil
@@ -196,7 +283,7 @@ class MigrationManager: ObservableObject {
         let habitCount = migration.dest == HabitTaskLink.hourInterval ? selectableHabits(tasks: tasks).count : 0
         
         if MigrationSchedule.shouldPresent(migration, sourceTaskCount: sourceCount, selectableHabitCount: habitCount) {
-            defaults.set(marker, forKey: key)
+            setMarker(marker, for: key)
             SoundManager.playTransitionChime()
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentMigration = migration
@@ -210,15 +297,13 @@ class MigrationManager: ObservableObject {
         } else {
             // Source list is empty (and for hour migration, uncompleted habits for today are also empty)
             if migration.source == "1 Week" && migration.dest == "1 Day" {
-                defaults.set(marker, forKey: key)
+                setMarker(marker, for: key)
                 presentFirstHourOfDay()
             } else if migration.source == "1 Year" && migration.dest == "1 Month" {
-                defaults.set(marker, forKey: key)
+                setMarker(marker, for: key)
             } else if migration.source == "1 Month" && migration.dest == "1 Week" {
-                defaults.set(marker, forKey: key)
+                setMarker(marker, for: key)
             }
-            // For hour migration: if sourceCount == 0 && habitCount == 0, we don't consume the key immediately
-            // so that if tasks sync from the cloud a second later during this hour, it can still trigger.
         }
     }
     
@@ -230,7 +315,7 @@ class MigrationManager: ObservableObject {
         let migration = Migration(source: "1 Day", dest: HabitTaskLink.hourInterval, isFirstHourOfDay: true)
         if MigrationSchedule.shouldPresent(migration, sourceTaskCount: sourceCount, selectableHabitCount: habitCount) {
             let currentHour = Self.hourFormatter.string(from: Date())
-            UserDefaults.standard.set(currentHour, forKey: StoreKey.lastHandledHour)
+            setMarker(currentHour, for: StoreKey.lastHandledHour)
             SoundManager.playTransitionChime()
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentMigration = migration
@@ -261,48 +346,37 @@ class MigrationManager: ObservableObject {
                 task.order = maxOrder
                 task.updatedAt = now
                 maxOrder += 1
-            } else if migration.source == migration.dest {
+            } else {
                 droppedTasks.append(task)
             }
         }
         
-        // Habits picked in the hourly step become hour tasks that stay tied to the habit.
-        if !selectedHabitIds.isEmpty {
-            let chosen = allHabits.filter { selectedHabitIds.contains($0.id) }
-            let created = HabitTaskLink.makeHourTasks(
-                for: chosen,
-                existingHourTasks: allTasks.filter { $0.intervalType == migration.dest },
-                startingOrder: maxOrder,
-                now: now
+        if migration.dest == HabitTaskLink.hourInterval && !selectedHabitIds.isEmpty {
+            let hourHabitTasks = HabitTaskLink.createTasksForSelectedHabits(
+                selectedHabitIds: selectedHabitIds,
+                allHabits: allHabits,
+                existingTasks: allTasks,
+                startingOrder: maxOrder
             )
-            for task in created {
-                context.insert(task)
-                maxOrder += 1
+            for newTask in hourHabitTasks {
+                context.insert(newTask)
             }
         }
         
         if !droppedTasks.isEmpty {
-            SupabaseSyncManager.shared.deleteRemote(table: SyncTable.tasks, ids: droppedTasks.map { $0.id })
-            for task in droppedTasks {
-                context.delete(task)
-            }
+            TaskHousekeeping.softDelete(droppedTasks, in: context, now: now)
         }
         
         try? context.save()
         SupabaseSyncManager.shared.push()
+        
+        let completedMigration = currentMigration
         withAnimation(.easeInOut(duration: 0.15)) {
             currentMigration = nil
         }
         
-        // Once the day is planned, move straight on to the first hour of that day if tasks/habits exist
-        if migration.source == "1 Week" && migration.dest == "1 Day" {
+        if let completedMigration, completedMigration.source == "1 Week" && completedMigration.dest == "1 Day" {
             presentFirstHourOfDay()
-        }
-    }
-    
-    func triggerSimulatedMigration(source: String, dest: String) {
-        withAnimation(.easeInOut(duration: 0.2)) {
-            currentMigration = Migration(source: source, dest: dest)
         }
     }
     
