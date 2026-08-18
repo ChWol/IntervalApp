@@ -96,6 +96,7 @@ struct SettingsView: View {
     @State private var showImportModal: Bool = false
     @State private var playingEffect: SoundEffect? = nil
     @State private var hoveredSoundId: String? = nil
+    @State private var hoveredMigrationId: String? = nil
     
     var onClose: () -> Void
 
@@ -278,6 +279,53 @@ struct SettingsView: View {
                         }
                         .padding(.vertical, 4)
                         .transition(.opacity)
+                    }
+
+                    // MARK: - Manual Interval Review & Migration
+                    VStack(alignment: .leading, spacing: 12) {
+                        sectionLabel("INTERVAL REVIEW & MIGRATION".localized)
+                        
+                        Text("Manually start an interval review to reflect, reorganize, and plan your tasks:".localized)
+                            .font(.system(size: 12, weight: .light))
+                            .foregroundColor(.secondary)
+                        
+                        VStack(spacing: 6) {
+                            migrationButton(
+                                id: "day",
+                                title: "Daily Review & Planning".localized,
+                                subtitle: "Plan today's tasks from your 1 Week list".localized,
+                                icon: "sun.max",
+                                source: "1 Week",
+                                dest: "1 Day"
+                            )
+                            
+                            migrationButton(
+                                id: "week",
+                                title: "Weekly Review & Planning".localized,
+                                subtitle: "Plan the upcoming week from your 1 Month list".localized,
+                                icon: "calendar",
+                                source: "1 Month",
+                                dest: "1 Week"
+                            )
+                            
+                            migrationButton(
+                                id: "month",
+                                title: "Monthly Review & Realignment".localized,
+                                subtitle: "Plan this month from your 1 Year goals".localized,
+                                icon: "calendar.badge.clock",
+                                source: "1 Year",
+                                dest: "1 Month"
+                            )
+                            
+                            migrationButton(
+                                id: "year",
+                                title: "Annual Goals & Reflection".localized,
+                                subtitle: "Review and set your long-term goals for the year".localized,
+                                icon: "sparkles",
+                                source: "1 Year",
+                                dest: "1 Year"
+                            )
+                        }
                     }
 
                     // MARK: - Data & Import
@@ -643,6 +691,52 @@ struct SettingsView: View {
     }
 
     // MARK: - Helpers
+
+    @ViewBuilder
+    private func migrationButton(id: String, title: String, subtitle: String, icon: String, source: String, dest: String) -> some View {
+        let isHovered = hoveredMigrationId == id
+        Button(action: {
+            MigrationManager.shared.triggerManualMigration(source: source, dest: dest)
+            onClose()
+        }) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .light))
+                    .foregroundColor(isHovered ? .primary : .secondary)
+                    .frame(width: 20)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(isHovered ? .primary : .primary.opacity(0.85))
+                    
+                    Text(subtitle)
+                        .font(.system(size: 11, weight: .light))
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 10, weight: .light))
+                    .foregroundColor(isHovered ? .primary : .secondary.opacity(0.4))
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.primary.opacity(colorScheme == .dark ? (isHovered ? 0.08 : 0.04) : (isHovered ? 0.06 : 0.02)))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .pointingHandCursor()
+        .onHover { h in
+            withAnimation(.easeInOut(duration: 0.12)) {
+                hoveredMigrationId = h ? id : nil
+            }
+        }
+    }
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text)

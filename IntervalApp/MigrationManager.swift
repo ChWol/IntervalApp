@@ -355,6 +355,16 @@ class MigrationManager: ObservableObject {
         }
     }
     
+    // MARK: - Manual Migration Trigger (from Settings)
+    
+    func triggerManualMigration(source: String, dest: String) {
+        let migration = Migration(source: source, dest: dest)
+        SoundManager.playTransitionChime()
+        withAnimation(.easeInOut(duration: 0.2)) {
+            self.currentMigration = migration
+        }
+    }
+    
     func executeMigration(migration: Migration,
                           selectedTaskIds: Set<String>,
                           selectedHabitIds: Set<String> = []) {
