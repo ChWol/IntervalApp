@@ -28,6 +28,11 @@ struct ContentView: View {
     @State private var showUpdatePasswordModal = false
     @State private var showImportModal = false
     
+    @State private var hoveredTopButton: String? = nil
+    @State private var isOnboardingImportHovered = false
+    @State private var isOnboardingFreshHovered = false
+    @State private var isOnboardingCloseHovered = false
+    
     enum ViewMode {
         case intervals
         case scratchpad
@@ -276,19 +281,22 @@ struct ContentView: View {
                             currentViewMode = .intervals
                         }
                     }) {
+                        let isHovered = hoveredTopButton == "intervals"
                         ZStack {
                             Image(systemName: "chart.bar")
                                 .font(.system(size: 11, weight: .light))
-                                .foregroundColor(currentViewMode == .intervals ? .primary : .secondary)
+                                .foregroundColor(currentViewMode == .intervals ? .primary : (isHovered ? .primary : .secondary))
                         }
                         .frame(width: 28, height: 28)
                         .background(
                             Circle()
-                                .fill(Color.primary.opacity(currentViewMode == .intervals ? 0.12 : 0.04))
+                                .fill(Color.primary.opacity(currentViewMode == .intervals ? 0.12 : (isHovered ? 0.08 : 0.04)))
                         )
+                        .scaleEffect(isHovered ? 1.08 : 1.0)
                     }
                     .buttonStyle(.plain)
                     .pointingHandCursor()
+                    .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "intervals" : nil } }
                     .help("Switch to Interval Tasks".localized)
                     
                     // Scratchpad Lists Button
@@ -301,19 +309,22 @@ struct ContentView: View {
                             currentViewMode = .scratchpad
                         }
                     }) {
+                        let isHovered = hoveredTopButton == "scratchpad"
                         ZStack {
                             Image(systemName: "doc.plaintext")
                                 .font(.system(size: 11, weight: .light))
-                                .foregroundColor(currentViewMode == .scratchpad ? .primary : .secondary)
+                                .foregroundColor(currentViewMode == .scratchpad ? .primary : (isHovered ? .primary : .secondary))
                         }
                         .frame(width: 28, height: 28)
                         .background(
                             Circle()
-                                .fill(Color.primary.opacity(currentViewMode == .scratchpad ? 0.12 : 0.04))
+                                .fill(Color.primary.opacity(currentViewMode == .scratchpad ? 0.12 : (isHovered ? 0.08 : 0.04)))
                         )
+                        .scaleEffect(isHovered ? 1.08 : 1.0)
                     }
                     .buttonStyle(.plain)
                     .pointingHandCursor()
+                    .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "scratchpad" : nil } }
                     .help("Switch to Scratchpad Lists".localized)
                     
                     // Settings Button
@@ -326,19 +337,22 @@ struct ContentView: View {
                             currentViewMode = .settings
                         }
                     }) {
+                        let isHovered = hoveredTopButton == "settings"
                         ZStack {
                             Image(systemName: "gearshape")
                                 .font(.system(size: 11, weight: .light))
-                                .foregroundColor(currentViewMode == .settings ? .primary : .secondary)
+                                .foregroundColor(currentViewMode == .settings ? .primary : (isHovered ? .primary : .secondary))
                         }
                         .frame(width: 28, height: 28)
                         .background(
                             Circle()
-                                .fill(Color.primary.opacity(currentViewMode == .settings ? 0.12 : 0.04))
+                                .fill(Color.primary.opacity(currentViewMode == .settings ? 0.12 : (isHovered ? 0.08 : 0.04)))
                         )
+                        .scaleEffect(isHovered ? 1.08 : 1.0)
                     }
                     .buttonStyle(.plain)
                     .pointingHandCursor()
+                    .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "settings" : nil } }
                     .help("Settings".localized)
                     
                     // Refresh / Sync Button
@@ -349,6 +363,7 @@ struct ContentView: View {
                         #endif
                         Task { await syncManager.triggerManualSync() }
                     }) {
+                        let isHovered = hoveredTopButton == "sync"
                         ZStack {
                             if syncManager.isSyncing {
                                 ProgressView()
@@ -356,17 +371,19 @@ struct ContentView: View {
                             } else {
                                 Image(systemName: "arrow.clockwise")
                                     .font(.system(size: 11, weight: .light))
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(isHovered ? .primary : .secondary)
                             }
                         }
                         .frame(width: 28, height: 28)
                         .background(
                             Circle()
-                                .fill(Color.primary.opacity(0.04))
+                                .fill(Color.primary.opacity(isHovered ? 0.08 : 0.04))
                         )
+                        .scaleEffect(isHovered ? 1.08 : 1.0)
                     }
                     .buttonStyle(.plain)
                     .pointingHandCursor()
+                    .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "sync" : nil } }
                     .keyboardShortcut("r", modifiers: .command)
                     .help("Manual Sync (⌘R)".localized)
                 }
@@ -513,12 +530,23 @@ struct ContentView: View {
                         hasDismissedOnboardingImport = true
                     }
                 }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .light))
-                        .foregroundColor(.secondary.opacity(0.7))
-                        .padding(4)
+                    ZStack {
+                        Circle()
+                            .fill(Color.primary.opacity(isOnboardingCloseHovered ? 0.1 : 0.0))
+                            .frame(width: 22, height: 22)
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .light))
+                            .foregroundColor(isOnboardingCloseHovered ? .primary : .secondary.opacity(0.7))
+                    }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.12)) {
+                        isOnboardingCloseHovered = h
+                    }
+                }
             }
             
             Text("Import your existing tasks from TickTick, Microsoft To Do, Todoist or Apple Reminders, or start fresh.".localized)
@@ -543,10 +571,17 @@ struct ContentView: View {
                     .padding(.vertical, 7)
                     .background(
                         Capsule()
-                            .fill(Color.primary)
+                            .fill(Color.primary.opacity(isOnboardingImportHovered ? 0.88 : 1.0))
                     )
+                    .scaleEffect(isOnboardingImportHovered ? 1.03 : 1.0)
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.12)) {
+                        isOnboardingImportHovered = h
+                    }
+                }
                 
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.2)) {
@@ -555,13 +590,21 @@ struct ContentView: View {
                 }) {
                     Text("Start Fresh".localized)
                         .font(.system(size: 12, weight: .light))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(isOnboardingFreshHovered ? .primary : .secondary)
+                        .underline(isOnboardingFreshHovered)
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.12)) {
+                        isOnboardingFreshHovered = h
+                    }
+                }
             }
-            .padding(.top, 4)
+            .padding(.top, 2)
         }
         .padding(18)
+        .frame(maxWidth: 520, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color.primary.opacity(colorScheme == .dark ? 0.05 : 0.03))
@@ -570,7 +613,8 @@ struct ContentView: View {
                         .stroke(Color.primary.opacity(0.08), lineWidth: 1)
                 )
         )
-        .padding(.bottom, 10)
+        .padding(.top, 6)
+        .padding(.bottom, 12)
     }
     
     // MARK: - Actions

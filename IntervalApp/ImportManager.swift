@@ -85,33 +85,33 @@ public enum ImportSource: String, CaseIterable, Identifiable {
         switch self {
         case .tickTick:
             return [
-                "Open TickTick on Web or Desktop (ticktick.com)",
-                "Go to Settings ⚙️ → Backup → Export Backup",
-                "Download the CSV file and drag it here."
+                "Open TickTick on the Web (ticktick.com) — not available in mobile/desktop apps.",
+                "Click your Profile Avatar (top-left) → Settings ⚙️ → Account → Backup & Restore.",
+                "Click 'Generate Backup' to download your CSV file and drag it here."
             ]
         case .microsoftToDo:
             return [
-                "Open Outlook / Microsoft To Do on the Web",
-                "Go to Settings ⚙️ → General → Privacy and data → Export mailbox / tasks",
-                "Or export your lists to CSV/JSON and drop the file here."
+                "Open Outlook / Microsoft To Do on the Web (outlook.live.com).",
+                "Go to Settings ⚙️ → General → Privacy and data → Export mailbox.",
+                "Or copy/save your list items into a CSV/JSON file and drop it here."
             ]
         case .todoist:
             return [
-                "Open Todoist Settings ⚙️ → Backups",
-                "Download your latest backup (.zip / .csv)",
-                "Extract and drag the tasks CSV file here."
+                "Open Todoist on Web or Desktop (todoist.com).",
+                "Click your Profile Avatar (top-left) → Settings ⚙️ → Backups.",
+                "Download your latest backup (.zip / .csv) and drag the tasks CSV file here."
             ]
         case .appleReminders:
             return [
-                "Open Apple Reminders on your Mac",
-                "Select a list → File → Export... (or drag & drop tasks)",
-                "Drop the exported .ics or text list file here."
+                "Open Apple Reminders on your Mac.",
+                "Select a list from the sidebar → File → Export... (saves a .ics calendar file).",
+                "Or select tasks (⌘A), copy and paste into a text file, and drop it here."
             ]
         case .genericCSV:
             return [
-                "Export tasks from any tool into a CSV, TSV or JSON file",
-                "Make sure it includes task titles/names and optional due dates",
-                "Drop the file here to review and categorize."
+                "Export tasks from Excel, Numbers, Sheets or any tool into a .csv, .tsv, or .json file.",
+                "Ensure columns include task titles/names and optional due dates.",
+                "Drop the file here to review and categorize into intervals."
             ]
         }
     }

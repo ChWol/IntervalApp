@@ -1074,94 +1074,185 @@ class LocalizationManager: ObservableObject {
             .spanish: "No se encontraron tareas o listas en el archivo.", .portuguese: "Nenhuma tarefa ou lista encontrada no arquivo.", .italian: "Nessuna attività o lista trovata nel file.",
             .arabic: "لم يتم العثور على مهام أو قوائم في الملف.", .chinese: "文件中未找到任何任务或清单。", .japanese: "ファイル内にタスクやリストが見つかりませんでした。", .korean: "파일에서 작업이나 목록을 찾을 수 없습니다."
         ],
-        "Open TickTick on Web or Desktop (ticktick.com)": [
-            .english: "Open TickTick on Web or Desktop (ticktick.com)", .german: "Öffne TickTick im Web oder Desktop (ticktick.com)", .french: "Ouvrez TickTick sur le Web ou l'application (ticktick.com)",
-            .spanish: "Abre TickTick en web o escritorio (ticktick.com)", .portuguese: "Abra o TickTick na Web ou no Desktop (ticktick.com)", .italian: "Apri TickTick su Web o Desktop (ticktick.com)",
-            .arabic: "افتح TickTick على الويب أو سطح المكتب (ticktick.com)", .chinese: "在网页或桌面端打开 TickTick (ticktick.com)", .japanese: "WebまたはデスクトップでTickTickを開く (ticktick.com)", .korean: "웹 또는 데스크톱에서 TickTick 열기 (ticktick.com)"
+        "Open TickTick on the Web (ticktick.com) — not available in mobile/desktop apps.": [
+            .english: "Open TickTick on the Web (ticktick.com) — not available in mobile/desktop apps.",
+            .german: "Öffne TickTick im Web (ticktick.com) — in Desktop/Mobile-Apps nicht verfügbar.",
+            .french: "Ouvrez TickTick sur le Web (ticktick.com) — indisponible sur mobile/bureau.",
+            .spanish: "Abre TickTick en la web (ticktick.com) — no disponible en apps.",
+            .portuguese: "Abra o TickTick na Web (ticktick.com) — não disponível nos apps.",
+            .italian: "Apri TickTick sul Web (ticktick.com) — non disponibile nelle app.",
+            .arabic: "افتح TickTick على الويب (ticktick.com) — غير متوفر في التطبيقات.",
+            .chinese: "在网页端打开 TickTick (ticktick.com) — 移动/桌面应用中不提供。",
+            .japanese: "Web版TickTickを開く (ticktick.com) — モバイル/デスクトップアプリでは利用不可。",
+            .korean: "웹에서 TickTick 열기 (ticktick.com) — 모바일/데스크톱 앱에서는 미지원."
         ],
-        "Go to Settings ⚙️ → Backup → Export Backup": [
-            .english: "Go to Settings ⚙️ → Backup → Export Backup", .german: "Gehe zu Einstellungen ⚙️ → Backup → Backup exportieren", .french: "Allez dans Paramètres ⚙️ → Sauvegarde → Exporter la sauvegarde",
-            .spanish: "Ve a Ajustes ⚙️ → Copia de seguridad → Exportar copia", .portuguese: "Vá para Configurações ⚙️ → Backup → Exportar Backup", .italian: "Vai su Impostazioni ⚙️ → Backup → Esporta backup",
-            .arabic: "انتقل إلى الإعدادات ⚙️ → النسخ الاحتياطي → تصدير النسخة الاحتياطية", .chinese: "前往 设置 ⚙️ → 备份 → 导出备份", .japanese: "設定 ⚙️ → バックアップ → バックアップをエクスポート へ移動", .korean: "설정 ⚙️ → 백업 → 백업 내보내기로 이동"
+        "Click your Profile Avatar (top-left) → Settings ⚙️ → Account → Backup & Restore.": [
+            .english: "Click your Profile Avatar (top-left) → Settings ⚙️ → Account → Backup & Restore.",
+            .german: "Klicke auf dein Profilbild (oben links) → Einstellungen ⚙️ → Konto → Backup & Wiederherstellen.",
+            .french: "Cliquez sur votre avatar (en haut à gauche) → Paramètres ⚙️ → Compte → Sauvegarde.",
+            .spanish: "Haz clic en tu avatar (arriba izquierda) → Ajustes ⚙️ → Cuenta → Copia de seguridad.",
+            .portuguese: "Clique no seu avatar (canto superior esquerdo) → Configurações ⚙️ → Conta → Backup.",
+            .italian: "Fai clic sul tuo avatar (in alto a sinistra) → Impostazioni ⚙️ → Account → Backup.",
+            .arabic: "انقر فوق صورتك الرمزية (أعلى اليسار) ← الإعدادات ⚙️ ← الحساب ← النسخ الاحتياطي.",
+            .chinese: "点击左上角头像 → 设置 ⚙️ → 账户 → 备份与恢复。",
+            .japanese: "左上のアバターをクリック → 設定 ⚙️ → アカウント → バックアップと復元。",
+            .korean: "왼쪽 상단 프로필 클릭 → 설정 ⚙️ → 계정 → 백업 및 복원."
         ],
-        "Download the CSV file and drag it here.": [
-            .english: "Download the CSV file and drag it here.", .german: "Lade die CSV-Datei herunter und ziehe sie hierher.", .french: "Téléchargez le fichier CSV et faites-le glisser ici.",
-            .spanish: "Descarga el archivo CSV y arrástralo aquí.", .portuguese: "Baixe o arquivo CSV e arraste-o para cá.", .italian: "Scarica il file CSV e trascinalo qui.",
-            .arabic: "قم بتنزيل ملف CSV واسحبه هنا.", .chinese: "下载 CSV 文件并拖放到此处。", .japanese: "CSVファイルをダウンロードしてここにドラッグします。", .korean: "CSV 파일을 다운로드하여 여기에 드래그하세요."
+        "Click 'Generate Backup' to download your CSV file and drag it here.": [
+            .english: "Click 'Generate Backup' to download your CSV file and drag it here.",
+            .german: "Klicke auf 'Backup erstellen', lade die CSV herunter und ziehe sie hierher.",
+            .french: "Cliquez sur 'Générer une sauvegarde', téléchargez le CSV et déposez-le ici.",
+            .spanish: "Haz clic en 'Generar copia', descarga el archivo CSV y arrástralo aquí.",
+            .portuguese: "Clique em 'Gerar Backup', baixe o arquivo CSV e arraste-o para cá.",
+            .italian: "Fai clic su 'Genera backup', scarica il file CSV e trascinalo qui.",
+            .arabic: "انقر على 'إنشاء نسخة احتياطية' لتنزيل ملف CSV واسحبه هنا.",
+            .chinese: "点击'生成备份'下载 CSV 文件并拖放到此处。",
+            .japanese: "「バックアップ作成」をクリックしてCSVをダウンロードし、ここにドラッグします。",
+            .korean: "'백업 생성'을 클릭하여 CSV 파일을 다운로드하고 여기에 드래그하세요."
         ],
-        "Open Outlook / Microsoft To Do on the Web": [
-            .english: "Open Outlook / Microsoft To Do on the Web", .german: "Öffne Outlook / Microsoft To Do im Web", .french: "Ouvrez Outlook / Microsoft To Do sur le Web",
-            .spanish: "Abre Outlook / Microsoft To Do en la web", .portuguese: "Abra o Outlook / Microsoft To Do na Web", .italian: "Apri Outlook / Microsoft To Do sul Web",
-            .arabic: "افتح Outlook / Microsoft To Do على الويب", .chinese: "在网页端打开 Outlook / Microsoft To Do", .japanese: "Web版のOutlook / Microsoft To Doを開く", .korean: "웹에서 Outlook / Microsoft To Do 열기"
+        "Open Outlook / Microsoft To Do on the Web (outlook.live.com).": [
+            .english: "Open Outlook / Microsoft To Do on the Web (outlook.live.com).",
+            .german: "Öffne Outlook / Microsoft To Do im Web (outlook.live.com).",
+            .french: "Ouvrez Outlook / Microsoft To Do sur le Web (outlook.live.com).",
+            .spanish: "Abre Outlook / Microsoft To Do en la web (outlook.live.com).",
+            .portuguese: "Abra o Outlook / Microsoft To Do na Web (outlook.live.com).",
+            .italian: "Apri Outlook / Microsoft To Do sul Web (outlook.live.com).",
+            .arabic: "افتح Outlook / Microsoft To Do على الويب (outlook.live.com).",
+            .chinese: "在网页端打开 Outlook / Microsoft To Do (outlook.live.com)。",
+            .japanese: "Web版のOutlook / Microsoft To Doを開く (outlook.live.com)。",
+            .korean: "웹에서 Outlook / Microsoft To Do 열기 (outlook.live.com)."
         ],
-        "Go to Settings ⚙️ → General → Privacy and data → Export mailbox / tasks": [
-            .english: "Go to Settings ⚙️ → General → Privacy and data → Export mailbox / tasks",
-            .german: "Gehe zu Einstellungen ⚙️ → Allgemein → Datenschutz & Daten → Postfach/Aufgaben exportieren",
-            .french: "Allez dans Paramètres ⚙️ → Général → Confidentialité et données → Exporter",
-            .spanish: "Ve a Ajustes ⚙️ → General → Privacidad y datos → Exportar buzón / tareas",
-            .portuguese: "Vá para Configurações ⚙️ → Geral → Privacidade e dados → Exportar",
-            .italian: "Vai su Impostazioni ⚙️ → Generale → Privacy e dati → Esporta cassetta postale/attività",
-            .arabic: "انتقل إلى الإعدادات ⚙️ → عام → الخصوصية والبيانات → تصدير صندوق البريد / المهام",
-            .chinese: "前往 设置 ⚙️ → 常规 → 隐私与数据 → 导出邮箱 / 任务",
-            .japanese: "設定 ⚙️ → 全般 → プライバシーとデータ → メールボックス/タスクのエクスポート へ移動",
-            .korean: "설정 ⚙️ → 일반 → 개인 정보 및 데이터 → 사서함/작업 내보내기로 이동"
+        "Go to Settings ⚙️ → General → Privacy and data → Export mailbox.": [
+            .english: "Go to Settings ⚙️ → General → Privacy and data → Export mailbox.",
+            .german: "Gehe zu Einstellungen ⚙️ → Allgemein → Datenschutz & Daten → Postfach exportieren.",
+            .french: "Allez dans Paramètres ⚙️ → Général → Confidentialité et données → Exporter la boîte aux lettres.",
+            .spanish: "Ve a Ajustes ⚙️ → General → Privacidad y datos → Exportar buzón.",
+            .portuguese: "Vá para Configurações ⚙️ → Geral → Privacidade e dados → Exportar caixa de correio.",
+            .italian: "Vai su Impostazioni ⚙️ → Generale → Privacy e dati → Esporta cassetta postale.",
+            .arabic: "انتقل إلى الإعدادات ⚙️ ← عام ← الخصوصية والبيانات ← تصدير صندوق البريد.",
+            .chinese: "前往 设置 ⚙️ → 常规 → 隐私与数据 → 导出邮箱。",
+            .japanese: "設定 ⚙️ → 全般 → プライバシーとデータ → メールボックスのエクスポート へ移動。",
+            .korean: "설정 ⚙️ → 일반 → 개인 정보 및 데이터 → 사서함 내보내기로 이동."
         ],
-        "Or export your lists to CSV/JSON and drop the file here.": [
-            .english: "Or export your lists to CSV/JSON and drop the file here.",
-            .german: "Oder exportiere deine Listen als CSV/JSON und ziehe die Datei hierher.",
-            .french: "Ou exportez vos listes au format CSV/JSON et déposez le fichier ici.",
-            .spanish: "O exporta tus listas a CSV/JSON y suelta el archivo aquí.",
-            .portuguese: "Ou exporte suas listas para CSV/JSON e solte o arquivo aqui.",
-            .italian: "Oppure esporta le tue liste in CSV/JSON e rilascia il file qui.",
-            .arabic: "أو قم بتصدير قوائمك إلى CSV/JSON وأفلت الملف هنا.",
-            .chinese: "或将您的清单导出为 CSV/JSON 并将文件拖放到此处。",
-            .japanese: "またはリストをCSV/JSONとしてエクスポートし、ここにドロップします。",
-            .korean: "또는 목록을 CSV/JSON으로 내보낸 후 여기에 파일을 드롭하세요."
+        "Or copy/save your list items into a CSV/JSON file and drop it here.": [
+            .english: "Or copy/save your list items into a CSV/JSON file and drop it here.",
+            .german: "Oder kopiere/speichere deine Listeneinträge als CSV/JSON und ziehe die Datei hierher.",
+            .french: "Ou copiez/enregistrez vos listes au format CSV/JSON et déposez le fichier ici.",
+            .spanish: "O copia/guarda los elementos de tu lista en un archivo CSV/JSON y suéltalo aquí.",
+            .portuguese: "Ou copie/salve seus itens em um arquivo CSV/JSON e solte o arquivo aqui.",
+            .italian: "Oppure copia/salva le tue liste in un file CSV/JSON e rilascialo qui.",
+            .arabic: "أو انسخ/احفظ عناصر قائمتك في ملف CSV/JSON وأفلته هنا.",
+            .chinese: "或将您的清单条目保存为 CSV/JSON 文件并拖放到此处。",
+            .japanese: "またはリストをCSV/JSONファイルとして保存し、ここにドロップします。",
+            .korean: "또는 목록 항목을 CSV/JSON 파일로 복사/저장하여 여기에 드롭하세요."
         ],
-        "Open Todoist Settings ⚙️ → Backups": [
-            .english: "Open Todoist Settings ⚙️ → Backups", .german: "Öffne Todoist Einstellungen ⚙️ → Backups", .french: "Ouvrez les Paramètres Todoist ⚙️ → Sauvegardes",
-            .spanish: "Abre Ajustes de Todoist ⚙️ → Copias de seguridad", .portuguese: "Abra as Configurações do Todoist ⚙️ → Backups", .italian: "Apri Impostazioni di Todoist ⚙️ → Backup",
-            .arabic: "افتح إعدادات Todoist ⚙️ → النسخ الاحتياطية", .chinese: "打开 Todoist 设置 ⚙️ → 备份", .japanese: "Todoistの設定 ⚙️ → バックアップ を開く", .korean: "Todoist 설정 ⚙️ → 백업 열기"
+        "Open Todoist on Web or Desktop (todoist.com).": [
+            .english: "Open Todoist on Web or Desktop (todoist.com).",
+            .german: "Öffne Todoist im Web oder Desktop (todoist.com).",
+            .french: "Ouvrez Todoist sur le Web ou l'application (todoist.com).",
+            .spanish: "Abre Todoist en la web o escritorio (todoist.com).",
+            .portuguese: "Abra o Todoist na Web ou no Desktop (todoist.com).",
+            .italian: "Apri Todoist su Web o Desktop (todoist.com).",
+            .arabic: "افتح Todoist على الويب أو سطح المكتب (todoist.com).",
+            .chinese: "在网页端或桌面端打开 Todoist (todoist.com)。",
+            .japanese: "WebまたはデスクトップでTodoistを開く (todoist.com)。",
+            .korean: "웹 또는 데스크톱에서 Todoist 열기 (todoist.com)."
         ],
-        "Download your latest backup (.zip / .csv)": [
-            .english: "Download your latest backup (.zip / .csv)", .german: "Lade dein neuestes Backup herunter (.zip / .csv)", .french: "Téléchargez votre dernière sauvegarde (.zip / .csv)",
-            .spanish: "Descarga tu última copia de seguridad (.zip / .csv)", .portuguese: "Baixe seu backup mais recente (.zip / .csv)", .italian: "Scarica il tuo ultimo backup (.zip / .csv)",
-            .arabic: "قم بتنزيل أحدث نسخة احتياطية لك (.zip / .csv)", .chinese: "下载您最新的备份文件 (.zip / .csv)", .japanese: "最新のバックアップをダウンロード (.zip / .csv)", .korean: "최신 백업 다운로드 (.zip / .csv)"
+        "Click your Profile Avatar (top-left) → Settings ⚙️ → Backups.": [
+            .english: "Click your Profile Avatar (top-left) → Settings ⚙️ → Backups.",
+            .german: "Klicke auf dein Profilbild (oben links) → Einstellungen ⚙️ → Backups.",
+            .french: "Cliquez sur votre avatar (en haut à gauche) → Paramètres ⚙️ → Sauvegardes.",
+            .spanish: "Haz clic en tu avatar (arriba izquierda) → Ajustes ⚙️ → Copias de seguridad.",
+            .portuguese: "Clique no seu avatar (canto superior esquerdo) → Configurações ⚙️ → Backups.",
+            .italian: "Fai clic sul tuo avatar (in alto a sinistra) → Impostazioni ⚙️ → Backup.",
+            .arabic: "انقر فوق صورتك الرمزية (أعلى اليسار) ← الإعدادات ⚙️ ← النسخ الاحتياطية.",
+            .chinese: "点击左上角头像 → 设置 ⚙️ → 备份。",
+            .japanese: "左上のアバターをクリック → 設定 ⚙️ → バックアップ。",
+            .korean: "왼쪽 상단 프로필 클릭 → 설정 ⚙️ → 백업."
         ],
-        "Extract and drag the tasks CSV file here.": [
-            .english: "Extract and drag the tasks CSV file here.", .german: "Entpacke die Datei und ziehe die Aufgaben-CSV hierher.", .french: "Extrayez et faites glisser le fichier CSV des tâches ici.",
-            .spanish: "Extrae y arrastra el archivo CSV de tareas aquí.", .portuguese: "Extraia e arraste o arquivo CSV de tarefas para cá.", .italian: "Estrai e trascina qui il file CSV delle attività.",
-            .arabic: "فك الضغط واسحب ملف CSV الخاص بالمهام هنا.", .chinese: "解压并将任务 CSV 文件拖放到此处。", .japanese: "解凍してタスクのCSVファイルをここにドラッグします。", .korean: "압축을 풀고 작업 CSV 파일을 여기에 드래그하세요."
+        "Download your latest backup (.zip / .csv) and drag the tasks CSV file here.": [
+            .english: "Download your latest backup (.zip / .csv) and drag the tasks CSV file here.",
+            .german: "Lade dein neuestes Backup herunter (.zip / .csv) und ziehe die Aufgaben-CSV hierher.",
+            .french: "Téléchargez votre dernière sauvegarde (.zip / .csv) et déposez le CSV des tâches ici.",
+            .spanish: "Descarga tu última copia (.zip / .csv) y arrastra el archivo CSV de tareas aquí.",
+            .portuguese: "Baixe seu backup mais recente (.zip / .csv) e arraste o arquivo CSV de tarefas para cá.",
+            .italian: "Scarica il tuo ultimo backup (.zip / .csv) e trascina qui il file CSV delle attività.",
+            .arabic: "قم بتنزيل أحدث نسخة احتياطية واسحب ملف CSV الخاص بالمهام هنا.",
+            .chinese: "下载您最新的备份文件 (.zip / .csv) 并将任务 CSV 文件拖放到此处。",
+            .japanese: "最新のバックアップ (.zip / .csv) をダウンロードし、タスクCSVファイルをここにドラッグします。",
+            .korean: "최신 백업(.zip / .csv)을 다운로드하고 작업 CSV 파일을 여기에 드래그하세요."
         ],
-        "Open Apple Reminders on your Mac": [
-            .english: "Open Apple Reminders on your Mac", .german: "Öffne Apple Erinnerungen auf deinem Mac", .french: "Ouvrez Rappels Apple sur votre Mac",
-            .spanish: "Abre Recordatorios de Apple en tu Mac", .portuguese: "Abra o Apple Lembretes no seu Mac", .italian: "Apri Promemoria Apple sul Mac",
-            .arabic: "افتح تذكيرات Apple على جهاز Mac", .chinese: "在 Mac 上打开 Apple 提醒事项", .japanese: "MacでAppleリマインダーを開く", .korean: "Mac에서 Apple 미리 알림 열기"
+        "Open Apple Reminders on your Mac.": [
+            .english: "Open Apple Reminders on your Mac.",
+            .german: "Öffne Apple Erinnerungen auf deinem Mac.",
+            .french: "Ouvrez Rappels Apple sur votre Mac.",
+            .spanish: "Abre Recordatorios de Apple en tu Mac.",
+            .portuguese: "Abra o Apple Lembretes no seu Mac.",
+            .italian: "Apri Promemoria Apple sul Mac.",
+            .arabic: "افتح تذكيرات Apple على جهاز Mac.",
+            .chinese: "在 Mac 上打开 Apple 提醒事项。",
+            .japanese: "MacでAppleリマインダーを開きます。",
+            .korean: "Mac에서 Apple 미리 알림을 엽니다."
         ],
-        "Select a list → File → Export... (or drag & drop tasks)": [
-            .english: "Select a list → File → Export... (or drag & drop tasks)", .german: "Wähle eine Liste → Ablage → Exportieren... (oder ziehe Aufgaben herüber)", .french: "Sélectionnez une liste → Fichier → Exporter... (ou glisser-déposer)",
-            .spanish: "Selecciona una lista → Archivo → Exportar... (o arrastra y suelta)", .portuguese: "Selecione uma lista → Arquivo → Exportar... (ou arraste e solte)", .italian: "Seleziona una lista → File → Esporta... (o trascina le attività)",
-            .arabic: "حدد قائمة ← ملف ← تصدير... (أو اسحب المهام وأفلتها)", .chinese: "选择清单 → 文件 → 导出...（或直接拖放任务）", .japanese: "リストを選択 → ファイル → 書き出す...（またはドラッグ＆ドロップ）", .korean: "목록 선택 → 파일 → 내보내기... (또는 작업 드래그 앤 드롭)"
+        "Select a list from the sidebar → File → Export... (saves a .ics calendar file).": [
+            .english: "Select a list from the sidebar → File → Export... (saves a .ics calendar file).",
+            .german: "Wähle eine Liste in der Seitenleiste → Ablage → Exportieren... (speichert eine .ics-Datei).",
+            .french: "Sélectionnez une liste dans la barre latérale → Fichier → Exporter... (enregistre un .ics).",
+            .spanish: "Selecciona una lista en la barra lateral → Archivo → Exportar... (guarda un archivo .ics).",
+            .portuguese: "Selecione uma lista na barra lateral → Arquivo → Exportar... (salva um arquivo .ics).",
+            .italian: "Seleziona una lista dalla barra laterale → File → Esporta... (salva un file .ics).",
+            .arabic: "حدد قائمة من الشريط الجانبي ← ملف ← تصدير... (يحفظ ملف .ics).",
+            .chinese: "从侧边栏选择清单 → 文件 → 导出...（保存为 .ics 日历文件）。",
+            .japanese: "サイドバーからリストを選択 → ファイル → 書き出す...（.icsカレンダーファイルとして保存）。",
+            .korean: "사이드바에서 목록 선택 → 파일 → 내보내기... (.ics 캘린더 파일로 저장)."
         ],
-        "Drop the exported .ics or text list file here.": [
-            .english: "Drop the exported .ics or text list file here.", .german: "Ziehe die exportierte .ics- oder Textdatei hierher.", .french: "Déposez le fichier .ics ou texte exporté ici.",
-            .spanish: "Suelta aquí el archivo .ics o de texto exportado.", .portuguese: "Solte o arquivo .ics ou texto exportado aqui.", .italian: "Rilascia qui il file .ics o di testo esportato.",
-            .arabic: "أفلت ملف .ics أو ملف القائمة النصية المُصدر هنا.", .chinese: "将导出的 .ics 或文本清单文件拖放到此处。", .japanese: "エクスポートされた.icsまたはテキストファイルをここにドロップします。", .korean: "내보낸 .ics 또는 텍스트 목록 파일을 여기에 드롭하세요."
+        "Or select tasks (⌘A), copy and paste into a text file, and drop it here.": [
+            .english: "Or select tasks (⌘A), copy and paste into a text file, and drop it here.",
+            .german: "Oder wähle Aufgaben aus (⌘A), kopiere und füge sie in eine Textdatei ein und ziehe sie hierher.",
+            .french: "Ou sélectionnez les tâches (⌘A), copiez-les dans un fichier texte et déposez-le ici.",
+            .spanish: "O selecciona tareas (⌘A), copia y pega en un archivo de texto y suéltalo aquí.",
+            .portuguese: "Ou selecione tarefas (⌘A), copie e cole em um arquivo de texto e solte-o aqui.",
+            .italian: "Oppure seleziona le attività (⌘A), copia e incolla in un file di testo e rilascialo qui.",
+            .arabic: "أو حدد المهام (⌘A)، وانسخها والصقها في ملف نصي، وأفلتها هنا.",
+            .chinese: "或选中任务（⌘A），复制并粘贴到文本文件中，然后拖放到此处。",
+            .japanese: "またはタスクを選択 (⌘A) してテキストファイルに貼り付け、ここにドロップします。",
+            .korean: "또는 작업 선택(⌘A) 후 텍스트 파일에 복사하여 붙여넣고 여기에 드롭하세요."
         ],
-        "Export tasks from any tool into a CSV, TSV or JSON file": [
-            .english: "Export tasks from any tool into a CSV, TSV or JSON file", .german: "Exportiere Aufgaben aus einem beliebigen Tool als CSV, TSV oder JSON", .french: "Exportez les tâches de n'importe quel outil au format CSV, TSV ou JSON",
-            .spanish: "Exporta tareas desde cualquier herramienta a un archivo CSV, TSV o JSON", .portuguese: "Exporte tarefas de qualquer ferramenta para um arquivo CSV, TSV ou JSON", .italian: "Esporta attività da qualsiasi strumento in un file CSV, TSV o JSON",
-            .arabic: "قم بتصدير المهام من أي أداة إلى ملف CSV أو TSV أو JSON", .chinese: "从任何工具中将任务导出为 CSV、TSV 或 JSON 文件", .japanese: "任意のツールからCSV、TSV、またはJSONファイルとしてタスクをエクスポート", .korean: "모든 도구에서 작업을 CSV, TSV 또는 JSON 파일로 내보내기"
+        "Export tasks from Excel, Numbers, Sheets or any tool into a .csv, .tsv, or .json file.": [
+            .english: "Export tasks from Excel, Numbers, Sheets or any tool into a .csv, .tsv, or .json file.",
+            .german: "Exportiere Aufgaben aus Excel, Numbers, Sheets oder anderen Tools als .csv, .tsv oder .json.",
+            .french: "Exportez les tâches depuis Excel, Numbers, Sheets ou tout outil au format .csv, .tsv ou .json.",
+            .spanish: "Exporta tareas desde Excel, Numbers, Sheets o cualquier herramienta a un archivo .csv, .tsv o .json.",
+            .portuguese: "Exporte tarefas do Excel, Numbers, Planilhas ou qualquer ferramenta para um arquivo .csv, .tsv ou .json.",
+            .italian: "Esporta attività da Excel, Numbers, Fogli o qualsiasi strumento in un file .csv, .tsv o .json.",
+            .arabic: "قم بتصدير المهام من Excel أو Numbers أو Sheets أو أي أداة إلى ملف .csv أو .tsv أو .json.",
+            .chinese: "从 Excel、Numbers、表格或任何工具中将任务导出为 .csv、.tsv 或 .json 文件。",
+            .japanese: "Excel、Numbers、スプレッドシートなどから.csv、.tsv、または.jsonファイルとしてタスクをエクスポートします。",
+            .korean: "Excel, Numbers, 스프레드시트 또는 모든 도구에서 작업을 .csv, .tsv 또는 .json 파일로 내보냅니다."
         ],
-        "Make sure it includes task titles/names and optional due dates": [
-            .english: "Make sure it includes task titles/names and optional due dates", .german: "Achte darauf, dass Titel/Namen und optionale Fälligkeitsdaten enthalten sind", .french: "Assurez-vous qu'il contient les titres des tâches et les dates d'échéance facultatives",
-            .spanish: "Asegúrate de que incluya títulos/nombres de tareas y fechas de vencimiento opcionales", .portuguese: "Certifique-se de incluir títulos de tarefas e datas de vencimento opcionais", .italian: "Assicurati che includa titoli/nomi delle attività e date di scadenza opzionali",
-            .arabic: "تأكد من تضمين عناوين المهام والتواريخ المستحقة الاختيارية", .chinese: "确保包含任务标题/名称以及可选的截止日期", .japanese: "タスクのタイトル/名前と任意の期日が含まれていることを確認してください", .korean: "작업 제목/이름 및 선택적 마감일이 포함되어 있는지 확인하세요"
+        "Ensure columns include task titles/names and optional due dates.": [
+            .english: "Ensure columns include task titles/names and optional due dates.",
+            .german: "Achte darauf, dass Spalten für Aufgabentitel/Namen und optionale Fälligkeitsdaten enthalten sind.",
+            .french: "Assurez-vous que les colonnes incluent les titres des tâches et les dates d'échéance facultatives.",
+            .spanish: "Asegúrate de que las columnas incluyan títulos/nombres de tareas y fechas de vencimiento opcionales.",
+            .portuguese: "Certifique-se de que as colunas incluam títulos de tarefas e datas de vencimento opcionais.",
+            .italian: "Assicurati che le colonne includano titoli/nomi delle attività e date di scadenza opzionali.",
+            .arabic: "تأكد من أن الأعمدة تتضمن عناوين/أسماء المهام والتواريخ المستحقة الاختيارية.",
+            .chinese: "确保列中包含任务标题/名称以及可选的截止日期。",
+            .japanese: "列にタスクのタイトル/名前と任意の期日が含まれていることを確認してください。",
+            .korean: "열에 작업 제목/이름 및 선택적 마감일이 포함되어 있는지 확인하세요."
         ],
-        "Drop the file here to review and categorize.": [
-            .english: "Drop the file here to review and categorize.", .german: "Ziehe die Datei hierher, um sie zu überprüfen und zuzuordnen.", .french: "Déposez le fichier ici pour vérifier et catégoriser.",
-            .spanish: "Suelta el archivo aquí para revisar y categorizar.", .portuguese: "Solte o arquivo aqui para revisar e categorizar.", .italian: "Rilascia il file qui per revisionare e categorizzare.",
-            .arabic: "أفلت الملف هنا للمراجعة والتصنيف.", .chinese: "将文件拖放到此处进行审查和分类。", .japanese: "ここにファイルをドロップして確認と分類を行います。", .korean: "여기에 파일을 드롭하여 검토하고 분류하세요."
+        "Drop the file here to review and categorize into intervals.": [
+            .english: "Drop the file here to review and categorize into intervals.",
+            .german: "Ziehe die Datei hierher, um sie zu überprüfen und in Intervalle einzuordnen.",
+            .french: "Déposez le fichier ici pour vérifier et catégoriser par intervalles.",
+            .spanish: "Suelta el archivo aquí para revisar y clasificar en intervalos.",
+            .portuguese: "Solte o arquivo aqui para revisar e categorizar em intervalos.",
+            .italian: "Rilascia il file qui per revisionare e categorizzare negli intervalli.",
+            .arabic: "أفلت الملف هنا للمراجعة والتصنيف إلى فترات زمنية.",
+            .chinese: "将文件拖放到此处进行审查并分类到不同时间段。",
+            .japanese: "ここにファイルをドロップして確認し、インターバルに分類します。",
+            .korean: "여기에 파일을 드롭하여 검토하고 기간별로 분류하세요."
         ]
     ]
 }

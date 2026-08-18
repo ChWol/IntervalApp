@@ -160,7 +160,9 @@ struct HabitsBarView: View {
                         .buttonStyle(.plain)
                         .pointingHandCursor()
                         .onHover { hovering in
-                            isPlusHovered = hovering
+                            withAnimation(.easeInOut(duration: 0.12)) {
+                                isPlusHovered = hovering
+                            }
                         }
                     } else {
                         HStack(spacing: 8) {
