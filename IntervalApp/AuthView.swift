@@ -323,7 +323,10 @@ struct AuthView: View {
             case .signIn:
                 await syncManager.signIn(email: email, password: password)
             case .signUp:
-                await syncManager.signUp(email: email, password: password)
+                let result = await syncManager.signUp(email: email, password: password)
+                if result.requiresConfirmation {
+                    successMessage = "Account created! Check your email to confirm, then sign in.".localized
+                }
             case .forgotPassword:
                 let result = await syncManager.resetPassword(email: email)
                 if result.success {

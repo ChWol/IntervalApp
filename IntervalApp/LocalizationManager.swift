@@ -933,6 +933,18 @@ class LocalizationManager: ObservableObject {
             .japanese: "タスクを確認して計画しましょう。",
             .korean: "작업을 검토하고 계획할 시간입니다."
         ],
+        "Account created! Check your email to confirm, then sign in.": [
+            .english: "Account created! Check your email to confirm, then sign in.",
+            .german: "Konto erstellt! Bitte bestätige deine E-Mail und melde dich an.",
+            .french: "Compte créé ! Vérifiez vos e-mails pour confirmer, puis connectez-vous.",
+            .spanish: "¡Cuenta creada! Revisa tu correo para confirmar e inicia sesión.",
+            .portuguese: "Conta criada! Verifique seu e-mail para confirmar e faça login.",
+            .italian: "Account creato! Controlla la tua email per confermare ed effettua l'accesso.",
+            .arabic: "تم إنشاء الحساب! تحقق من بريدك الإلكتروني للتأكيد ثم سجّل الدخول.",
+            .chinese: "账户已创建！请查看您的邮箱进行验证，然后登录。",
+            .japanese: "アカウントが作成されました！メールを確認して承認後、ログインしてください。",
+            .korean: "계정이 생성되었습니다! 이메일을 확인하여 인증한 후 로그인하세요."
+        ],
         "IMPORT TASKS & LISTS": [
             .english: "IMPORT TASKS & LISTS", .german: "AUFGABEN & LISTEN IMPORTIEREN", .french: "IMPORTER TÂCHES & LISTES",
             .spanish: "IMPORTAR TAREAS Y LISTAS", .portuguese: "IMPORTAR TAREFAS E LISTAS", .italian: "IMPORTA ATTIVITÀ E LISTE",

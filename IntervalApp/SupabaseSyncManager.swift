@@ -229,12 +229,21 @@ class SupabaseSyncManager: ObservableObject {
     
     // MARK: - Authentication
     
-    func signUp(email: String, password: String) async {
+    struct SignUpResult {
+        let success: Bool
+        let requiresConfirmation: Bool
+        let error: String?
+    }
+    
+    @discardableResult
+    func signUp(email: String, password: String) async -> SignUpResult {
         isLoading = true
         authError = nil
         defer { isLoading = false }
         
-        guard let url = URL(string: "\(supabaseURL)/auth/v1/signup") else { return }
+        guard let url = URL(string: "\(supabaseURL)/auth/v1/signup") else {
+            return SignUpResult(success: false, requiresConfirmation: false, error: "Invalid URL")
+        }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -245,21 +254,22 @@ class SupabaseSyncManager: ObservableObject {
         do {
             let (data, response) = try await session.data(for: request)
             if let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode >= 400 {
-                if let err = try? JSONDecoder().decode(AuthErrorResponse.self, from: data) {
-                    authError = err.displayMessage
-                } else {
-                    authError = "Registration failed (\(statusCode))"
-                }
-                return
+                let err = try? JSONDecoder().decode(AuthErrorResponse.self, from: data)
+                let msg = err?.displayMessage ?? "Registration failed (\(statusCode))"
+                authError = msg
+                return SignUpResult(success: false, requiresConfirmation: false, error: msg)
             }
             
-            if let authResp = try? JSONDecoder().decode(AuthResponse.self, from: data) {
+            if let authResp = try? JSONDecoder().decode(AuthResponse.self, from: data), authResp.access_token != nil {
                 handleAuthSuccess(authResp, email: email)
+                return SignUpResult(success: true, requiresConfirmation: false, error: nil)
             } else {
-                authError = "Account created! Check your email to confirm, then sign in."
+                return SignUpResult(success: true, requiresConfirmation: true, error: nil)
             }
         } catch {
-            authError = "Network error: \(error.localizedDescription)"
+            let msg = "Network error: \(error.localizedDescription)"
+            authError = msg
+            return SignUpResult(success: false, requiresConfirmation: false, error: msg)
         }
     }
     
