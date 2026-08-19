@@ -71,6 +71,16 @@ struct WeekdayOption: Identifiable {
         WeekdayOption(id: 1, shortNameEn: "Sun", shortNameDe: "So", shortNameFr: "Dim", shortNameEs: "Dom", shortNamePt: "Dom", shortNameIt: "Dom", shortNameAr: "أح", shortNameZh: "周日", shortNameJa: "日", shortNameKo: "일", fullNameEn: "Sunday", fullNameDe: "Sonntag", fullNameFr: "Dimanche", fullNameEs: "Domingo", fullNamePt: "Domingo", fullNameIt: "Domenica", fullNameAr: "الأحد", fullNameZh: "星期日", fullNameJa: "日曜日", fullNameKo: "일요일")
     ]
     
+    static var allCurrentOrder: [WeekdayOption] {
+        let start = UserDefaults.standard.string(forKey: "weekStartDay") ?? "Monday"
+        if start == "Sunday" {
+            let sunday = allMondayFirst.filter { $0.id == 1 }
+            let others = allMondayFirst.filter { $0.id != 1 }
+            return sunday + others
+        }
+        return allMondayFirst
+    }
+    
     static func option(for id: Int) -> WeekdayOption? {
         allMondayFirst.first(where: { $0.id == id })
     }
@@ -315,7 +325,7 @@ struct HabitsBarView: View {
                 .padding(.bottom, 4)
             
             VStack(spacing: 1) {
-                ForEach(WeekdayOption.allMondayFirst) { opt in
+                ForEach(WeekdayOption.allCurrentOrder) { opt in
                     Button(action: {
                         selectedWeekday = opt.id
                         selectedFrequency = "Weekly:\(opt.id)"

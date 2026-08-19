@@ -413,6 +413,18 @@ struct ContentView: View {
                 .opacity(0)
                 .frame(width: 0, height: 0)
                 
+                #if os(macOS)
+                Button(action: {
+                    PrintManager.printIntervals(context: modelContext)
+                }) {
+                    EmptyView()
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut("p", modifiers: .command)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+                #endif
+                
                 if let err = syncManager.lastError {
                     HStack(spacing: 8) {
                         Text(err)

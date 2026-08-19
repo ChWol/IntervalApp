@@ -45,18 +45,26 @@ class MigrationManager: ObservableObject {
         return f
     }()
     
-    private static let weekFormatter: DateFormatter = {
+    private var dayStartHour: Int {
+        if UserDefaults.standard.object(forKey: "dayStartHour") != nil {
+            return UserDefaults.standard.integer(forKey: "dayStartHour")
+        }
+        return 6 // Default 6 AM as requested
+    }
+    
+    private static var weekFormatter: DateFormatter {
         let f = DateFormatter()
         f.dateFormat = "yyyy-'W'ww"
         f.locale = Locale(identifier: "en_US_POSIX")
         var cal = Calendar(identifier: .iso8601)
-        cal.firstWeekday = 2 // Monday is explicitly the first day of the week
+        let weekStart = UserDefaults.standard.string(forKey: "weekStartDay") ?? "Monday"
+        cal.firstWeekday = (weekStart == "Sunday") ? 1 : 2
         cal.minimumDaysInFirstWeek = 4
         cal.timeZone = TimeZone.current
         f.calendar = cal
         f.timeZone = TimeZone.current
         return f
-    }()
+    }
     
     private static let monthFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -201,9 +209,9 @@ class MigrationManager: ObservableObject {
         var targetStoreKey: String? = nil
         var targetMarker: String? = nil
         
-        // Day, Week, Month, and Year migrations only trigger at or after 5:00 AM (05:00)
-        // to avoid interrupting night work sessions between 00:00 and 04:59.
-        if hour >= 5 {
+        // Day, Week, Month, and Year migrations trigger at or after the configured dayStartHour (default 06:00)
+        // to avoid interrupting night work sessions.
+        if hour >= dayStartHour {
             if lastHandledYear != currentYear {
                 pending = Migration(source: "1 Year", dest: "1 Year")
                 targetStoreKey = StoreKey.lastHandledYear

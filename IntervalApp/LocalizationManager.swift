@@ -1289,6 +1289,102 @@ class LocalizationManager: ObservableObject {
             .chinese: "使用已保存的登录信息自动填充",
             .japanese: "保存されたログイン情報で自動入力",
             .korean: "저장된 로그인 정보로 자동 완성"
+        ],
+        "Launch at Login": [
+            .english: "Launch at Login",
+            .german: "Bei Systemstart öffnen",
+            .french: "Ouvrir au démarrage",
+            .spanish: "Abrir al iniciar sesión",
+            .portuguese: "Abrir ao iniciar",
+            .italian: "Apri all'avvio",
+            .arabic: "تشغيل عند بدء التشغيل",
+            .chinese: "登录时启动",
+            .japanese: "ログイン時に起動",
+            .korean: "로그인 시 시작"
+        ],
+        "Day Starts At": [
+            .english: "Day Starts At",
+            .german: "Tagesbeginn",
+            .french: "Début de la journée",
+            .spanish: "Comienzo del día",
+            .portuguese: "Início do dia",
+            .italian: "Inizio giornata",
+            .arabic: "بداية اليوم",
+            .chinese: "一天开始于",
+            .japanese: "一日の始まり",
+            .korean: "하루 시작 시간"
+        ],
+        "Week Starts On": [
+            .english: "Week Starts On",
+            .german: "Wochenbeginn",
+            .french: "Début de la semaine",
+            .spanish: "Comienzo de la semana",
+            .portuguese: "Início da semana",
+            .italian: "Inizio settimana",
+            .arabic: "بداية الأسبوع",
+            .chinese: "一周开始于",
+            .japanese: "週の始まり",
+            .korean: "주 시작 요일"
+        ],
+        "Monday": [
+            .english: "Monday",
+            .german: "Montag",
+            .french: "Lundi",
+            .spanish: "Lunes",
+            .portuguese: "Segunda-feira",
+            .italian: "Lunedì",
+            .arabic: "الاثنين",
+            .chinese: "周一",
+            .japanese: "月曜日",
+            .korean: "월요일"
+        ],
+        "Sunday": [
+            .english: "Sunday",
+            .german: "Sonntag",
+            .french: "Dimanche",
+            .spanish: "Domingo",
+            .portuguese: "Domingo",
+            .italian: "Domenica",
+            .arabic: "الأحد",
+            .chinese: "周日",
+            .japanese: "日曜日",
+            .korean: "일요일"
+        ],
+        "Export Data (JSON Backup)": [
+            .english: "Export Data (JSON Backup)",
+            .german: "Daten exportieren (JSON Backup)",
+            .french: "Exporter les données (Sauvegarde JSON)",
+            .spanish: "Exportar datos (Copia de seguridad JSON)",
+            .portuguese: "Exportar dados (Backup JSON)",
+            .italian: "Esporta dati (Backup JSON)",
+            .arabic: "تصدير البيانات (نسخة احتياطية JSON)",
+            .chinese: "导出数据（JSON 备份）",
+            .japanese: "データをエクスポート（JSON バックアップ）",
+            .korean: "데이터 내보내기 (JSON 백업)"
+        ],
+        "Data exported successfully!": [
+            .english: "Data exported successfully!",
+            .german: "Daten erfolgreich exportiert!",
+            .french: "Données exportées avec succès !",
+            .spanish: "¡Datos exportados con éxito!",
+            .portuguese: "Dados exportados com sucesso!",
+            .italian: "Dati esportati con successo!",
+            .arabic: "تم تصدير البيانات بنجاح!",
+            .chinese: "数据导出成功！",
+            .japanese: "データが正常にエクスポートされました！",
+            .korean: "데이터를 성공적으로 내보냈습니다!"
+        ],
+        "Interval Backup": [
+            .english: "Interval Backup",
+            .german: "Interval Backup",
+            .french: "Sauvegarde Interval",
+            .spanish: "Copia de seguridad de Interval",
+            .portuguese: "Backup do Interval",
+            .italian: "Backup di Interval",
+            .arabic: "نسخة Interval الاحتياطية",
+            .chinese: "Interval 备份",
+            .japanese: "Interval バックアップ",
+            .korean: "Interval 백업"
         ]
     ]
 }

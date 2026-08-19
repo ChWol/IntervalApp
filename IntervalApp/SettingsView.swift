@@ -1,7 +1,9 @@
 import SwiftUI
+import SwiftData
 import UserNotifications
 #if os(macOS)
 import AppKit
+import ServiceManagement
 #endif
 
 // MARK: - Pointing Hand Cursor Extension
@@ -71,6 +73,7 @@ enum SettingsModalType {
 }
 
 struct SettingsView: View {
+    @Environment(\.modelContext) private var modelContext
     @ObservedObject private var locManager = LocalizationManager.shared
     @ObservedObject private var syncManager = SupabaseSyncManager.shared
     @ObservedObject private var notificationManager = NotificationManager.shared
@@ -78,16 +81,21 @@ struct SettingsView: View {
     @AppStorage("showHabits") private var showHabits: Bool = true
     @AppStorage("soundEffectsEnabled") private var soundEffectsEnabled: Bool = true
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = false
+    @AppStorage("dayStartHour") private var dayStartHour: Int = 6
+    @AppStorage("weekStartDay") private var weekStartDay: String = "Monday"
 
+    @State private var launchAtLogin: Bool = false
     @State private var hoveredLang: AppLanguage? = nil
     @State private var activeModal: SettingsModalType? = nil
     @State private var isSignOutHovered: Bool = false
     @State private var isDeleteHovered: Bool = false
     @State private var isSystemSettingsHovered: Bool = false
     @State private var isImportHovered: Bool = false
+    @State private var isExportHovered: Bool = false
     @State private var isEmailHovered: Bool = false
     @State private var isPaypalHovered: Bool = false
     @State private var showImportModal: Bool = false
+    @State private var exportSuccess: Bool = false
     
     var onClose: () -> Void
 
@@ -147,9 +155,33 @@ struct SettingsView: View {
                         }
                     }
 
-                    // MARK: Preferences (Habits, Sounds & Notifications)
-                    VStack(alignment: .leading, spacing: 12) {
+                    // MARK: Preferences (Habits, Sounds, Notifications, Autostart & Boundaries)
+                    VStack(alignment: .leading, spacing: 14) {
                         sectionLabel("PREFERENCES".localized)
+
+                        // Launch at Login
+                        #if os(macOS)
+                        MinimalistToggle(
+                            isOn: Binding(
+                                get: { launchAtLogin },
+                                set: { newValue in
+                                    launchAtLogin = newValue
+                                    if #available(macOS 13.0, *) {
+                                        do {
+                                            if newValue {
+                                                try SMAppService.mainApp.register()
+                                            } else {
+                                                try SMAppService.mainApp.unregister()
+                                            }
+                                        } catch {
+                                            print("Failed to update Launch at Login: \(error)")
+                                        }
+                                    }
+                                }
+                            ),
+                            label: "Launch at Login".localized
+                        )
+                        #endif
 
                         MinimalistToggle(isOn: $showHabits, label: "Show Habits Bar".localized)
                         MinimalistToggle(isOn: $soundEffectsEnabled, label: "Sound Effects".localized)
@@ -206,9 +238,82 @@ struct SettingsView: View {
                                 .padding(.top, 2)
                             }
                         }
+                        
+                        // Day Start Hour
+                        HStack(spacing: 12) {
+                            Text("Day Starts At".localized)
+                                .font(.system(size: 12, weight: .light))
+                                .foregroundColor(.primary)
+                            
+                            HStack(spacing: 6) {
+                                ForEach([4, 5, 6, 7, 8], id: \.self) { hour in
+                                    let isSelected = dayStartHour == hour
+                                    Button(action: {
+                                        withAnimation(.easeInOut(duration: 0.15)) {
+                                            dayStartHour = hour
+                                        }
+                                    }) {
+                                        Text(String(format: "%02d:00", hour))
+                                            .font(.system(size: 11, weight: isSelected ? .medium : .light))
+                                            .foregroundColor(isSelected ? .primary : .secondary)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 3)
+                                            .background(
+                                                Capsule().fill(isSelected
+                                                    ? Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.08)
+                                                    : Color.clear)
+                                            )
+                                            .overlay(
+                                                Capsule().stroke(
+                                                    Color.primary.opacity(isSelected ? 0.25 : 0.08),
+                                                    lineWidth: 1)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .pointingHandCursor()
+                                }
+                            }
+                        }
+                        .padding(.top, 4)
+                        
+                        // Week Start Day
+                        HStack(spacing: 12) {
+                            Text("Week Starts On".localized)
+                                .font(.system(size: 12, weight: .light))
+                                .foregroundColor(.primary)
+                            
+                            HStack(spacing: 6) {
+                                ForEach(["Monday", "Sunday"], id: \.self) { day in
+                                    let isSelected = weekStartDay == day
+                                    Button(action: {
+                                        withAnimation(.easeInOut(duration: 0.15)) {
+                                            weekStartDay = day
+                                        }
+                                    }) {
+                                        Text(day.localized)
+                                            .font(.system(size: 11, weight: isSelected ? .medium : .light))
+                                            .foregroundColor(isSelected ? .primary : .secondary)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 3)
+                                            .background(
+                                                Capsule().fill(isSelected
+                                                    ? Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.08)
+                                                    : Color.clear)
+                                            )
+                                            .overlay(
+                                                Capsule().stroke(
+                                                    Color.primary.opacity(isSelected ? 0.25 : 0.08),
+                                                    lineWidth: 1)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .pointingHandCursor()
+                                }
+                            }
+                        }
                     }
 
-                    // MARK: - Data & Import
+                    // MARK: - Data & Import / Export
                     VStack(alignment: .leading, spacing: 10) {
                         sectionLabel("DATA & IMPORT".localized)
 
@@ -230,6 +335,31 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                         .pointingHandCursor()
                         .onHover { isImportHovered = $0 }
+                        
+                        #if os(macOS)
+                        Button(action: {
+                            if ExportManager.shared.exportToFile(context: modelContext) {
+                                withAnimation { exportSuccess = true }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                                    withAnimation { exportSuccess = false }
+                                }
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: exportSuccess ? "checkmark.circle" : "square.and.arrow.up")
+                                    .font(.system(size: 11, weight: .light))
+                                    .foregroundColor(exportSuccess ? .green : (isExportHovered ? .primary : .secondary))
+                                Text(exportSuccess ? "Data exported successfully!".localized : "Export Data (JSON Backup)".localized)
+                                    .font(.system(size: 12, weight: .light))
+                                    .foregroundColor(exportSuccess ? .green : (isExportHovered ? .primary : .secondary))
+                            }
+                            .padding(.vertical, 2)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .pointingHandCursor()
+                        .onHover { isExportHovered = $0 }
+                        #endif
                     }
 
                     // MARK: Account
@@ -335,6 +465,11 @@ struct SettingsView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: activeModal)
         .onAppear {
+            #if os(macOS)
+            if #available(macOS 13.0, *) {
+                launchAtLogin = (SMAppService.mainApp.status == .enabled)
+            }
+            #endif
             Task {
                 await notificationManager.refreshAuthorizationStatus()
             }

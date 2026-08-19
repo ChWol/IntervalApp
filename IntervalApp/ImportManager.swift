@@ -77,12 +77,19 @@ public enum ImportSource: String, CaseIterable, Identifiable {
     case microsoftToDo = "Microsoft To Do"
     case todoist = "Todoist"
     case appleReminders = "Apple Reminders"
+    case intervalBackup = "Interval"
     case genericCSV = "CSV / JSON"
     
     public var id: String { rawValue }
     
     public var exportInstructions: [String] {
         switch self {
+        case .intervalBackup:
+            return [
+                "Open Interval Settings ⚙️ → Data & Import.",
+                "Click 'Export Data (JSON Backup)' to save a complete backup of all your tasks and scratchpads.",
+                "Drop the generated .json file here anytime to restore or import your data."
+            ]
         case .tickTick:
             return [
                 "Open TickTick on the Web (ticktick.com) — not available in mobile/desktop apps.",
@@ -343,9 +350,37 @@ public final class ImportManager: Sendable {
         }
     }
     
-    // MARK: - JSON Parsing
-    
     private func parseJSON(data: Data) throws -> ImportAnalysis {
+        // 1. Check if this is an Interval Backup JSON
+        if let backup = try? JSONDecoder().decode(IntervalBackupDTO.self, from: data), backup.format == "Interval_Backup" {
+            var intervalTasks: [ImportedTask] = []
+            for t in backup.tasks where t.deletedAt == nil {
+                intervalTasks.append(ImportedTask(
+                    id: t.id,
+                    text: t.text,
+                    targetInterval: t.intervalType,
+                    originalListName: "Interval Backup",
+                    dueDate: nil,
+                    isCompleted: t.completed
+                ))
+            }
+            
+            var scratchpadLists: [ImportedScratchpadList] = []
+            let activeItems = backup.scratchpadItems.filter { $0.deletedAt == nil }
+            for l in backup.scratchpadLists where l.deletedAt == nil {
+                let listItems = activeItems.filter { $0.listId == l.id }.map {
+                    ImportedScratchpadItem(id: $0.id, text: $0.text, isCompleted: $0.completed)
+                }
+                scratchpadLists.append(ImportedScratchpadList(
+                    id: l.id,
+                    title: l.title,
+                    items: listItems
+                ))
+            }
+            
+            return ImportAnalysis(intervalTasks: intervalTasks, scratchpadLists: scratchpadLists, detectedSource: .intervalBackup)
+        }
+        
         var intervalTasks: [ImportedTask] = []
         var scratchpadMap: [String: [ImportedScratchpadItem]] = [:]
         let now = Date()
