@@ -13,6 +13,9 @@ struct MigrationImportModalView: View {
     @State private var isTargetedForDrop = false
     @State private var errorMessage: String?
     @State private var isParsing = false
+    @State private var isCloseHovered = false
+    @State private var hoveredSource: ImportSource? = nil
+    @State private var isDropZoneHovered = false
     
     // Parsed Data for Kanban review
     @State private var parsedTasks: [ImportedTask] = []
@@ -65,13 +68,18 @@ struct MigrationImportModalView: View {
                         }
                     }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .light))
-                            .foregroundColor(.secondary)
-                            .padding(8)
+                            .font(.system(size: 12, weight: .light))
+                            .foregroundColor(isCloseHovered ? .primary : .secondary.opacity(0.6))
+                            .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .pointingHandCursor()
+                    .onHover { hovering in
+                        withAnimation(.easeInOut(duration: 0.12)) {
+                            isCloseHovered = hovering
+                        }
+                    }
                 }
                 .padding(.horizontal, 28)
                 .padding(.top, 24)
@@ -94,6 +102,23 @@ struct MigrationImportModalView: View {
                     .shadow(color: Color.black.opacity(0.2), radius: 24, y: 12)
             )
             .padding(24)
+            #if os(macOS)
+            .onExitCommand {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isPresented = false
+                }
+            }
+            #endif
+            .background(
+                Button("") {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isPresented = false
+                    }
+                }
+                .keyboardShortcut(.escape, modifiers: [])
+                .frame(width: 0, height: 0)
+                .opacity(0)
+            )
         }
         .fileImporter(
             isPresented: $isFileImporterPresented,
@@ -120,6 +145,7 @@ struct MigrationImportModalView: View {
             HStack(spacing: 6) {
                 ForEach(ImportSource.allCases) { source in
                     let isSelected = selectedSource == source
+                    let isHovered = hoveredSource == source
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.15)) {
                             selectedSource = source
@@ -127,16 +153,21 @@ struct MigrationImportModalView: View {
                     }) {
                         Text(source.rawValue)
                             .font(.system(size: 12, weight: isSelected ? .medium : .light))
-                            .foregroundColor(isSelected ? .primary : .secondary)
+                            .foregroundColor(isSelected ? .primary : (isHovered ? .primary : .secondary))
                             .padding(.vertical, 6)
                             .padding(.horizontal, 12)
                             .background(
                                 Capsule()
-                                    .fill(isSelected ? Color.primary.opacity(colorScheme == .dark ? 0.2 : 0.08) : Color.clear)
+                                    .fill(isSelected ? Color.primary.opacity(colorScheme == .dark ? 0.2 : 0.08) : (isHovered ? Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.04) : Color.clear))
                             )
                     }
                     .buttonStyle(.plain)
                     .pointingHandCursor()
+                    .onHover { h in
+                        withAnimation(.easeInOut(duration: 0.12)) {
+                            hoveredSource = h ? source : nil
+                        }
+                    }
                 }
             }
             .padding(.top, 16)
@@ -170,43 +201,44 @@ struct MigrationImportModalView: View {
             )
             .padding(.horizontal, 28)
             
-            // Drop Zone / File Picker
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(
-                        isTargetedForDrop ? Color.primary : Color.primary.opacity(0.15),
-                        style: StrokeStyle(lineWidth: 1.5, dash: [6])
-                    )
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(isTargetedForDrop ? Color.primary.opacity(0.05) : Color.clear)
-                    )
-                
-                VStack(spacing: 12) {
-                    if isParsing {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                        Text("Analyzing tasks and lists...".localized)
-                            .font(.system(size: 13, weight: .light))
-                            .foregroundColor(.secondary)
-                    } else {
-                        Image(systemName: "square.and.arrow.down")
-                            .font(.system(size: 28, weight: .light))
-                            .foregroundColor(.secondary)
-                        
-                        VStack(spacing: 4) {
-                            Text("Drag & drop your export file here".localized)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.primary)
-                            
-                            Text("Supported formats: .csv, .json, .ics".localized)
-                                .font(.system(size: 11, weight: .light))
+            // Drop Zone / File Picker (Clickable entire card)
+            Button(action: {
+                isFileImporterPresented = true
+            }) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(
+                            isTargetedForDrop || isDropZoneHovered ? Color.primary.opacity(0.8) : Color.primary.opacity(0.18),
+                            style: StrokeStyle(lineWidth: 1.5, dash: [6])
+                        )
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(isTargetedForDrop ? Color.primary.opacity(0.08) : (isDropZoneHovered ? Color.primary.opacity(colorScheme == .dark ? 0.06 : 0.03) : Color.clear))
+                        )
+                    
+                    VStack(spacing: 12) {
+                        if isParsing {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                            Text("Analyzing tasks and lists...".localized)
+                                .font(.system(size: 13, weight: .light))
                                 .foregroundColor(.secondary)
-                        }
-                        
-                        Button(action: {
-                            isFileImporterPresented = true
-                        }) {
+                        } else {
+                            Image(systemName: "square.and.arrow.down")
+                                .font(.system(size: 28, weight: .light))
+                                .foregroundColor(isDropZoneHovered ? .primary : .secondary)
+                                .scaleEffect(isDropZoneHovered ? 1.05 : 1.0)
+                            
+                            VStack(spacing: 4) {
+                                Text("Drag & drop your export file here".localized)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(.primary)
+                                
+                                Text("Supported formats: .csv, .json, .ics".localized)
+                                    .font(.system(size: 11, weight: .light))
+                                    .foregroundColor(.secondary)
+                            }
+                            
                             Text("Choose File...".localized)
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(colorScheme == .dark ? .black : .white)
@@ -214,15 +246,21 @@ struct MigrationImportModalView: View {
                                 .padding(.vertical, 7)
                                 .background(
                                     Capsule()
-                                        .fill(Color.primary)
+                                        .fill(Color.primary.opacity(isDropZoneHovered ? 0.85 : 1.0))
                                 )
+                                .padding(.top, 4)
                         }
-                        .buttonStyle(.plain)
-                        .pointingHandCursor()
-                        .padding(.top, 4)
                     }
+                    .padding(24)
                 }
-                .padding(24)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .onHover { h in
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isDropZoneHovered = h
+                }
             }
             .frame(height: 180)
             .padding(.horizontal, 28)
