@@ -215,6 +215,9 @@ struct UpdatePasswordModalView: View {
             await MainActor.run {
                 self.isSubmitting = false
                 if result.success {
+                    if let email = self.syncManager.userEmail {
+                        KeychainManager.shared.saveCredential(email: email, password: self.newPassword)
+                    }
                     self.successMessage = "Password updated successfully!".localized
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                         self.isPresented = false

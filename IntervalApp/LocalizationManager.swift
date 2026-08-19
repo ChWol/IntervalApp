@@ -1265,6 +1265,30 @@ class LocalizationManager: ObservableObject {
             .chinese: "在不同时间段之间拖放任务以进行整理",
             .japanese: "インターバル間でタスクをドラッグして整理する",
             .korean: "기간 사이로 작업을 드래그하여 정리하세요"
+        ],
+        "Suggest strong password": [
+            .english: "Suggest strong password",
+            .german: "Sicheres Passwort vorschlagen",
+            .french: "Suggérer un mot de passe fort",
+            .spanish: "Sugerir contraseña segura",
+            .portuguese: "Sugerir senha forte",
+            .italian: "Suggerisci password sicura",
+            .arabic: "اقتراح كلمة مرور قوية",
+            .chinese: "建议强密码",
+            .japanese: "強力なパスワードを提案",
+            .korean: "강력한 비밀번호 제안"
+        ],
+        "AutoFill with saved login": [
+            .english: "AutoFill with saved login",
+            .german: "Mit gespeichertem Login ausfüllen",
+            .french: "Remplir automatiquement avec l'identifiant enregistré",
+            .spanish: "Autocompletar con inicio de sesión guardado",
+            .portuguese: "Preenchimento automático com login salvo",
+            .italian: "Compila automaticamente con l'accesso salvato",
+            .arabic: "الملء التلقائي باستخدام تسجيل الدخول المحفوظ",
+            .chinese: "使用已保存的登录信息自动填充",
+            .japanese: "保存されたログイン情報で自動入力",
+            .korean: "저장된 로그인 정보로 자동 완성"
         ]
     ]
 }

@@ -18,6 +18,8 @@ struct AuthView: View {
     @State private var isForgotHovered = false
     @State private var isBackHovered = false
     @State private var isEyeHovered = false
+    @State private var isKeyHovered = false
+    @State private var savedAccounts: [(email: String, password: String)] = []
     
     @Environment(\.colorScheme) private var colorScheme
     
@@ -49,10 +51,38 @@ struct AuthView: View {
                 VStack(spacing: 18) {
                     // Email Field
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("EMAIL".localized)
-                            .font(.system(size: 10, weight: .light))
-                            .tracking(2)
-                            .foregroundColor(.secondary)
+                        HStack {
+                            Text("EMAIL".localized)
+                                .font(.system(size: 10, weight: .light))
+                                .tracking(2)
+                                .foregroundColor(.secondary)
+                            
+                            Spacer()
+                            
+                            if authMode == .signIn && !savedAccounts.isEmpty && (email.isEmpty || password.isEmpty) {
+                                Button(action: {
+                                    if let first = savedAccounts.first {
+                                        withAnimation(.easeInOut(duration: 0.15)) {
+                                            email = first.email
+                                            password = first.password
+                                        }
+                                    }
+                                }) {
+                                    HStack(spacing: 3) {
+                                        Image(systemName: "key.fill")
+                                            .font(.system(size: 8))
+                                        Text("AutoFill".localized)
+                                            .font(.system(size: 9, weight: .light))
+                                    }
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(Color.primary.opacity(0.06)))
+                                }
+                                .buttonStyle(.plain)
+                                .pointingHandCursor()
+                            }
+                        }
                         
                         TextField("", text: $email)
                             .textFieldStyle(.plain)
@@ -70,33 +100,80 @@ struct AuthView: View {
                                     .frame(height: 0.5),
                                 alignment: .bottom
                             )
+                            .onChange(of: email) { _, newEmail in
+                                if authMode == .signIn && password.isEmpty {
+                                    if let savedPass = KeychainManager.shared.getSavedPassword(for: newEmail) {
+                                        password = savedPass
+                                    }
+                                }
+                            }
                     }
                     
                     // Password Field (Only for Sign In / Sign Up)
                     if authMode != .forgotPassword {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("PASSWORD".localized)
-                                .font(.system(size: 10, weight: .light))
-                                .tracking(2)
-                                .foregroundColor(.secondary)
-                            
-                            HStack(spacing: 8) {
-                                Group {
-                                    if isPasswordVisible {
-                                        TextField("", text: $password)
-                                    } else {
-                                        SecureField("", text: $password)
+                            HStack {
+                                Text("PASSWORD".localized)
+                                    .font(.system(size: 10, weight: .light))
+                                    .tracking(2)
+                                    .foregroundColor(.secondary)
+                                
+                                Spacer()
+                                
+                                if authMode == .signUp {
+                                    Button(action: {
+                                        withAnimation(.easeInOut(duration: 0.15)) {
+                                            password = KeychainManager.shared.generateStrongPassword()
+                                            isPasswordVisible = true
+                                        }
+                                    }) {
+                                        HStack(spacing: 3) {
+                                            Image(systemName: "key.fill")
+                                                .font(.system(size: 8))
+                                            Text("Suggest Strong".localized)
+                                                .font(.system(size: 9, weight: .light))
+                                        }
+                                        .foregroundColor(isKeyHovered ? .primary : .secondary)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Capsule().fill(Color.primary.opacity(isKeyHovered ? 0.12 : 0.06)))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .pointingHandCursor()
+                                    .help("Suggest strong password".localized)
+                                    .onHover { hovering in
+                                        withAnimation(.easeInOut(duration: 0.12)) {
+                                            isKeyHovered = hovering
+                                        }
                                     }
                                 }
-                                .textFieldStyle(.plain)
-                                .font(.system(size: 14, weight: .light))
-                                .textContentType(authMode == .signUp ? .newPassword : .password)
-                                .autocorrectionDisabled()
-                                #if os(iOS)
-                                .textInputAutocapitalization(.never)
-                                #endif
-                                .onSubmit {
-                                    if isFormValid { submit() }
+                            }
+                            
+                            HStack(spacing: 8) {
+                                if isPasswordVisible {
+                                    TextField("", text: $password)
+                                        .textFieldStyle(.plain)
+                                        .font(.system(size: 14, weight: .light))
+                                        .textContentType(authMode == .signUp ? .newPassword : .password)
+                                        .autocorrectionDisabled()
+                                        #if os(iOS)
+                                        .textInputAutocapitalization(.never)
+                                        #endif
+                                        .onSubmit {
+                                            if isFormValid { submit() }
+                                        }
+                                } else {
+                                    SecureField("", text: $password)
+                                        .textFieldStyle(.plain)
+                                        .font(.system(size: 14, weight: .light))
+                                        .textContentType(authMode == .signUp ? .newPassword : .password)
+                                        .autocorrectionDisabled()
+                                        #if os(iOS)
+                                        .textInputAutocapitalization(.never)
+                                        #endif
+                                        .onSubmit {
+                                            if isFormValid { submit() }
+                                        }
                                 }
                                 
                                 Button(action: {
@@ -280,6 +357,13 @@ struct AuthView: View {
             }
             .padding(40)
         }
+        .onAppear {
+            savedAccounts = KeychainManager.shared.getSavedCredentials()
+            if authMode == .signIn && email.isEmpty, let first = savedAccounts.first {
+                email = first.email
+                password = first.password
+            }
+        }
     }
     
     private var subtitleText: String {
@@ -322,8 +406,14 @@ struct AuthView: View {
             switch authMode {
             case .signIn:
                 await syncManager.signIn(email: email, password: password)
+                if syncManager.isAuthenticated {
+                    KeychainManager.shared.saveCredential(email: email, password: password)
+                }
             case .signUp:
                 let result = await syncManager.signUp(email: email, password: password)
+                if result.success || result.requiresConfirmation {
+                    KeychainManager.shared.saveCredential(email: email, password: password)
+                }
                 if result.requiresConfirmation {
                     successMessage = "Account created! Check your email to confirm, then sign in.".localized
                 }
