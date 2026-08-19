@@ -457,6 +457,28 @@ class SupabaseSyncManager: ObservableObject {
     }
     
     func signOut() {
+        Task { @MainActor in
+            await signOutAsync()
+        }
+    }
+    
+    func signOutAsync() async {
+        // 1. Cancel debounce timers
+        debounceTimer?.cancel()
+        debounceTimer = nil
+        
+        // 2. Save any in-flight context state to disk
+        if let ctx = modelContext {
+            try? ctx.save()
+        }
+        
+        // 3. Flush any pending unsynced changes to Supabase before purging local data
+        if isAuthenticated {
+            _ = await pushToSupabase()
+            _ = await flushTombstones()
+        }
+        
+        // 4. Safely wipe local store and clear authentication state
         if let ctx = modelContext {
             purgeLocalStore(context: ctx)
         } else {
@@ -470,7 +492,6 @@ class SupabaseSyncManager: ObservableObject {
         isAuthenticated = false
         isSyncLoopRunning = false
         cancellables.removeAll()
-        debounceTimer?.cancel()
         refreshTask?.cancel()
         refreshTask = nil
         missingTaskIds.removeAll()
@@ -486,7 +507,7 @@ class SupabaseSyncManager: ObservableObject {
     
     func deleteAccount() async {
         guard let uid = userId, let token = accessToken else {
-            signOut()
+            await signOutAsync()
             return
         }
         let tables = ["tasks", "habits", "scratchpad_items", "scratchpad_lists"]
@@ -498,7 +519,7 @@ class SupabaseSyncManager: ObservableObject {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             _ = try? await URLSession.shared.data(for: req)
         }
-        signOut()
+        await signOutAsync()
     }
 
     

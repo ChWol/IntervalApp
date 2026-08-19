@@ -383,14 +383,18 @@ struct TaskRowView: View {
             }
         }
         .onChange(of: task.text) { _, newText in
-            // Pick up remote changes from pull sync
-            if !isNew && text != newText {
+            // Pick up remote changes from pull sync ONLY if user is not actively editing this task
+            let myId = isNew ? "NEW_\(listTitle)" : task.id
+            if !isNew && (focusedTaskId != myId) && text != newText {
                 text = newText
             }
         }
         .onChange(of: text) { _, newText in
             if !isNew && newText != task.text {
                 task.text = newText
+                task.updatedAt = Date()
+                try? modelContext.save()
+                SupabaseSyncManager.shared.pushDebounced()
             }
         }
     }

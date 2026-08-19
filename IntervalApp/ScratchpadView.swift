@@ -770,6 +770,14 @@ struct ScratchpadItemRowView: View {
         .onAppear {
             text = item.text
         }
+        .onChange(of: text) { _, newText in
+            if !isNew && newText != item.text {
+                item.text = newText
+                item.updatedAt = Date()
+                try? modelContext.save()
+                SupabaseSyncManager.shared.pushDebounced()
+            }
+        }
         .onChange(of: item.text) { _, newText in
             if !isCurrentlyFocused { text = newText }
         }
