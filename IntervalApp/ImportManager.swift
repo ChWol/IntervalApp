@@ -150,51 +150,132 @@ public final class ImportManager: Sendable {
             return ImportAnalysis(intervalTasks: [], scratchpadLists: [], detectedSource: .genericCSV)
         }
         
-        let header = rows[0].map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        // 1. Locate the true header row (skipping metadata preambles like TickTick's Version/Status blocks)
+        var headerRowIndex: Int? = nil
+        for (idx, row) in rows.enumerated().prefix(25) {
+            let lower = row.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            let matches = ["title", "task name", "content", "name", "subject", "summary", "folder name", "list name", "due date", "status", "taskid"]
+                .filter { candidate in lower.contains(where: { $0.contains(candidate) }) }
+            if matches.count >= 2 || (matches.count >= 1 && row.count >= 3) {
+                headerRowIndex = idx
+                break
+            }
+        }
+        
+        let hIdx = headerRowIndex ?? 0
+        let header = rows[hIdx].map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
         let source = detectSource(header: header)
         
-        var intervalTasks: [ImportedTask] = []
-        var scratchpadMap: [String: [ImportedScratchpadItem]] = [:]
-        
-        // Find Column Indices
-        let titleIdx = findIndex(in: header, candidates: ["title", "task name", "content", "task", "name", "summary", "description"]) ?? 0
+        // 2. Find Column Indices
+        let titleIdx = findIndex(in: header, candidates: ["title", "task name", "task", "name", "summary", "subject"]) ?? 0
+        let contentIdx = findIndex(in: header, candidates: ["content", "description", "note", "notes", "memo"])
         let listIdx = findIndex(in: header, candidates: ["list name", "folder name", "list", "project", "folder", "category"])
         let dueIdx = findIndex(in: header, candidates: ["due date", "due time", "due", "date", "start time"])
         let statusIdx = findIndex(in: header, candidates: ["status", "completed", "done", "is_completed"])
+        let taskIdIdx = findIndex(in: header, candidates: ["taskid", "task_id", "id"])
+        let parentIdIdx = findIndex(in: header, candidates: ["parentid", "parent_id", "parent"])
         
         let defaultLists = Set(["inbox", "tasks", "aufgaben", "general", "to do", "todo", "default", "my tasks", "meine aufgaben"])
-        
         let now = Date()
         
-        for r in rows.dropFirst() {
+        struct RawItem {
+            let taskId: String
+            let parentId: String
+            var title: String
+            var content: String
+            let listName: String
+            let dueDate: Date?
+            let isCompleted: Bool
+            var inlineSubtasks: [String]
+            var childSubtasks: [String] = []
+            var isMergedIntoParent: Bool = false
+        }
+        
+        var rawItems: [RawItem] = []
+        var taskIdMap: [String: Int] = [:]
+        
+        // 3. First pass: Collect all valid data rows
+        for r in rows.dropFirst(hIdx + 1) {
             guard r.count > titleIdx else { continue }
             let rawTitle = r[titleIdx].trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !rawTitle.isEmpty else { continue }
+            let rawContent = (contentIdx != nil && r.count > contentIdx!) ? r[contentIdx!].trimmingCharacters(in: .whitespacesAndNewlines) : ""
+            
+            // Skip pure divider lines (e.g. "--------", "__________")
+            let isDivider = rawTitle.allSatisfy { $0 == "-" || $0 == "_" || $0 == "=" || $0 == " " }
+            if isDivider && rawContent.isEmpty { continue }
+            if rawTitle.isEmpty && rawContent.isEmpty { continue }
             
             let listName = (listIdx != nil && r.count > listIdx!) ? r[listIdx!].trimmingCharacters(in: .whitespacesAndNewlines) : ""
             let rawDue = (dueIdx != nil && r.count > dueIdx!) ? r[dueIdx!].trimmingCharacters(in: .whitespacesAndNewlines) : ""
             let rawStatus = (statusIdx != nil && r.count > statusIdx!) ? r[statusIdx!].trimmingCharacters(in: .whitespacesAndNewlines).lowercased() : ""
+            let taskId = (taskIdIdx != nil && r.count > taskIdIdx!) ? r[taskIdIdx!].trimmingCharacters(in: .whitespacesAndNewlines) : ""
+            let parentId = (parentIdIdx != nil && r.count > parentIdIdx!) ? r[parentIdIdx!].trimmingCharacters(in: .whitespacesAndNewlines) : ""
             
-            let isCompleted = rawStatus == "1" || rawStatus == "true" || rawStatus == "completed" || rawStatus == "done" || rawStatus == "yes" || rawStatus == "x"
+            // In TickTick: 0 = Normal, 2 = Completed, -1 = Abandoned
+            let isCompleted = rawStatus == "2" || rawStatus == "1" || rawStatus == "true" || rawStatus == "completed" || rawStatus == "done" || rawStatus == "yes" || rawStatus == "x"
+            let isAbandoned = rawStatus == "-1" || rawStatus == "abandoned" || rawStatus == "cancelled" || rawStatus == "canceled"
+            if isAbandoned { continue }
+            
             let dueDate = parseDate(from: rawDue)
+            let inlineSubtasks = extractSubtasksFromContent(rawContent)
             
-            let isDefaultList = listName.isEmpty || defaultLists.contains(listName.lowercased())
+            let itemIdx = rawItems.count
+            rawItems.append(RawItem(
+                taskId: taskId,
+                parentId: parentId,
+                title: rawTitle,
+                content: rawContent,
+                listName: listName,
+                dueDate: dueDate,
+                isCompleted: isCompleted,
+                inlineSubtasks: inlineSubtasks
+            ))
+            if !taskId.isEmpty {
+                taskIdMap[taskId] = itemIdx
+            }
+        }
+        
+        // 4. Second pass: Resolve Parent-Child relationships
+        for i in 0..<rawItems.count {
+            let parentId = rawItems[i].parentId
+            if !parentId.isEmpty, let parentIdx = taskIdMap[parentId], parentIdx != i {
+                let childTitle = rawItems[i].title
+                let childSubs = rawItems[i].inlineSubtasks
+                let combinedChild = combineTitleWithSubtasks(title: childTitle, subtasks: childSubs)
+                if !combinedChild.isEmpty {
+                    rawItems[parentIdx].childSubtasks.append(combinedChild)
+                }
+                rawItems[i].isMergedIntoParent = true
+            }
+        }
+        
+        // 5. Third pass: Build Interval Tasks & Scratchpad Lists
+        var intervalTasks: [ImportedTask] = []
+        var scratchpadMap: [String: [ImportedScratchpadItem]] = [:]
+        
+        for item in rawItems where !item.isMergedIntoParent {
+            let allSubtasks = item.inlineSubtasks + item.childSubtasks
+            let finalTitle = combineTitleWithSubtasks(title: item.title, subtasks: allSubtasks)
+            guard !finalTitle.isEmpty else { continue }
             
+            let isDefaultList = item.listName.isEmpty || defaultLists.contains(item.listName.lowercased())
             if !isDefaultList {
                 // Route to Scratchpad List
-                var items = scratchpadMap[listName] ?? []
-                items.append(ImportedScratchpadItem(text: rawTitle, isCompleted: isCompleted))
-                scratchpadMap[listName] = items
+                var items = scratchpadMap[item.listName] ?? []
+                items.append(ImportedScratchpadItem(text: finalTitle, isCompleted: item.isCompleted))
+                scratchpadMap[item.listName] = items
             } else {
-                // Route to Interval Task based on due date
-                let interval = assignInterval(for: dueDate, now: now)
-                intervalTasks.append(ImportedTask(
-                    text: rawTitle,
-                    targetInterval: interval,
-                    originalListName: listName,
-                    dueDate: dueDate,
-                    isCompleted: isCompleted
-                ))
+                // Only active (uncompleted) tasks are routed into active interval columns
+                if !item.isCompleted {
+                    let interval = assignInterval(for: item.dueDate, now: now)
+                    intervalTasks.append(ImportedTask(
+                        text: finalTitle,
+                        targetInterval: interval,
+                        originalListName: item.listName,
+                        dueDate: item.dueDate,
+                        isCompleted: item.isCompleted
+                    ))
+                }
             }
         }
         
@@ -207,6 +288,59 @@ public final class ImportManager: Sendable {
             scratchpadLists: scratchpadLists,
             detectedSource: source
         )
+    }
+    
+    // MARK: - Subtask Extraction & Combination Helpers
+    
+    public func extractSubtasksFromContent(_ content: String) -> [String] {
+        let lines = content.components(separatedBy: CharacterSet.newlines)
+        var subitems: [String] = []
+        for line in lines {
+            var trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            
+            // Remove checklist/bullet point prefixes
+            let prefixes = ["▪", "▫", "•", "✓", "✔", "- [ ]", "- [x]", "- [X]", "[ ]", "[x]", "[X]", "*", "-", "—"]
+            for p in prefixes {
+                if trimmed.hasPrefix(p) {
+                    trimmed = String(trimmed.dropFirst(p.count)).trimmingCharacters(in: .whitespaces)
+                    break
+                }
+            }
+            // Remove numbered prefixes e.g. "1.", "2)"
+            if let match = trimmed.range(of: #"^\d+[\.\)]\s*"#, options: .regularExpression) {
+                trimmed = String(trimmed[match.upperBound...]).trimmingCharacters(in: .whitespaces)
+            }
+            // Remove trailing arrows
+            if trimmed.hasSuffix("->") {
+                trimmed = String(trimmed.dropLast(2)).trimmingCharacters(in: .whitespaces)
+            }
+            
+            if !trimmed.isEmpty {
+                subitems.append(trimmed)
+            }
+        }
+        return subitems
+    }
+    
+    public func combineTitleWithSubtasks(title: String, subtasks: [String]) -> String {
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanSubtasks = subtasks
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        
+        if cleanSubtasks.isEmpty {
+            return cleanTitle
+        }
+        
+        let subtaskStr = cleanSubtasks.joined(separator: ", ")
+        if cleanTitle.isEmpty {
+            return subtaskStr
+        } else if cleanTitle.hasSuffix(":") {
+            return "\(cleanTitle) \(subtaskStr)"
+        } else {
+            return "\(cleanTitle): \(subtaskStr)"
+        }
     }
     
     // MARK: - JSON Parsing

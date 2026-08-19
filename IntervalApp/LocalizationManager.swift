@@ -1253,6 +1253,18 @@ class LocalizationManager: ObservableObject {
             .chinese: "将文件拖放到此处进行审查并分类到不同时间段。",
             .japanese: "ここにファイルをドロップして確認し、インターバルに分類します。",
             .korean: "여기에 파일을 드롭하여 검토하고 기간별로 분류하세요."
+        ],
+        "Drag tasks between intervals to organize": [
+            .english: "Drag tasks between intervals to organize",
+            .german: "Verschiebe Aufgaben per Drag & Drop zwischen den Intervallen",
+            .french: "Glissez les tâches entre les intervalles pour les organiser",
+            .spanish: "Arrastra tareas entre intervalos para organizarlas",
+            .portuguese: "Arraste tarefas entre intervalos para organizar",
+            .italian: "Trascina i compiti tra gli intervalli per organizzarli",
+            .arabic: "اسحب المهام بين الفترات الزمنية لتنظيمها",
+            .chinese: "在不同时间段之间拖放任务以进行整理",
+            .japanese: "インターバル間でタスクをドラッグして整理する",
+            .korean: "기간 사이로 작업을 드래그하여 정리하세요"
         ]
     ]
 }

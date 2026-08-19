@@ -21,7 +21,10 @@ struct MigrationImportModalView: View {
     @State private var isFileImporterPresented = false
     
     // Dragged item state for Kanban
-    @State private var draggedTaskId: String?
+    @State private var draggingTaskId: String? = nil
+    @State private var dragPosition: CGPoint = .zero
+    @State private var hoveredColumn: String? = nil
+    @State private var columnFrames: [String: CGRect] = [:]
     
     enum ImportStep {
         case upload
@@ -49,7 +52,7 @@ struct MigrationImportModalView: View {
                             .tracking(2.0)
                             .foregroundColor(.secondary)
                         
-                        Text(step == .upload ? "Migrate from your existing apps".localized : "Drag tasks into your preferred intervals".localized)
+                        Text(step == .upload ? "Migrate from your existing apps".localized : "Drag tasks between intervals to organize".localized)
                             .font(.system(size: 14, weight: .regular))
                             .foregroundColor(.primary)
                     }
@@ -68,6 +71,7 @@ struct MigrationImportModalView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .pointingHandCursor()
                 }
                 .padding(.horizontal, 28)
                 .padding(.top, 24)
@@ -83,7 +87,7 @@ struct MigrationImportModalView: View {
                     kanbanStepView
                 }
             }
-            .frame(maxWidth: step == .upload ? 620 : 920, maxHeight: step == .upload ? 580 : 720)
+            .frame(maxWidth: step == .upload ? 620 : 960, maxHeight: step == .upload ? 580 : 720)
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
@@ -132,6 +136,7 @@ struct MigrationImportModalView: View {
                             )
                     }
                     .buttonStyle(.plain)
+                    .pointingHandCursor()
                 }
             }
             .padding(.top, 16)
@@ -213,6 +218,7 @@ struct MigrationImportModalView: View {
                                 )
                         }
                         .buttonStyle(.plain)
+                        .pointingHandCursor()
                         .padding(.top, 4)
                     }
                 }
@@ -251,8 +257,8 @@ struct MigrationImportModalView: View {
         VStack(spacing: 16) {
             // Summary Counter Bar
             HStack(spacing: 16) {
-                let totalTasks = parsedTasks.filter { $0.isSelected }.count
-                let totalLists = parsedScratchpadLists.filter { $0.isSelected }.count
+                let totalTasks = parsedTasks.count
+                let totalLists = parsedScratchpadLists.count
                 
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle")
@@ -273,27 +279,44 @@ struct MigrationImportModalView: View {
                     Text("Change File".localized)
                         .font(.system(size: 11, weight: .light))
                         .foregroundColor(.secondary)
+                        .underline()
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
             }
             .padding(.horizontal, 28)
             .padding(.top, 14)
             
-            // Horizontal Kanban Columns
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 14) {
-                    // 1. Interval Columns (1 Day, 1 Week, 1 Month, 1 Year)
-                    ForEach(intervalColumns, id: \.self) { col in
-                        kanbanIntervalColumn(interval: col)
+            // Horizontal Kanban Columns with Direct-Manipulation Dragging
+            ZStack(alignment: .topLeading) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: 14) {
+                        // 1. Interval Columns (1 Day, 1 Week, 1 Month, 1 Year)
+                        ForEach(intervalColumns, id: \.self) { col in
+                            kanbanIntervalColumn(interval: col)
+                        }
+                        
+                        // 2. Scratchpad Lists Column
+                        kanbanScratchpadColumn
                     }
-                    
-                    // 2. Scratchpad Lists Column
-                    kanbanScratchpadColumn
+                    .padding(.horizontal, 28)
+                    .padding(.bottom, 8)
                 }
-                .padding(.horizontal, 28)
-                .padding(.bottom, 8)
+                .frame(maxHeight: .infinity)
+                
+                // Floating card during dynamic drag
+                if let draggingId = draggingTaskId,
+                   let dragging = parsedTasks.first(where: { $0.id == draggingId }) {
+                    FloatingKanbanTaskCardView(task: dragging)
+                        .position(dragPosition)
+                        .zIndex(999)
+                        .allowsHitTesting(false)
+                }
             }
-            .frame(maxHeight: .infinity)
+            .coordinateSpace(name: "kanbanCoordinateSpace")
+            .onPreferenceChange(ColumnFramePreferenceKey.self) { frames in
+                self.columnFrames = frames
+            }
             
             Divider()
                 .opacity(0.15)
@@ -310,6 +333,7 @@ struct MigrationImportModalView: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
                 
                 Spacer()
                 
@@ -332,6 +356,7 @@ struct MigrationImportModalView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 16)
@@ -343,6 +368,7 @@ struct MigrationImportModalView: View {
     @ViewBuilder
     private func kanbanIntervalColumn(interval: String) -> some View {
         let tasksInCol = parsedTasks.filter { $0.targetInterval == interval }
+        let isHovered = hoveredColumn == interval
         
         VStack(alignment: .leading, spacing: 10) {
             // Column Header
@@ -364,40 +390,43 @@ struct MigrationImportModalView: View {
             .padding(.horizontal, 10)
             .padding(.top, 8)
             
-            // Droppable Task List
+            // Task List
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: 8) {
                     if tasksInCol.isEmpty {
                         VStack(spacing: 6) {
                             Text("No tasks".localized)
                                 .font(.system(size: 11, weight: .light))
-                                .foregroundColor(.secondary.opacity(0.6))
+                                .foregroundColor(.secondary.opacity(0.5))
                         }
-                        .frame(maxWidth: .infinity, minHeight: 100)
+                        .frame(maxWidth: .infinity, minHeight: 120)
                     } else {
                         ForEach(tasksInCol) { task in
                             KanbanTaskCardView(
                                 task: task,
-                                intervalColumns: intervalColumns,
-                                onToggleSelected: {
-                                    if let idx = parsedTasks.firstIndex(where: { $0.id == task.id }) {
-                                        parsedTasks[idx].isSelected.toggle()
-                                    }
-                                },
-                                onMove: { targetIntv in
-                                    if let idx = parsedTasks.firstIndex(where: { $0.id == task.id }) {
-                                        withAnimation(.easeInOut(duration: 0.15)) {
-                                            parsedTasks[idx].targetInterval = targetIntv
-                                        }
-                                    }
-                                },
+                                isDragging: draggingTaskId == task.id,
                                 onDelete: {
                                     withAnimation(.easeInOut(duration: 0.15)) {
                                         parsedTasks.removeAll(where: { $0.id == task.id })
                                     }
                                 },
-                                onDragStart: {
-                                    self.draggedTaskId = task.id
+                                onDragChanged: { loc in
+                                    self.draggingTaskId = task.id
+                                    self.dragPosition = loc
+                                    self.updateHoveredColumn(at: loc)
+                                },
+                                onDragEnded: {
+                                    if let target = hoveredColumn, let draggingId = draggingTaskId {
+                                        if let idx = parsedTasks.firstIndex(where: { $0.id == draggingId }) {
+                                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                                parsedTasks[idx].targetInterval = target
+                                            }
+                                        }
+                                    }
+                                    withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                                        self.draggingTaskId = nil
+                                        self.hoveredColumn = nil
+                                    }
                                 }
                             )
                         }
@@ -407,20 +436,23 @@ struct MigrationImportModalView: View {
             }
             .frame(maxHeight: .infinity)
         }
-        .frame(width: 175)
+        .frame(width: 180)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color.primary.opacity(colorScheme == .dark ? 0.05 : 0.03))
+                .fill(isHovered ? Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08) : Color.primary.opacity(colorScheme == .dark ? 0.05 : 0.03))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isHovered ? Color.primary.opacity(0.35) : Color.clear, lineWidth: 1.5)
+                )
         )
-        .onDrop(of: [.text], isTargeted: nil) { _ in
-            guard let droppedId = draggedTaskId,
-                  let idx = parsedTasks.firstIndex(where: { $0.id == droppedId }) else { return false }
-            withAnimation(.easeInOut(duration: 0.15)) {
-                parsedTasks[idx].targetInterval = interval
-                draggedTaskId = nil
+        .background(
+            GeometryReader { geo in
+                Color.clear.preference(
+                    key: ColumnFramePreferenceKey.self,
+                    value: [interval: geo.frame(in: .named("kanbanCoordinateSpace"))]
+                )
             }
-            return true
-        }
+        )
     }
     
     // MARK: - Scratchpad Lists Column
@@ -453,16 +485,16 @@ struct MigrationImportModalView: View {
                         VStack(spacing: 6) {
                             Text("No custom lists".localized)
                                 .font(.system(size: 11, weight: .light))
-                                .foregroundColor(.secondary.opacity(0.6))
+                                .foregroundColor(.secondary.opacity(0.5))
                         }
-                        .frame(maxWidth: .infinity, minHeight: 100)
+                        .frame(maxWidth: .infinity, minHeight: 120)
                     } else {
                         ForEach(parsedScratchpadLists) { list in
                             KanbanScratchpadListCardView(
                                 list: list,
-                                onToggleSelected: {
-                                    if let idx = parsedScratchpadLists.firstIndex(where: { $0.id == list.id }) {
-                                        parsedScratchpadLists[idx].isSelected.toggle()
+                                onDelete: {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        parsedScratchpadLists.removeAll(where: { $0.id == list.id })
                                     }
                                 }
                             )
@@ -473,11 +505,31 @@ struct MigrationImportModalView: View {
             }
             .frame(maxHeight: .infinity)
         }
-        .frame(width: 200)
+        .frame(width: 210)
         .background(
             RoundedRectangle(cornerRadius: 10)
                 .fill(Color.primary.opacity(colorScheme == .dark ? 0.05 : 0.03))
         )
+    }
+    
+    // MARK: - Column Frame Hit Testing
+    
+    private func updateHoveredColumn(at location: CGPoint) {
+        for (interval, frame) in columnFrames {
+            if frame.contains(location) {
+                if hoveredColumn != interval {
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        hoveredColumn = interval
+                    }
+                }
+                return
+            }
+        }
+        if hoveredColumn != nil {
+            withAnimation(.easeInOut(duration: 0.1)) {
+                hoveredColumn = nil
+            }
+        }
     }
     
     // MARK: - Actions
@@ -534,61 +586,57 @@ struct MigrationImportModalView: View {
     }
 }
 
+// MARK: - PreferenceKey for Column Frames
+
+struct ColumnFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [String: CGRect] = [:]
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
 // MARK: - Kanban Subviews
 
 struct KanbanTaskCardView: View {
     let task: ImportedTask
-    let intervalColumns: [String]
-    let onToggleSelected: () -> Void
-    let onMove: (String) -> Void
+    let isDragging: Bool
     let onDelete: () -> Void
-    let onDragStart: () -> Void
+    let onDragChanged: (CGPoint) -> Void
+    let onDragEnded: () -> Void
     
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isCardHovered = false
+    @State private var isXHovered = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .top, spacing: 6) {
-                Button(action: onToggleSelected) {
-                    Image(systemName: task.isSelected ? "checkmark.square" : "square")
-                        .font(.system(size: 11))
-                        .foregroundColor(task.isSelected ? .primary : .secondary.opacity(0.5))
-                }
-                .buttonStyle(.plain)
-                
                 Text(task.text)
                     .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(task.isSelected ? .primary : .secondary)
-                    .lineLimit(2)
+                    .foregroundColor(.primary)
+                    .lineLimit(4)
                     .fixedSize(horizontal: false, vertical: true)
                 
                 Spacer(minLength: 0)
                 
-                Menu {
-                    ForEach(intervalColumns, id: \.self) { intv in
-                        Button(action: { onMove(intv) }) {
-                            HStack {
-                                Text(intv.localized)
-                                if task.targetInterval == intv {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                    
-                    Divider()
-                    
-                    Button(role: .destructive, action: onDelete) {
-                        Text("Delete".localized)
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary.opacity(0.7))
-                        .padding(2)
+                // Small hover-accentuated X button
+                Button(action: {
+                    onDelete()
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundColor(isXHovered ? .primary : .secondary.opacity(0.35))
+                        .padding(3)
+                        .background(
+                            Circle()
+                                .fill(isXHovered ? Color.primary.opacity(0.12) : Color.clear)
+                        )
+                        .contentShape(Rectangle())
                 }
-                .menuStyle(.borderlessButton)
-                .frame(width: 14)
+                .buttonStyle(.plain)
+                .pointingHandCursor()
+                .opacity(isCardHovered || isXHovered ? 1.0 : 0.2)
+                .onHover { isXHovered = $0 }
             }
             
             if let due = task.dueDate {
@@ -601,17 +649,70 @@ struct KanbanTaskCardView: View {
                 .foregroundColor(.secondary)
             }
         }
-        .padding(8)
+        .padding(9)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(colorScheme == .dark ? Color(white: 0.18) : Color.white)
-                .shadow(color: Color.black.opacity(0.04), radius: 3, y: 1)
+                .shadow(color: Color.black.opacity(isCardHovered ? 0.08 : 0.03), radius: isCardHovered ? 4 : 2, y: 1)
         )
-        .opacity(task.isSelected ? 1.0 : 0.5)
-        .onDrag {
-            onDragStart()
-            return NSItemProvider(object: task.id as NSString)
+        .opacity(isDragging ? 0.2 : 1.0)
+        .scaleEffect(isCardHovered && !isDragging ? 1.015 : 1.0)
+        .onHover { isCardHovered = $0 }
+        .gesture(
+            DragGesture(minimumDistance: 3, coordinateSpace: .named("kanbanCoordinateSpace"))
+                .onChanged { value in
+                    onDragChanged(value.location)
+                }
+                .onEnded { _ in
+                    onDragEnded()
+                }
+        )
+    }
+    
+    private func formattedDate(_ date: Date) -> String {
+        let df = DateFormatter()
+        df.dateStyle = .short
+        df.timeStyle = .none
+        return df.string(from: date)
+    }
+}
+
+struct FloatingKanbanTaskCardView: View {
+    let task: ImportedTask
+    @Environment(\.colorScheme) private var colorScheme
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(task.text)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.primary)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+            
+            if let due = task.dueDate {
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 9))
+                    Text(formattedDate(due))
+                        .font(.system(size: 10, weight: .light))
+                }
+                .foregroundColor(.secondary)
+            }
         }
+        .padding(9)
+        .frame(width: 165, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(colorScheme == .dark ? Color(white: 0.22) : Color.white)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.primary.opacity(0.2), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.28), radius: 14, y: 7)
+        )
+        .rotationEffect(.degrees(2.0))
+        .scaleEffect(1.05)
     }
     
     private func formattedDate(_ date: Date) -> String {
@@ -624,22 +725,17 @@ struct KanbanTaskCardView: View {
 
 struct KanbanScratchpadListCardView: View {
     let list: ImportedScratchpadList
-    let onToggleSelected: () -> Void
+    let onDelete: () -> Void
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovered = false
+    @State private var isXHovered = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Button(action: onToggleSelected) {
-                    Image(systemName: list.isSelected ? "checkmark.square" : "square")
-                        .font(.system(size: 11))
-                        .foregroundColor(list.isSelected ? .primary : .secondary.opacity(0.5))
-                }
-                .buttonStyle(.plain)
-                
                 Text(list.title)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(list.isSelected ? .primary : .secondary)
+                    .foregroundColor(.primary)
                     .lineLimit(1)
                 
                 Spacer()
@@ -647,9 +743,31 @@ struct KanbanScratchpadListCardView: View {
                 Text("\(list.items.count)")
                     .font(.system(size: 10, weight: .light))
                     .foregroundColor(.secondary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(Color.primary.opacity(0.08)))
+                
+                // Small hover-accentuated X button to remove list
+                Button(action: {
+                    onDelete()
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundColor(isXHovered ? .primary : .secondary.opacity(0.35))
+                        .padding(3)
+                        .background(
+                            Circle()
+                                .fill(isXHovered ? Color.primary.opacity(0.12) : Color.clear)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .pointingHandCursor()
+                .opacity(isHovered || isXHovered ? 1.0 : 0.2)
+                .onHover { isXHovered = $0 }
             }
             
-            ForEach(list.items.prefix(2), id: \.id) { item in
+            ForEach(list.items.prefix(3), id: \.id) { item in
                 HStack(spacing: 4) {
                     Circle()
                         .fill(Color.secondary.opacity(0.4))
@@ -661,19 +779,20 @@ struct KanbanScratchpadListCardView: View {
                 }
             }
             
-            if list.items.count > 2 {
-                Text("+ \(list.items.count - 2) \("more items".localized)")
+            if list.items.count > 3 {
+                Text("+ \(list.items.count - 3) \("more items".localized)")
                     .font(.system(size: 9, weight: .light))
                     .foregroundColor(.secondary.opacity(0.6))
                     .padding(.leading, 8)
             }
         }
-        .padding(8)
+        .padding(9)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(colorScheme == .dark ? Color(white: 0.18) : Color.white)
-                .shadow(color: Color.black.opacity(0.04), radius: 3, y: 1)
+                .shadow(color: Color.black.opacity(isHovered ? 0.08 : 0.03), radius: isHovered ? 4 : 2, y: 1)
         )
-        .opacity(list.isSelected ? 1.0 : 0.5)
+        .onHover { isHovered = $0 }
     }
 }
