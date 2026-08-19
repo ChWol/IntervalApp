@@ -72,11 +72,7 @@ class MigrationManager: ObservableObject {
         return f
     }()
     
-    // MARK: - Synchronized Marker Storage (Local + iCloud NSUbiquitousKeyValueStore + Supabase user_metadata)
-    
-    private var isCloudAvailable: Bool {
-        FileManager.default.ubiquityIdentityToken != nil
-    }
+    // MARK: - Synchronized Marker Storage (Local UserDefaults + Supabase user_metadata)
     
     func applyRemoteMarkers(_ markers: [String: String]) {
         var didUpdate = false
@@ -88,41 +84,16 @@ class MigrationManager: ObservableObject {
             }
         }
         if didUpdate {
-            syncFromCloudStore()
+            checkMigrations()
         }
     }
     
     private func getMarker(for key: String, defaultVal: String) -> String {
-        let local = UserDefaults.standard.string(forKey: key)
-        guard isCloudAvailable else {
-            return local ?? defaultVal
-        }
-        let cloud = NSUbiquitousKeyValueStore.default.string(forKey: key)
-        
-        if let l = local, let c = cloud {
-            let best = max(l, c)
-            if l != best {
-                UserDefaults.standard.set(best, forKey: key)
-            }
-            return best
-        }
-        if let c = cloud {
-            UserDefaults.standard.set(c, forKey: key)
-            return c
-        }
-        if let l = local {
-            NSUbiquitousKeyValueStore.default.set(l, forKey: key)
-            return l
-        }
-        return defaultVal
+        return UserDefaults.standard.string(forKey: key) ?? defaultVal
     }
     
     private func setMarker(_ value: String, for key: String) {
         UserDefaults.standard.set(value, forKey: key)
-        if isCloudAvailable {
-            NSUbiquitousKeyValueStore.default.set(value, forKey: key)
-            NSUbiquitousKeyValueStore.default.synchronize()
-        }
         Task { @MainActor in
             await SupabaseSyncManager.shared.updateUserMetadata([key: value])
         }
@@ -160,16 +131,7 @@ class MigrationManager: ObservableObject {
             }
             .store(in: &cancellables)
             
-        // 3. React when iCloud Key-Value store syncs markers from other devices
-        if isCloudAvailable {
-            NotificationCenter.default.publisher(for: NSUbiquitousKeyValueStore.didChangeExternallyNotification)
-                .sink { [weak self] _ in
-                    self?.syncFromCloudStore()
-                }
-                .store(in: &cancellables)
-        }
-        
-        // 4. System calendar and clock notifications
+        // 3. System calendar and clock notifications
         #if os(macOS)
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
             .sink { [weak self] _ in self?.checkMigrations() }
@@ -197,55 +159,6 @@ class MigrationManager: ObservableObject {
         #endif
         
         scheduleNextHourTimer()
-    }
-    
-    private func syncFromCloudStore() {
-        let keys = [
-            StoreKey.lastHandledHour,
-            StoreKey.lastHandledDay,
-            StoreKey.lastHandledWeek,
-            StoreKey.lastHandledMonth,
-            StoreKey.lastHandledYear
-        ]
-        for key in keys {
-            if let cloudVal = NSUbiquitousKeyValueStore.default.string(forKey: key) {
-                let localVal = UserDefaults.standard.string(forKey: key) ?? ""
-                if cloudVal > localVal {
-                    UserDefaults.standard.set(cloudVal, forKey: key)
-                }
-            }
-        }
-        
-        // If a migration is currently showing but its marker was updated from another device, dismiss it!
-        if let current = currentMigration {
-            let now = Date()
-            let currentHour = Self.hourFormatter.string(from: now)
-            let currentDay = Self.dayFormatter.string(from: now)
-            let currentWeek = Self.weekFormatter.string(from: now)
-            let currentMonth = Self.monthFormatter.string(from: now)
-            let currentYear = Self.yearFormatter.string(from: now)
-            
-            var isAlreadyHandled = false
-            if current.source == "1 Year" && current.dest == "1 Year" && getMarker(for: StoreKey.lastHandledYear, defaultVal: "") >= currentYear {
-                isAlreadyHandled = true
-            } else if current.source == "1 Year" && current.dest == "1 Month" && getMarker(for: StoreKey.lastHandledMonth, defaultVal: "") >= currentMonth {
-                isAlreadyHandled = true
-            } else if current.source == "1 Month" && current.dest == "1 Week" && getMarker(for: StoreKey.lastHandledWeek, defaultVal: "") >= currentWeek {
-                isAlreadyHandled = true
-            } else if current.source == "1 Week" && current.dest == "1 Day" && getMarker(for: StoreKey.lastHandledDay, defaultVal: "") >= currentDay {
-                isAlreadyHandled = true
-            } else if current.dest == HabitTaskLink.hourInterval && getMarker(for: StoreKey.lastHandledHour, defaultVal: "") >= currentHour {
-                isAlreadyHandled = true
-            }
-            
-            if isAlreadyHandled {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    self.currentMigration = nil
-                }
-            }
-        }
-        
-        self.checkMigrations()
     }
     
     private func scheduleNextHourTimer() {

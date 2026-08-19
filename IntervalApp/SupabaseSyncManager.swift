@@ -259,7 +259,7 @@ class SupabaseSyncManager: ObservableObject {
                 return SignUpResult(success: false, requiresConfirmation: false, error: msg)
             }
             
-            if let authResp = try? JSONDecoder().decode(AuthResponse.self, from: data), authResp.access_token != nil {
+            if let authResp = try? JSONDecoder().decode(AuthResponse.self, from: data), !authResp.access_token.isEmpty {
                 handleAuthSuccess(authResp, email: email)
                 return SignUpResult(success: true, requiresConfirmation: false, error: nil)
             } else {
