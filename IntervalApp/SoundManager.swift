@@ -255,24 +255,18 @@ public final class SoundManager {
         }
     }
     
-    // MARK: - Semantic Action Triggers with Dynamic Preference
+    // MARK: - Semantic Action Triggers
     
     public static func playTaskCompleted() {
-        let selected = UserDefaults.standard.string(forKey: "selectedSoundComplete") ?? SoundCompleteOption.clickWood.rawValue
-        let effect = SoundEffect(rawValue: selected) ?? .completeClickWood
-        SoundManager.shared.play(effect, volume: 0.95)
+        SoundManager.shared.play(.completePencilSingle, volume: 0.95)
     }
     
     public static func playTaskDeleted() {
-        let selected = UserDefaults.standard.string(forKey: "selectedSoundDelete") ?? SoundDeleteOption.paperSweep.rawValue
-        let effect = SoundEffect(rawValue: selected) ?? .deletePaperSweep
-        SoundManager.shared.play(effect, volume: 0.9)
+        SoundManager.shared.play(.deleteVelvetPoof, volume: 0.9)
     }
     
     public static func playTransitionChime() {
-        let selected = UserDefaults.standard.string(forKey: "selectedSoundTransition") ?? SoundTransitionOption.zenBowl.rawValue
-        let effect = SoundEffect(rawValue: selected) ?? .chimeZenBowl
-        SoundManager.shared.play(effect, volume: 0.85)
+        SoundManager.shared.play(.chimeZenBowl, volume: 0.85)
     }
     
     public static func playTaskDropped() {
@@ -280,20 +274,14 @@ public final class SoundManager {
     }
     
     public static func playTransfer() {
-        let selected = UserDefaults.standard.string(forKey: "selectedSoundTransfer") ?? SoundTransferOption.velvetGlide.rawValue
-        let effect = SoundEffect(rawValue: selected) ?? .transferVelvetGlide
-        SoundManager.shared.play(effect, volume: 0.85)
+        SoundManager.shared.play(.transferVelvetGlide, volume: 0.85)
     }
     
     public static func playHabitCompleted() {
-        let selected = UserDefaults.standard.string(forKey: "selectedSoundHabit") ?? SoundHabitOption.wood.rawValue
-        let effect = SoundEffect(rawValue: selected) ?? .habitCheckWood
-        SoundManager.shared.play(effect, volume: 0.9)
+        SoundManager.shared.play(.habitCheckWood, volume: 0.9)
     }
     
     public static func playUndo() {
-        let selected = UserDefaults.standard.string(forKey: "selectedSoundRestore") ?? SoundRestoreOption.reverseWhoosh.rawValue
-        let effect = SoundEffect(rawValue: selected) ?? .undoReverseWhoosh
-        SoundManager.shared.play(effect, volume: 0.85)
+        SoundManager.shared.play(.undoReverseWhoosh, volume: 0.85)
     }
 }

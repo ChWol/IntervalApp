@@ -350,6 +350,7 @@ class MigrationManager: ObservableObject {
     }
     
     private func presentFirstHourOfDay() {
+        cleanUpPreviousDayHabitTasks()
         let tasks = activeTasks()
         let sourceCount = tasks.filter { $0.intervalType == "1 Day" }.count
         let habitCount = selectableHabits(tasks: tasks).count
@@ -421,6 +422,7 @@ class MigrationManager: ObservableObject {
         }
         
         if let completedMigration, completedMigration.source == "1 Week" && completedMigration.dest == "1 Day" {
+            cleanUpPreviousDayHabitTasks()
             presentFirstHourOfDay()
         }
     }
@@ -432,7 +434,24 @@ class MigrationManager: ObservableObject {
         }
         
         if let skipped, skipped.source == "1 Week" && skipped.dest == "1 Day" {
+            cleanUpPreviousDayHabitTasks()
             presentFirstHourOfDay()
+        }
+    }
+    
+    private func cleanUpPreviousDayHabitTasks() {
+        guard let context = modelContext else { return }
+        let all = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        let now = Date()
+        var didClean = false
+        for task in all where task.habitId != nil && !task.completed && task.deletedAt == nil {
+            task.deletedAt = now
+            task.updatedAt = now
+            didClean = true
+        }
+        if didClean {
+            try? context.save()
+            SupabaseSyncManager.shared.push()
         }
     }
     
