@@ -1385,6 +1385,18 @@ class LocalizationManager: ObservableObject {
             .chinese: "Interval 备份",
             .japanese: "Interval バックアップ",
             .korean: "Interval 백업"
+        ],
+        "SELECT TIME": [
+            .english: "SELECT TIME",
+            .german: "UHRZEIT WÄHLEN",
+            .french: "CHOISIR L'HEURE",
+            .spanish: "SELECCIONAR HORA",
+            .portuguese: "SELECIONAR HORA",
+            .italian: "SELEZIONA ORA",
+            .arabic: "اختر الوقت",
+            .chinese: "选择时间",
+            .japanese: "時間を選択",
+            .korean: "시간 선택"
         ]
     ]
 }

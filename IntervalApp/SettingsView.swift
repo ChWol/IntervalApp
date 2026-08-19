@@ -65,6 +65,153 @@ struct MinimalistToggle: View {
     }
 }
 
+// MARK: - Minimalist Custom Time Picker
+
+struct MinimalistTimePicker: View {
+    @Binding var hour: Int
+    @Binding var minute: Int
+    @State private var isPopoverPresented: Bool = false
+    @State private var isHovered: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var formattedTime: String {
+        String(format: "%02d:%02d", hour, minute)
+    }
+    
+    var body: some View {
+        Button(action: {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isPopoverPresented.toggle()
+            }
+        }) {
+            HStack(spacing: 5) {
+                Image(systemName: "clock")
+                    .font(.system(size: 9, weight: .light))
+                    .foregroundColor(isHovered ? .primary : .secondary)
+                
+                Text(formattedTime)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.primary)
+                
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 7, weight: .light))
+                    .foregroundColor(.secondary.opacity(0.6))
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(
+                Capsule().fill(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.06))
+            )
+            .overlay(
+                Capsule().stroke(Color.primary.opacity(isHovered ? 0.25 : 0.12), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .pointingHandCursor()
+        .onHover { isHovered = $0 }
+        .popover(isPresented: $isPopoverPresented, arrowEdge: .bottom) {
+            timePickerPopoverContent
+        }
+    }
+    
+    private var timePickerPopoverContent: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("SELECT TIME".localized)
+                .font(.system(size: 9, weight: .light))
+                .tracking(1.5)
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
+            
+            HStack(spacing: 6) {
+                // Hours column
+                VStack(alignment: .leading, spacing: 2) {
+                    ScrollViewReader { proxy in
+                        ScrollView(showsIndicators: false) {
+                            VStack(spacing: 1) {
+                                ForEach(0..<24, id: \.self) { h in
+                                    let isSelected = hour == h
+                                    Button(action: {
+                                        hour = h
+                                    }) {
+                                        HStack {
+                                            Text(String(format: "%02d", h))
+                                                .font(.system(size: 11, weight: isSelected ? .medium : .light))
+                                                .foregroundColor(isSelected ? .primary : .secondary)
+                                            Spacer()
+                                            if isSelected {
+                                                Image(systemName: "checkmark")
+                                                    .font(.system(size: 8, weight: .medium))
+                                                    .foregroundColor(.primary)
+                                            }
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .fill(isSelected ? Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.08) : Color.clear)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .pointingHandCursor()
+                                    .id(h)
+                                }
+                            }
+                        }
+                        .frame(width: 58, height: 140)
+                        .onAppear {
+                            proxy.scrollTo(hour, anchor: .center)
+                        }
+                    }
+                }
+                
+                Rectangle()
+                    .fill(Color.primary.opacity(0.1))
+                    .frame(width: 1, height: 140)
+                
+                // Minutes column
+                VStack(alignment: .leading, spacing: 2) {
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 1) {
+                            ForEach([0, 15, 30, 45], id: \.self) { m in
+                                let isSelected = minute == m
+                                Button(action: {
+                                    minute = m
+                                    isPopoverPresented = false
+                                }) {
+                                    HStack {
+                                        Text(String(format: "%02d", m))
+                                            .font(.system(size: 11, weight: isSelected ? .medium : .light))
+                                            .foregroundColor(isSelected ? .primary : .secondary)
+                                        Spacer()
+                                        if isSelected {
+                                            Image(systemName: "checkmark")
+                                                .font(.system(size: 8, weight: .medium))
+                                                .foregroundColor(.primary)
+                                        }
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .fill(isSelected ? Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.08) : Color.clear)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .pointingHandCursor()
+                            }
+                        }
+                    }
+                    .frame(width: 58, height: 140)
+                }
+            }
+            .padding(.horizontal, 6)
+            .padding(.bottom, 8)
+        }
+        .frame(width: 145)
+    }
+}
+
 // MARK: - Settings Modal Action Type
 
 enum SettingsModalType {
@@ -84,22 +231,6 @@ struct SettingsView: View {
     @AppStorage("dayStartHour") private var dayStartHour: Int = 6
     @AppStorage("dayStartMinute") private var dayStartMinute: Int = 0
     @AppStorage("weekStartDay") private var weekStartDay: String = "Monday"
-    
-    private var dayStartDateBinding: Binding<Date> {
-        Binding<Date>(
-            get: {
-                var comp = Calendar.current.dateComponents([.year, .month, .day], from: Date())
-                comp.hour = dayStartHour
-                comp.minute = dayStartMinute
-                return Calendar.current.date(from: comp) ?? Date()
-            },
-            set: { newDate in
-                let comp = Calendar.current.dateComponents([.hour, .minute], from: newDate)
-                dayStartHour = comp.hour ?? 6
-                dayStartMinute = comp.minute ?? 0
-            }
-        )
-    }
 
     @State private var launchAtLogin: Bool = false
     @State private var hoveredLang: AppLanguage? = nil
@@ -262,14 +393,7 @@ struct SettingsView: View {
                                 .font(.system(size: 12, weight: .light))
                                 .foregroundColor(.primary)
                             
-                            DatePicker(
-                                "",
-                                selection: dayStartDateBinding,
-                                displayedComponents: .hourAndMinute
-                            )
-                            .labelsHidden()
-                            .datePickerStyle(.compact)
-                            .frame(width: 80)
+                            MinimalistTimePicker(hour: $dayStartHour, minute: $dayStartMinute)
                         }
                         .padding(.top, 2)
                         

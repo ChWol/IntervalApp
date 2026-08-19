@@ -17,22 +17,23 @@ struct PrintableIntervalsView: View {
     }()
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 18) {
             // Header
             HStack(alignment: .bottom) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("INTERVAL")
-                        .font(.system(size: 16, weight: .light))
-                        .tracking(3.0)
+                        .font(.system(size: 18, weight: .light))
+                        .tracking(3.5)
+                        .foregroundColor(Color.black)
                     Text(Self.dateFormatter.string(from: Date()))
                         .font(.system(size: 10, weight: .light))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.black.opacity(0.6))
                 }
                 Spacer()
             }
             .padding(.bottom, 8)
             .overlay(
-                Rectangle().frame(height: 1).foregroundColor(.black.opacity(0.15)),
+                Rectangle().frame(height: 1).foregroundColor(Color.black.opacity(0.15)),
                 alignment: .bottom
             )
             
@@ -41,17 +42,19 @@ struct PrintableIntervalsView: View {
             if !activeHabits.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("HABITS")
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.system(size: 9, weight: .semibold))
                         .tracking(1.5)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.black.opacity(0.55))
                     
                     HStack(spacing: 8) {
                         ForEach(activeHabits) { habit in
                             HStack(spacing: 4) {
                                 Image(systemName: habit.isCompletedCurrentPeriod ? "checkmark.circle.fill" : "circle")
                                     .font(.system(size: 8))
+                                    .foregroundColor(Color.black)
                                 Text(habit.text)
                                     .font(.system(size: 9, weight: .light))
+                                    .foregroundColor(Color.black)
                                     .strikethrough(habit.isCompletedCurrentPeriod)
                             }
                             .padding(.horizontal, 6)
@@ -62,31 +65,31 @@ struct PrintableIntervalsView: View {
                         }
                     }
                 }
-                .padding(.bottom, 6)
+                .padding(.bottom, 4)
             }
             
             // Interval Columns Grid
             let columns = ["1 Hour", "1 Day", "1 Week", "1 Month", "1 Year"]
-            HStack(alignment: .top, spacing: 16) {
+            HStack(alignment: .top, spacing: 14) {
                 ForEach(columns, id: \.self) { col in
                     let colTasks = tasks.filter { $0.intervalType == col && $0.deletedAt == nil && !$0.completed }
                         .sorted { $0.order < $1.order }
                     
                     VStack(alignment: .leading, spacing: 8) {
                         Text(col.uppercased())
-                            .font(.system(size: 9, weight: .medium))
+                            .font(.system(size: 9, weight: .semibold))
                             .tracking(1.5)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.black.opacity(0.55))
                             .padding(.bottom, 2)
                             .overlay(
-                                Rectangle().frame(height: 0.5).foregroundColor(.black.opacity(0.15)),
+                                Rectangle().frame(height: 0.5).foregroundColor(Color.black.opacity(0.15)),
                                 alignment: .bottom
                             )
                         
                         if colTasks.isEmpty {
                             Text("—")
                                 .font(.system(size: 10, weight: .light))
-                                .foregroundColor(.secondary.opacity(0.5))
+                                .foregroundColor(Color.black.opacity(0.25))
                         } else {
                             VStack(alignment: .leading, spacing: 6) {
                                 ForEach(colTasks) { task in
@@ -94,10 +97,10 @@ struct PrintableIntervalsView: View {
                                         Image(systemName: "circle")
                                             .font(.system(size: 7))
                                             .padding(.top, 2)
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(Color.black.opacity(0.4))
                                         Text(task.text)
                                             .font(.system(size: 10, weight: .light))
-                                            .foregroundColor(.primary)
+                                            .foregroundColor(Color.black)
                                             .fixedSize(horizontal: false, vertical: true)
                                     }
                                 }
@@ -108,12 +111,12 @@ struct PrintableIntervalsView: View {
                 }
             }
             
-            Spacer(minLength: 20)
+            Spacer(minLength: 10)
         }
         .padding(32)
-        .frame(width: 760, alignment: .topLeading)
+        .frame(width: 800, height: 550, alignment: .topLeading)
         .background(Color.white)
-        .foregroundColor(Color.black)
+        .environment(\.colorScheme, .light)
     }
 }
 
@@ -126,21 +129,33 @@ final class PrintManager {
         let habits = (try? context.fetch(FetchDescriptor<HabitItem>())) ?? []
         
         let printView = PrintableIntervalsView(tasks: tasks, habits: habits)
-        let hostingView = NSHostingView(rootView: printView)
-        hostingView.frame = CGRect(x: 0, y: 0, width: 760, height: 500)
-        hostingView.layoutSubtreeIfNeeded()
+        
+        // Render view using ImageRenderer to ensure 100% rasterized content in print preview
+        let renderer = ImageRenderer(content: printView)
+        renderer.scale = 2.0 // High-DPI crisp print quality
+        
+        guard let nsImage = renderer.nsImage else {
+            print("Failed to render print image")
+            return
+        }
+        
+        let imageView = NSImageView(frame: NSRect(x: 0, y: 0, width: 800, height: 550))
+        imageView.image = nsImage
+        imageView.imageScaling = .scaleProportionallyUpOrDown
         
         let printInfo = NSPrintInfo.shared
-        printInfo.paperSize = NSSize(width: 842, height: 595) // A4 landscape default or standard letter
+        printInfo.paperSize = NSSize(width: 842, height: 595) // A4 / Letter landscape
         printInfo.orientation = .landscape
         printInfo.topMargin = 20
         printInfo.bottomMargin = 20
         printInfo.leftMargin = 20
         printInfo.rightMargin = 20
         printInfo.isHorizontallyCentered = true
-        printInfo.isVerticallyCentered = false
+        printInfo.isVerticallyCentered = true
+        printInfo.horizontalPagination = .fit
+        printInfo.verticalPagination = .fit
         
-        let printOperation = NSPrintOperation(view: hostingView, printInfo: printInfo)
+        let printOperation = NSPrintOperation(view: imageView, printInfo: printInfo)
         printOperation.showsPrintPanel = true
         printOperation.showsProgressPanel = true
         
