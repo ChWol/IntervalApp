@@ -3,7 +3,56 @@ import SwiftData
 #if os(macOS)
 import AppKit
 
-// MARK: - Printable Document View
+// MARK: - Single Interval Print Block
+
+private struct PrintIntervalBlock: View {
+    let title: String
+    let tasks: [TaskItem]
+    let titleSize: CGFloat
+    let taskSize: CGFloat
+    let iconSize: CGFloat
+    let lineSpacing: CGFloat
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Header
+            Text(title.uppercased())
+                .font(.system(size: titleSize, weight: .semibold))
+                .tracking(2.0)
+                .foregroundColor(Color.black.opacity(0.65))
+                .padding(.bottom, 2)
+            
+            if tasks.isEmpty {
+                Text("—")
+                    .font(.system(size: taskSize, weight: .light))
+                    .foregroundColor(Color.black.opacity(0.2))
+                    .padding(.top, 2)
+            } else {
+                VStack(alignment: .leading, spacing: lineSpacing) {
+                    ForEach(tasks) { task in
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "circle")
+                                .font(.system(size: iconSize))
+                                .foregroundColor(Color.black.opacity(0.35))
+                                .padding(.top, (taskSize - iconSize) / 2 + 1)
+                            
+                            Text(task.text)
+                                .font(.system(size: taskSize, weight: .light))
+                                .foregroundColor(Color.black)
+                                .lineSpacing(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+            
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+// MARK: - Printable Document View (Recursive 50% Subdivision Layout)
 
 struct PrintableIntervalsView: View {
     let tasks: [TaskItem]
@@ -16,105 +65,156 @@ struct PrintableIntervalsView: View {
         return f
     }()
     
+    private func activeTasks(for interval: String) -> [TaskItem] {
+        tasks.filter { $0.intervalType == interval && $0.deletedAt == nil && !$0.completed }
+            .sorted { $0.order < $1.order }
+    }
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            // Header
-            HStack(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("INTERVAL")
-                        .font(.system(size: 18, weight: .light))
-                        .tracking(3.5)
-                        .foregroundColor(Color.black)
-                    Text(Self.dateFormatter.string(from: Date()))
-                        .font(.system(size: 10, weight: .light))
-                        .foregroundColor(Color.black.opacity(0.6))
-                }
+        VStack(alignment: .leading, spacing: 14) {
+            // MARK: 1. Header (Title & Date)
+            HStack(alignment: .lastTextBaseline) {
+                Text("INTERVAL")
+                    .font(.system(size: 16, weight: .light))
+                    .tracking(3.5)
+                    .foregroundColor(Color.black)
+                
                 Spacer()
+                
+                Text(Self.dateFormatter.string(from: Date()))
+                    .font(.system(size: 9, weight: .light))
+                    .foregroundColor(Color.black.opacity(0.5))
             }
-            .padding(.bottom, 8)
-            .overlay(
-                Rectangle().frame(height: 1).foregroundColor(Color.black.opacity(0.15)),
-                alignment: .bottom
-            )
             
-            // Habits Bar (if any)
+            // MARK: 2. Habits Bar (Under Header)
             let activeHabits = habits.filter { $0.deletedAt == nil && $0.isScheduledForTodayOrOverdue() }
             if !activeHabits.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("HABITS")
-                        .font(.system(size: 9, weight: .semibold))
-                        .tracking(1.5)
-                        .foregroundColor(Color.black.opacity(0.55))
-                    
-                    HStack(spacing: 8) {
-                        ForEach(activeHabits) { habit in
-                            HStack(spacing: 4) {
-                                Image(systemName: habit.isCompletedCurrentPeriod ? "checkmark.circle.fill" : "circle")
-                                    .font(.system(size: 8))
-                                    .foregroundColor(Color.black)
-                                Text(habit.text)
-                                    .font(.system(size: 9, weight: .light))
-                                    .foregroundColor(Color.black)
-                                    .strikethrough(habit.isCompletedCurrentPeriod)
-                            }
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .overlay(
-                                Capsule().stroke(Color.black.opacity(0.2), lineWidth: 0.5)
-                            )
+                HStack(spacing: 6) {
+                    ForEach(activeHabits) { habit in
+                        HStack(spacing: 4) {
+                            Image(systemName: habit.isCompletedCurrentPeriod ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 7.5))
+                                .foregroundColor(Color.black.opacity(habit.isCompletedCurrentPeriod ? 0.9 : 0.4))
+                            
+                            Text(habit.text)
+                                .font(.system(size: 8.5, weight: .light))
+                                .foregroundColor(Color.black)
+                                .strikethrough(habit.isCompletedCurrentPeriod)
                         }
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3.5)
+                        .background(
+                            Capsule().fill(Color.black.opacity(0.03))
+                        )
+                        .overlay(
+                            Capsule().stroke(Color.black.opacity(0.15), lineWidth: 0.5)
+                        )
                     }
                 }
-                .padding(.bottom, 4)
+                .padding(.bottom, 2)
             }
             
-            // Interval Columns Grid
-            let columns = ["1 Hour", "1 Day", "1 Week", "1 Month", "1 Year"]
-            HStack(alignment: .top, spacing: 14) {
-                ForEach(columns, id: \.self) { col in
-                    let colTasks = tasks.filter { $0.intervalType == col && $0.deletedAt == nil && !$0.completed }
-                        .sorted { $0.order < $1.order }
+            // Subtle Divider under Header & Habits
+            Rectangle()
+                .fill(Color.black.opacity(0.12))
+                .frame(height: 0.5)
+            
+            // MARK: 3. Recursive 50% Subdivision Layout
+            HStack(spacing: 0) {
+                // LEFT 50%: 1 HOUR (Largest block & typography)
+                PrintIntervalBlock(
+                    title: "1 Hour",
+                    tasks: activeTasks(for: "1 Hour"),
+                    titleSize: 11,
+                    taskSize: 13,
+                    iconSize: 9,
+                    lineSpacing: 8
+                )
+                .padding(.trailing, 16)
+                
+                // Vertical Divider
+                Rectangle()
+                    .fill(Color.black.opacity(0.12))
+                    .frame(width: 0.5)
+                
+                // RIGHT 50%: 1 DAY (Top) + [1 WEEK & 1 MONTH & 1 YEAR] (Bottom)
+                VStack(spacing: 0) {
+                    // TOP 50% OF RIGHT: 1 DAY (Medium block & typography)
+                    PrintIntervalBlock(
+                        title: "1 Day",
+                        tasks: activeTasks(for: "1 Day"),
+                        titleSize: 10,
+                        taskSize: 11,
+                        iconSize: 8,
+                        lineSpacing: 6
+                    )
+                    .padding(.leading, 16)
+                    .padding(.bottom, 12)
                     
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(col.uppercased())
-                            .font(.system(size: 9, weight: .semibold))
-                            .tracking(1.5)
-                            .foregroundColor(Color.black.opacity(0.55))
-                            .padding(.bottom, 2)
-                            .overlay(
-                                Rectangle().frame(height: 0.5).foregroundColor(Color.black.opacity(0.15)),
-                                alignment: .bottom
-                            )
+                    // Horizontal Divider
+                    Rectangle()
+                        .fill(Color.black.opacity(0.12))
+                        .frame(height: 0.5)
+                    
+                    // BOTTOM 50% OF RIGHT: 1 WEEK (Left) + [1 MONTH & 1 YEAR] (Right)
+                    HStack(spacing: 0) {
+                        // 1 WEEK
+                        PrintIntervalBlock(
+                            title: "1 Week",
+                            tasks: activeTasks(for: "1 Week"),
+                            titleSize: 9,
+                            taskSize: 9.5,
+                            iconSize: 7,
+                            lineSpacing: 5
+                        )
+                        .padding(.leading, 16)
+                        .padding(.trailing, 12)
+                        .padding(.top, 12)
                         
-                        if colTasks.isEmpty {
-                            Text("—")
-                                .font(.system(size: 10, weight: .light))
-                                .foregroundColor(Color.black.opacity(0.25))
-                        } else {
-                            VStack(alignment: .leading, spacing: 6) {
-                                ForEach(colTasks) { task in
-                                    HStack(alignment: .top, spacing: 6) {
-                                        Image(systemName: "circle")
-                                            .font(.system(size: 7))
-                                            .padding(.top, 2)
-                                            .foregroundColor(Color.black.opacity(0.4))
-                                        Text(task.text)
-                                            .font(.system(size: 10, weight: .light))
-                                            .foregroundColor(Color.black)
-                                            .fixedSize(horizontal: false, vertical: true)
-                                    }
-                                }
-                            }
+                        // Vertical Divider
+                        Rectangle()
+                            .fill(Color.black.opacity(0.12))
+                            .frame(width: 0.5)
+                        
+                        // 1 MONTH (Top) & 1 YEAR (Bottom)
+                        VStack(spacing: 0) {
+                            // 1 MONTH
+                            PrintIntervalBlock(
+                                title: "1 Month",
+                                tasks: activeTasks(for: "1 Month"),
+                                titleSize: 8.5,
+                                taskSize: 8.5,
+                                iconSize: 6.5,
+                                lineSpacing: 4
+                            )
+                            .padding(.leading, 12)
+                            .padding(.top, 12)
+                            .padding(.bottom, 8)
+                            
+                            // Horizontal Divider
+                            Rectangle()
+                                .fill(Color.black.opacity(0.12))
+                                .frame(height: 0.5)
+                            
+                            // 1 YEAR
+                            PrintIntervalBlock(
+                                title: "1 Year",
+                                tasks: activeTasks(for: "1 Year"),
+                                titleSize: 8.5,
+                                taskSize: 8.5,
+                                iconSize: 6.5,
+                                lineSpacing: 4
+                            )
+                            .padding(.leading, 12)
+                            .padding(.top, 8)
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
             }
-            
-            Spacer(minLength: 10)
+            .frame(maxHeight: .infinity)
         }
-        .padding(32)
-        .frame(width: 800, height: 550, alignment: .topLeading)
+        .padding(28)
+        .frame(width: 800, height: 530, alignment: .topLeading)
         .background(Color.white)
         .environment(\.colorScheme, .light)
     }
@@ -130,21 +230,21 @@ final class PrintManager {
         
         let printView = PrintableIntervalsView(tasks: tasks, habits: habits)
         
-        // Render view using ImageRenderer to ensure 100% rasterized content in print preview
+        // Render view using ImageRenderer to ensure 100% crisp rasterized vector quality
         let renderer = ImageRenderer(content: printView)
-        renderer.scale = 2.0 // High-DPI crisp print quality
+        renderer.scale = 3.0 // Ultra High-DPI crisp print resolution
         
         guard let nsImage = renderer.nsImage else {
             print("Failed to render print image")
             return
         }
         
-        let imageView = NSImageView(frame: NSRect(x: 0, y: 0, width: 800, height: 550))
+        let imageView = NSImageView(frame: NSRect(x: 0, y: 0, width: 800, height: 530))
         imageView.image = nsImage
         imageView.imageScaling = .scaleProportionallyUpOrDown
         
         let printInfo = NSPrintInfo.shared
-        printInfo.paperSize = NSSize(width: 842, height: 595) // A4 / Letter landscape
+        printInfo.paperSize = NSSize(width: 842, height: 595) // Standard A4 / Letter Landscape
         printInfo.orientation = .landscape
         printInfo.topMargin = 20
         printInfo.bottomMargin = 20
