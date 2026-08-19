@@ -82,7 +82,24 @@ struct SettingsView: View {
     @AppStorage("soundEffectsEnabled") private var soundEffectsEnabled: Bool = true
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = false
     @AppStorage("dayStartHour") private var dayStartHour: Int = 6
+    @AppStorage("dayStartMinute") private var dayStartMinute: Int = 0
     @AppStorage("weekStartDay") private var weekStartDay: String = "Monday"
+    
+    private var dayStartDateBinding: Binding<Date> {
+        Binding<Date>(
+            get: {
+                var comp = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+                comp.hour = dayStartHour
+                comp.minute = dayStartMinute
+                return Calendar.current.date(from: comp) ?? Date()
+            },
+            set: { newDate in
+                let comp = Calendar.current.dateComponents([.hour, .minute], from: newDate)
+                dayStartHour = comp.hour ?? 6
+                dayStartMinute = comp.minute ?? 0
+            }
+        )
+    }
 
     @State private var launchAtLogin: Bool = false
     @State private var hoveredLang: AppLanguage? = nil
@@ -239,42 +256,22 @@ struct SettingsView: View {
                             }
                         }
                         
-                        // Day Start Hour
+                        // Day Start Time
                         HStack(spacing: 12) {
                             Text("Day Starts At".localized)
                                 .font(.system(size: 12, weight: .light))
                                 .foregroundColor(.primary)
                             
-                            HStack(spacing: 6) {
-                                ForEach([4, 5, 6, 7, 8], id: \.self) { hour in
-                                    let isSelected = dayStartHour == hour
-                                    Button(action: {
-                                        withAnimation(.easeInOut(duration: 0.15)) {
-                                            dayStartHour = hour
-                                        }
-                                    }) {
-                                        Text(String(format: "%02d:00", hour))
-                                            .font(.system(size: 11, weight: isSelected ? .medium : .light))
-                                            .foregroundColor(isSelected ? .primary : .secondary)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 3)
-                                            .background(
-                                                Capsule().fill(isSelected
-                                                    ? Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.08)
-                                                    : Color.clear)
-                                            )
-                                            .overlay(
-                                                Capsule().stroke(
-                                                    Color.primary.opacity(isSelected ? 0.25 : 0.08),
-                                                    lineWidth: 1)
-                                            )
-                                    }
-                                    .buttonStyle(.plain)
-                                    .pointingHandCursor()
-                                }
-                            }
+                            DatePicker(
+                                "",
+                                selection: dayStartDateBinding,
+                                displayedComponents: .hourAndMinute
+                            )
+                            .labelsHidden()
+                            .datePickerStyle(.compact)
+                            .frame(width: 80)
                         }
-                        .padding(.top, 4)
+                        .padding(.top, 2)
                         
                         // Week Start Day
                         HStack(spacing: 12) {

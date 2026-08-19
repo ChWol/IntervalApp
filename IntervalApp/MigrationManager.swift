@@ -52,6 +52,10 @@ class MigrationManager: ObservableObject {
         return 6 // Default 6 AM as requested
     }
     
+    private var dayStartMinute: Int {
+        return UserDefaults.standard.integer(forKey: "dayStartMinute")
+    }
+    
     private static var weekFormatter: DateFormatter {
         let f = DateFormatter()
         f.dateFormat = "yyyy-'W'ww"
@@ -209,9 +213,12 @@ class MigrationManager: ObservableObject {
         var targetStoreKey: String? = nil
         var targetMarker: String? = nil
         
-        // Day, Week, Month, and Year migrations trigger at or after the configured dayStartHour (default 06:00)
+        let minute = Calendar.current.component(.minute, from: now)
+        let isPastDayStart = (hour > dayStartHour) || (hour == dayStartHour && minute >= dayStartMinute)
+        
+        // Day, Week, Month, and Year migrations trigger at or after the configured day start time (default 06:00)
         // to avoid interrupting night work sessions.
-        if hour >= dayStartHour {
+        if isPastDayStart {
             if lastHandledYear != currentYear {
                 pending = Migration(source: "1 Year", dest: "1 Year")
                 targetStoreKey = StoreKey.lastHandledYear

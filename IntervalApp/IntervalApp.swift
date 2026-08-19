@@ -48,6 +48,14 @@ struct IntervalApp: App {
         .handlesExternalEvents(matching: Set(arrayLiteral: "*"))
         #if os(macOS)
         .windowStyle(HiddenTitleBarWindowStyle())
+        .commands {
+            CommandGroup(replacing: .printItem) {
+                Button("Print / Save as PDF...".localized) {
+                    PrintManager.printIntervals(context: sharedModelContainer.mainContext)
+                }
+                .keyboardShortcut("p", modifiers: .command)
+            }
+        }
         #endif
     }
 }
