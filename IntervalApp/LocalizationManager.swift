@@ -43,6 +43,21 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         if code.hasPrefix("ko") { return .korean }
         return .english
     }
+    
+    var locale: Locale {
+        switch self {
+        case .english: return Locale(identifier: "en_US")
+        case .german: return Locale(identifier: "de_DE")
+        case .french: return Locale(identifier: "fr_FR")
+        case .spanish: return Locale(identifier: "es_ES")
+        case .portuguese: return Locale(identifier: "pt_PT")
+        case .italian: return Locale(identifier: "it_IT")
+        case .arabic: return Locale(identifier: "ar_SA")
+        case .chinese: return Locale(identifier: "zh_CN")
+        case .japanese: return Locale(identifier: "ja_JP")
+        case .korean: return Locale(identifier: "ko_KR")
+        }
+    }
 }
 
 class LocalizationManager: ObservableObject {

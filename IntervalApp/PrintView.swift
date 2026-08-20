@@ -10,36 +10,36 @@ private struct PrintIntervalBlock: View {
     let tasks: [TaskItem]
     let titleSize: CGFloat
     let taskSize: CGFloat
-    let iconSize: CGFloat
     let lineSpacing: CGFloat
     
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Header
-            Text(title.uppercased())
-                .font(.system(size: titleSize, weight: .semibold))
-                .tracking(2.0)
-                .foregroundColor(Color.black.opacity(0.65))
+            // Header (Localized Title)
+            Text(title.localized.uppercased())
+                .font(.system(size: titleSize, weight: .medium))
+                .tracking(1.8)
+                .foregroundColor(Color.black.opacity(0.6))
                 .padding(.bottom, 2)
             
             if tasks.isEmpty {
                 Text("—")
                     .font(.system(size: taskSize, weight: .light))
-                    .foregroundColor(Color.black.opacity(0.2))
-                    .padding(.top, 2)
+                    .foregroundColor(Color.black.opacity(0.18))
+                    .padding(.top, 1)
             } else {
                 VStack(alignment: .leading, spacing: lineSpacing) {
                     ForEach(tasks) { task in
-                        HStack(alignment: .top, spacing: 6) {
-                            Image(systemName: "circle")
-                                .font(.system(size: iconSize))
-                                .foregroundColor(Color.black.opacity(0.35))
-                                .padding(.top, (taskSize - iconSize) / 2 + 1)
+                        HStack(alignment: .top, spacing: max(4, taskSize * 0.35)) {
+                            // Interval's signature dash marker
+                            Text("–")
+                                .font(.system(size: taskSize * 0.85, weight: .light))
+                                .foregroundColor(Color.black.opacity(0.4))
+                                .frame(width: max(8, taskSize * 0.6), alignment: .center)
                             
                             Text(task.text)
                                 .font(.system(size: taskSize, weight: .light))
                                 .foregroundColor(Color.black)
-                                .lineSpacing(2)
+                                .lineSpacing(1.5)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -58,12 +58,13 @@ struct PrintableIntervalsView: View {
     let tasks: [TaskItem]
     let habits: [HabitItem]
     
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .full
-        f.timeStyle = .none
-        return f
-    }()
+    private var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        formatter.timeStyle = .none
+        formatter.locale = LocalizationManager.shared.currentLanguage.locale
+        return formatter.string(from: Date())
+    }
     
     private func activeTasks(for interval: String) -> [TaskItem] {
         tasks.filter { $0.intervalType == interval && $0.deletedAt == nil && !$0.completed }
@@ -71,142 +72,130 @@ struct PrintableIntervalsView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // MARK: 1. Header (Title & Date)
-            HStack(alignment: .lastTextBaseline) {
+        VStack(alignment: .leading, spacing: 12) {
+            // MARK: 1. Header (Logo, Title & Localized Date)
+            HStack(alignment: .center, spacing: 8) {
+                // Subtle App Logo
+                if let icon = NSApplication.shared.applicationIconImage {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 16, height: 16)
+                        .clipShape(RoundedRectangle(cornerRadius: 3.5))
+                }
+                
                 Text("INTERVAL")
-                    .font(.system(size: 16, weight: .light))
+                    .font(.system(size: 14, weight: .light))
                     .tracking(3.5)
                     .foregroundColor(Color.black)
                 
                 Spacer()
                 
-                Text(Self.dateFormatter.string(from: Date()))
+                Text(formattedDate)
                     .font(.system(size: 9, weight: .light))
-                    .foregroundColor(Color.black.opacity(0.5))
+                    .foregroundColor(Color.black.opacity(0.45))
             }
             
-            // MARK: 2. Habits Bar (Under Header)
+            // MARK: 2. Quiet Habits Bar (Single thin line separated by /)
             let activeHabits = habits.filter { $0.deletedAt == nil && $0.isScheduledForTodayOrOverdue() }
-            if !activeHabits.isEmpty {
-                HStack(spacing: 6) {
-                    ForEach(activeHabits) { habit in
-                        HStack(spacing: 4) {
-                            Image(systemName: habit.isCompletedCurrentPeriod ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 7.5))
-                                .foregroundColor(Color.black.opacity(habit.isCompletedCurrentPeriod ? 0.9 : 0.4))
-                            
-                            Text(habit.text)
-                                .font(.system(size: 8.5, weight: .light))
-                                .foregroundColor(Color.black)
-                                .strikethrough(habit.isCompletedCurrentPeriod)
-                        }
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3.5)
-                        .background(
-                            Capsule().fill(Color.black.opacity(0.03))
-                        )
-                        .overlay(
-                            Capsule().stroke(Color.black.opacity(0.15), lineWidth: 0.5)
-                        )
-                    }
-                }
-                .padding(.bottom, 2)
+            let habitTitles = activeHabits.map { $0.text }
+            if !habitTitles.isEmpty {
+                Text(habitTitles.joined(separator: "   /   "))
+                    .font(.system(size: 9, weight: .light))
+                    .foregroundColor(Color.black.opacity(0.4))
+                    .lineLimit(1)
+                    .padding(.top, -3)
+                    .padding(.bottom, 2)
             }
             
-            // Subtle Divider under Header & Habits
+            // Subtle Hairline Divider under Header & Habits
             Rectangle()
-                .fill(Color.black.opacity(0.12))
+                .fill(Color.black.opacity(0.1))
                 .frame(height: 0.5)
             
-            // MARK: 3. Recursive 50% Subdivision Layout
+            // MARK: 3. Recursive 50% Subdivision Layout with App Font-Hierarchy Ratios
             HStack(spacing: 0) {
-                // LEFT 50%: 1 HOUR (Largest block & typography)
+                // LEFT 50%: 1 HOUR (20pt typography - large & spacious)
                 PrintIntervalBlock(
                     title: "1 Hour",
                     tasks: activeTasks(for: "1 Hour"),
                     titleSize: 11,
-                    taskSize: 13,
-                    iconSize: 9,
-                    lineSpacing: 8
+                    taskSize: 20,
+                    lineSpacing: 7
                 )
                 .padding(.trailing, 16)
                 
                 // Vertical Divider
                 Rectangle()
-                    .fill(Color.black.opacity(0.12))
+                    .fill(Color.black.opacity(0.1))
                     .frame(width: 0.5)
                 
                 // RIGHT 50%: 1 DAY (Top) + [1 WEEK & 1 MONTH & 1 YEAR] (Bottom)
                 VStack(spacing: 0) {
-                    // TOP 50% OF RIGHT: 1 DAY (Medium block & typography)
+                    // TOP 50% OF RIGHT: 1 DAY (13.5pt typography)
                     PrintIntervalBlock(
                         title: "1 Day",
                         tasks: activeTasks(for: "1 Day"),
                         titleSize: 10,
-                        taskSize: 11,
-                        iconSize: 8,
-                        lineSpacing: 6
+                        taskSize: 13.5,
+                        lineSpacing: 5.5
                     )
                     .padding(.leading, 16)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 10)
                     
                     // Horizontal Divider
                     Rectangle()
-                        .fill(Color.black.opacity(0.12))
+                        .fill(Color.black.opacity(0.1))
                         .frame(height: 0.5)
                     
                     // BOTTOM 50% OF RIGHT: 1 WEEK (Left) + [1 MONTH & 1 YEAR] (Right)
                     HStack(spacing: 0) {
-                        // 1 WEEK
+                        // 1 WEEK (9.2pt typography)
                         PrintIntervalBlock(
                             title: "1 Week",
                             tasks: activeTasks(for: "1 Week"),
-                            titleSize: 9,
-                            taskSize: 9.5,
-                            iconSize: 7,
-                            lineSpacing: 5
+                            titleSize: 8.5,
+                            taskSize: 9.2,
+                            lineSpacing: 4
                         )
                         .padding(.leading, 16)
                         .padding(.trailing, 12)
-                        .padding(.top, 12)
+                        .padding(.top, 10)
                         
                         // Vertical Divider
                         Rectangle()
-                            .fill(Color.black.opacity(0.12))
+                            .fill(Color.black.opacity(0.1))
                             .frame(width: 0.5)
                         
                         // 1 MONTH (Top) & 1 YEAR (Bottom)
                         VStack(spacing: 0) {
-                            // 1 MONTH
+                            // 1 MONTH (6.8pt typography)
                             PrintIntervalBlock(
                                 title: "1 Month",
                                 tasks: activeTasks(for: "1 Month"),
-                                titleSize: 8.5,
-                                taskSize: 8.5,
-                                iconSize: 6.5,
-                                lineSpacing: 4
+                                titleSize: 7.5,
+                                taskSize: 6.8,
+                                lineSpacing: 3
                             )
                             .padding(.leading, 12)
-                            .padding(.top, 12)
-                            .padding(.bottom, 8)
+                            .padding(.top, 10)
+                            .padding(.bottom, 6)
                             
                             // Horizontal Divider
                             Rectangle()
-                                .fill(Color.black.opacity(0.12))
+                                .fill(Color.black.opacity(0.1))
                                 .frame(height: 0.5)
                             
-                            // 1 YEAR
+                            // 1 YEAR (5.2pt typography)
                             PrintIntervalBlock(
                                 title: "1 Year",
                                 tasks: activeTasks(for: "1 Year"),
-                                titleSize: 8.5,
-                                taskSize: 8.5,
-                                iconSize: 6.5,
-                                lineSpacing: 4
+                                titleSize: 7.0,
+                                taskSize: 5.2,
+                                lineSpacing: 2.5
                             )
                             .padding(.leading, 12)
-                            .padding(.top, 8)
+                            .padding(.top, 6)
                         }
                     }
                 }
