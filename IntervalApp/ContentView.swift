@@ -355,6 +355,34 @@ struct ContentView: View {
                     .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "settings" : nil } }
                     .help("Settings".localized)
                     
+                    // Search Button
+                    Button(action: {
+                        focusedTaskId = nil
+                        #if os(iOS)
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        #endif
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            isSearchPresented.toggle()
+                        }
+                    }) {
+                        let isHovered = hoveredTopButton == "search"
+                        ZStack {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 11, weight: .light))
+                                .foregroundColor(isSearchPresented ? .primary : (isHovered ? .primary : .secondary))
+                        }
+                        .frame(width: 28, height: 28)
+                        .background(
+                            Circle()
+                                .fill(Color.primary.opacity(isSearchPresented ? 0.12 : (isHovered ? 0.08 : 0.04)))
+                        )
+                        .scaleEffect(isHovered ? 1.08 : 1.0)
+                    }
+                    .buttonStyle(.plain)
+                    .pointingHandCursor()
+                    .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "search" : nil } }
+                    .help("Search (⌘F)".localized)
+                    
                     // Refresh / Sync Button
                     Button(action: {
                         focusedTaskId = nil
@@ -451,22 +479,7 @@ struct ContentView: View {
             .padding(.top, 20)
             .padding(.trailing, 24)
             
-            #if os(iOS)
-            // Invisible gesture capture layer for iOS downward swipe
-            Color.clear
-                .contentShape(Rectangle())
-                .allowsHitTesting(!isSearchPresented)
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 25)
-                        .onEnded { value in
-                            if value.translation.height > 60 && abs(value.translation.width) < value.translation.height * 0.7 && !isSearchPresented {
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                    isSearchPresented = true
-                                }
-                            }
-                        }
-                )
-            #endif
+
             
             if isSearchPresented {
                 SpotlightSearchView(
