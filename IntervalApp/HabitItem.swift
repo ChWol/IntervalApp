@@ -70,9 +70,19 @@ final class HabitItem {
         isCompleted(at: Date())
     }
     
+    /// Adjusts any timestamp according to the configured dayStartHour and dayStartMinute (default 06:00).
+    /// A date before the day start threshold belongs to the previous interval day.
+    static func intervalDayDate(for date: Date = Date(), calendar: Calendar = .current) -> Date {
+        let hour = UserDefaults.standard.object(forKey: "dayStartHour") != nil ? UserDefaults.standard.integer(forKey: "dayStartHour") : 6
+        let minute = UserDefaults.standard.integer(forKey: "dayStartMinute")
+        let offsetSeconds = Double(hour * 3600 + minute * 60)
+        return date.addingTimeInterval(-offsetSeconds)
+    }
+    
     /// Returns the start of the day for the most recent occurrence of `targetWeekday` on or before `date`.
     static func mostRecentWeekdayDate(targetWeekday: Int, beforeOrOn date: Date, calendar: Calendar = .current) -> Date {
-        let startOfToday = calendar.startOfDay(for: date)
+        let adjusted = intervalDayDate(for: date, calendar: calendar)
+        let startOfToday = calendar.startOfDay(for: adjusted)
         let currentWeekday = calendar.component(.weekday, from: startOfToday)
         let daysAgo = (currentWeekday - targetWeekday + 7) % 7
         return calendar.date(byAdding: .day, value: -daysAgo, to: startOfToday) ?? startOfToday
@@ -82,7 +92,8 @@ final class HabitItem {
     func isOverdue(at date: Date = Date(), calendar: Calendar = .current) -> Bool {
         guard isWeekly, let target = targetWeekday else { return false }
         guard !isCompleted(at: date, calendar: calendar) else { return false }
-        let currentWeekday = calendar.component(.weekday, from: date)
+        let adjusted = Self.intervalDayDate(for: date, calendar: calendar)
+        let currentWeekday = calendar.component(.weekday, from: adjusted)
         // If today is the target weekday itself, it is today's normal habit, not overdue.
         // If today is after the target weekday in the 7-day cycle and still incomplete, it is overdue.
         return currentWeekday != target
@@ -97,7 +108,8 @@ final class HabitItem {
     func isScheduledForTodayOrOverdue(calendar: Calendar = .current, date: Date = Date()) -> Bool {
         if isDaily { return true }
         guard let target = targetWeekday else { return true }
-        let currentWeekday = calendar.component(.weekday, from: date)
+        let adjusted = Self.intervalDayDate(for: date, calendar: calendar)
+        let currentWeekday = calendar.component(.weekday, from: adjusted)
         
         if isCompleted(at: date, calendar: calendar) {
             // Once completed for this 7-day period, only show on its regular target day
@@ -117,13 +129,17 @@ final class HabitItem {
     /// For weekly habits, checks if `lastCompletedDate` occurred on or after the most recent occurrence of `targetWeekday`.
     func isCompleted(at date: Date = Date(), calendar: Calendar = .current) -> Bool {
         guard let last = lastCompletedDate else { return false }
+        let adjustedNow = Self.intervalDayDate(for: date, calendar: calendar)
+        let adjustedLast = Self.intervalDayDate(for: last, calendar: calendar)
+        
         if isDaily {
-            return calendar.isDate(last, inSameDayAs: date)
+            return calendar.isDate(adjustedLast, inSameDayAs: adjustedNow)
         }
         if let target = targetWeekday {
             let cycleStart = Self.mostRecentWeekdayDate(targetWeekday: target, beforeOrOn: date, calendar: calendar)
-            return last >= cycleStart
+            let startOfLast = calendar.startOfDay(for: adjustedLast)
+            return startOfLast >= cycleStart
         }
-        return calendar.isDate(last, equalTo: date, toGranularity: .weekOfYear)
+        return calendar.isDate(adjustedLast, equalTo: adjustedNow, toGranularity: .weekOfYear)
     }
 }

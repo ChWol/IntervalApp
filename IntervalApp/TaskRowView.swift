@@ -66,22 +66,38 @@ struct TaskRowView: View {
             .offset(x: swipeOffset)
             .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.85), value: swipeOffset)
             #if os(iOS)
-            .gesture(
-                DragGesture(minimumDistance: 12, coordinateSpace: .local)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 20, coordinateSpace: .local)
                     .onChanged { gesture in
                         if !isNew {
-                            let translation = gesture.translation.width
-                            if translation < 0 {
-                                swipeOffset = max(translation, -65)
+                            let h = gesture.translation.height
+                            let w = gesture.translation.width
+                            // If the gesture has a strong vertical component, prioritize vertical scrolling
+                            if abs(h) > abs(w) * 0.7 {
+                                if swipeOffset != 0 {
+                                    withAnimation(.interactiveSpring()) {
+                                        swipeOffset = 0
+                                    }
+                                }
+                                return
+                            }
+                            
+                            // Dominantly horizontal swipe to reveal delete
+                            if w < 0 {
+                                swipeOffset = max(w, -65)
                             } else if swipeOffset < 0 {
-                                swipeOffset = min(0, -50 + translation)
+                                swipeOffset = min(0, -50 + w)
                             }
                         }
                     }
                     .onEnded { gesture in
                         if !isNew {
+                            let h = gesture.translation.height
+                            let w = gesture.translation.width
                             withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
-                                if swipeOffset < -25 {
+                                if abs(h) > abs(w) * 0.7 {
+                                    swipeOffset = 0
+                                } else if swipeOffset < -25 {
                                     swipeOffset = -50 // Reveal trash icon button smoothly
                                 } else {
                                     swipeOffset = 0

@@ -262,44 +262,48 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         sectionLabel("LANGUAGE".localized)
 
-                        HStack(spacing: 6) {
-                            ForEach(AppLanguage.allCases) { lang in
-                                let isSelected = locManager.currentLanguage == lang
-                                let isHov = hoveredLang == lang
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(AppLanguage.allCases) { lang in
+                                    let isSelected = locManager.currentLanguage == lang
+                                    let isHov = hoveredLang == lang
 
-                                Button(action: {
-                                    withAnimation(.easeInOut(duration: 0.15)) {
-                                        locManager.currentLanguage = lang
-                                    }
-                                }) {
-                                    HStack(spacing: 5) {
-                                        Text(lang.displayName)
-                                            .font(.system(size: 12, weight: isSelected ? .medium : .light))
-                                            .foregroundColor(isSelected ? .primary : (isHov ? .primary : .secondary))
-
-                                        if isSelected {
-                                            Image(systemName: "checkmark")
-                                                .font(.system(size: 8, weight: .light))
-                                                .foregroundColor(.primary)
+                                    Button(action: {
+                                        withAnimation(.easeInOut(duration: 0.15)) {
+                                            locManager.currentLanguage = lang
                                         }
+                                    }) {
+                                        HStack(spacing: 5) {
+                                            Text(lang.displayName)
+                                                .font(.system(size: 12, weight: isSelected ? .medium : .light))
+                                                .foregroundColor(isSelected ? .primary : (isHov ? .primary : .secondary))
+                                                .fixedSize(horizontal: true, vertical: false)
+
+                                            if isSelected {
+                                                Image(systemName: "checkmark")
+                                                    .font(.system(size: 8, weight: .light))
+                                                    .foregroundColor(.primary)
+                                            }
+                                        }
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(
+                                            Capsule().fill(isSelected
+                                                ? Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.08)
+                                                : (isHov ? Color.primary.opacity(0.04) : Color.clear))
+                                        )
+                                        .overlay(
+                                            Capsule().stroke(
+                                                Color.primary.opacity(isSelected ? 0.25 : (isHov ? 0.15 : 0.08)),
+                                                lineWidth: 1)
+                                        )
                                     }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(
-                                        Capsule().fill(isSelected
-                                            ? Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.08)
-                                            : (isHov ? Color.primary.opacity(0.04) : Color.clear))
-                                    )
-                                    .overlay(
-                                        Capsule().stroke(
-                                            Color.primary.opacity(isSelected ? 0.25 : (isHov ? 0.15 : 0.08)),
-                                            lineWidth: 1)
-                                    )
+                                    .buttonStyle(.plain)
+                                    .pointingHandCursor()
+                                    .onHover { hoveredLang = $0 ? lang : nil }
                                 }
-                                .buttonStyle(.plain)
-                                .pointingHandCursor()
-                                .onHover { hoveredLang = $0 ? lang : nil }
                             }
+                            .padding(.vertical, 2)
                         }
                     }
 
