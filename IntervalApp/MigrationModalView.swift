@@ -98,13 +98,25 @@ struct MigrationModalView: View {
                     .frame(maxHeight: 250)
                 }
                 
-                HStack {
+                let hasSelection = isYearReset
+                    ? yearGoals.contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+                    : (!selectedTaskIds.isEmpty || !selectedHabitIds.isEmpty)
+
+                HStack(spacing: 12) {
                     Spacer()
+                    
+                    // Skip button: Active ONLY when nothing is selected
                     Button("Skip".localized) { onSkip() }
                         .buttonStyle(.plain)
                         .padding(.horizontal, 15)
                         .padding(.vertical, 8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary, lineWidth: 1))
+                        .foregroundColor(hasSelection ? .secondary.opacity(0.3) : .primary)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.secondary.opacity(hasSelection ? 0.2 : 0.6), lineWidth: 1)
+                        )
+                        .disabled(hasSelection)
+                        .pointingHandCursor()
                     
                     if isYearReset {
                         Button("Commit".localized) {
@@ -114,17 +126,22 @@ struct MigrationModalView: View {
                         .buttonStyle(.plain)
                         .padding(.horizontal, 18)
                         .padding(.vertical, 8)
-                        .background(Color.primary)
-                        .foregroundColor(Color(colorScheme == .dark ? .black : .white))
+                        .background(hasSelection ? Color.primary : Color.primary.opacity(0.12))
+                        .foregroundColor(hasSelection ? Color(colorScheme == .dark ? .black : .white) : Color.secondary.opacity(0.4))
                         .cornerRadius(8)
+                        .disabled(!hasSelection)
+                        .pointingHandCursor()
                     } else {
+                        // Migrate button: Active ONLY when at least one item is selected
                         Button("Migrate".localized) { onMigrate(selectedTaskIds, selectedHabitIds) }
                             .buttonStyle(.plain)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 8)
-                            .background(Color.primary)
-                            .foregroundColor(Color(colorScheme == .dark ? .black : .white))
+                            .background(hasSelection ? Color.primary : Color.primary.opacity(0.12))
+                            .foregroundColor(hasSelection ? Color(colorScheme == .dark ? .black : .white) : Color.secondary.opacity(0.4))
                             .cornerRadius(8)
+                            .disabled(!hasSelection)
+                            .pointingHandCursor()
                     }
                 }
                 .padding(.top, 10)
