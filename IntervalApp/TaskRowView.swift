@@ -124,6 +124,7 @@ struct TaskRowView: View {
                 }
             }
         }
+        .id(isNew ? "NEW_\(listTitle)" : task.id)
         #if os(macOS)
         .onDrag {
             if !isNew && !text.isEmpty && task.text != text {

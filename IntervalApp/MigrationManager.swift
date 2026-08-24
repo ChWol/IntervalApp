@@ -96,6 +96,40 @@ class MigrationManager: ObservableObject {
             }
         }
         if didUpdate {
+            // If another device already handled this migration, dismiss the active modal immediately!
+            if let current = currentMigration {
+                let now = Date()
+                let currentYear = Self.yearFormatter.string(from: now)
+                let currentMonth = Self.monthFormatter.string(from: now)
+                let currentWeek = Self.weekFormatter.string(from: now)
+                let currentDay = Self.dayFormatter.string(from: now)
+                let currentHour = Self.hourFormatter.string(from: now)
+                
+                let lastHandledYear = getMarker(for: StoreKey.lastHandledYear, defaultVal: currentYear)
+                let lastHandledMonth = getMarker(for: StoreKey.lastHandledMonth, defaultVal: currentMonth)
+                let lastHandledWeek = getMarker(for: StoreKey.lastHandledWeek, defaultVal: currentWeek)
+                let lastHandledDay = getMarker(for: StoreKey.lastHandledDay, defaultVal: currentDay)
+                let lastHandledHour = getMarker(for: StoreKey.lastHandledHour, defaultVal: currentHour)
+                
+                var isAlreadyHandled = false
+                if current.dest == HabitTaskLink.hourInterval && lastHandledHour == currentHour {
+                    isAlreadyHandled = true
+                } else if current.source == "1 Week" && current.dest == "1 Day" && lastHandledDay == currentDay {
+                    isAlreadyHandled = true
+                } else if current.source == "1 Month" && current.dest == "1 Week" && lastHandledWeek == currentWeek {
+                    isAlreadyHandled = true
+                } else if current.source == "1 Year" && current.dest == "1 Month" && lastHandledMonth == currentMonth {
+                    isAlreadyHandled = true
+                } else if current.source == "1 Year" && current.dest == "1 Year" && lastHandledYear == currentYear {
+                    isAlreadyHandled = true
+                }
+                
+                if isAlreadyHandled {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        self.currentMigration = nil
+                    }
+                }
+            }
             checkMigrations()
         }
     }

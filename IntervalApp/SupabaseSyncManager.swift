@@ -7,6 +7,7 @@ import Combine
 
 extension Notification.Name {
     static let syncPullDidComplete = Notification.Name("syncPullDidComplete")
+    static let taskTextDidGrow = Notification.Name("taskTextDidGrow")
 }
 
 // MARK: - Auth Models

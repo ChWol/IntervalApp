@@ -60,9 +60,20 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     
     // MARK: - Migration / Interval Notifications
     
+    private var lastSentMigrationKey: String = ""
+    private var lastSentMigrationTime: Date = .distantPast
+    
     func sendMigrationNotification(for migration: Migration) {
         let isEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
         guard isEnabled, authorizationStatus == .authorized || authorizationStatus == .provisional else { return }
+        
+        let hourStr = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .short)
+        let dedupeKey = "\(migration.source)_\(migration.dest)_\(hourStr)"
+        if lastSentMigrationKey == dedupeKey && Date().timeIntervalSince(lastSentMigrationTime) < 300 {
+            return // Prevent duplicate notifications within the same transition cycle
+        }
+        lastSentMigrationKey = dedupeKey
+        lastSentMigrationTime = Date()
         
         let content = UNMutableNotificationContent()
         
@@ -89,8 +100,10 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         content.sound = .default
         content.userInfo = ["type": "migration", "source": migration.source, "dest": migration.dest]
         
+        let identifier = "interval_migration_\(dedupeKey.replacingOccurrences(of: " ", with: "_"))"
+        
         let request = UNNotificationRequest(
-            identifier: "interval_alert_\(Date().timeIntervalSince1970)",
+            identifier: identifier,
             content: content,
             trigger: nil // Deliver immediately
         )
@@ -132,8 +145,11 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
             UNUserNotificationCenter.current().add(request)
         }
         
-        // 2. Next Day trigger (at 05:00 AM)
-        if let nextDay = cal.nextDate(after: now, matching: DateComponents(hour: 5, minute: 0, second: 0), matchingPolicy: .nextTime) {
+        // 2. Next Day trigger (at configured dayStartHour / dayStartMinute)
+        let startHour = UserDefaults.standard.object(forKey: "dayStartHour") != nil ? UserDefaults.standard.integer(forKey: "dayStartHour") : 6
+        let startMinute = UserDefaults.standard.integer(forKey: "dayStartMinute")
+        
+        if let nextDay = cal.nextDate(after: now, matching: DateComponents(hour: startHour, minute: startMinute, second: 0), matchingPolicy: .nextTime) {
             let components = cal.dateComponents([.year, .month, .day, .hour, .minute, .second], from: nextDay)
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             

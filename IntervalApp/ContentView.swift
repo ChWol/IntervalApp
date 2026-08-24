@@ -67,9 +67,9 @@ struct ContentView: View {
                         }
                         .onChange(of: scenePhase) { _, newPhase in
                             if newPhase == .active {
-                                migrationManager.checkMigrations()
                                 Task {
                                     await syncManager.triggerManualSync()
+                                    migrationManager.checkMigrations()
                                 }
                             }
                         }
@@ -114,154 +114,64 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else {
                 GeometryReader { geo in
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 40) {
-                            if currentViewMode == .scratchpad {
-                                ScratchpadView(focusedTaskId: $focusedTaskId, selectedListId: $scratchpadSelectedListId)
-                            } else {
-                                if isAccountEmpty && !hasDismissedOnboardingImport {
-                                    onboardingImportCard
-                                }
-                                
-                                if showHabits {
-                                    HabitsBarView()
-                                }
-                                
-                                ForEach(intervals, id: \.0) { interval in
-                                    TaskListView(
-                                        title: interval.0,
-                                        fontSize: interval.1,
-                                        tasks: allTasks.filter { $0.intervalType == interval.0 && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order },
-                                        focusedTaskId: $focusedTaskId
-                                    )
-                                }
-                            
-                                // Bin and Completed Lists
-                                VStack(alignment: .leading, spacing: 20) {
-                                    let completedTasks = allTasks.filter { $0.completed && $0.deletedAt == nil }.sorted { ($0.completedAt ?? Date()) > ($1.completedAt ?? Date()) }
-                                    if !completedTasks.isEmpty {
-                                        DisclosureGroup(isExpanded: $isCompletedExpanded) {
-                                            VStack(alignment: .leading, spacing: 15) {
-                                                let displayed = showAllCompleted ? completedTasks : Array(completedTasks.prefix(10))
-                                                ForEach(displayed) { task in
-                                                    BinRowView(task: task, fontSize: 14.0)
-                                                }
-                                                HStack {
-                                                    if completedTasks.count > 10 {
-                                                        Button(action: { withAnimation { showAllCompleted.toggle() } }) {
-                                                            Text(showAllCompleted ? "Show Less".localized : "\("Show More".localized) (\(completedTasks.count - 10))")
-                                                                .font(.system(size: 12, weight: .light))
-                                                                .foregroundColor(.secondary)
-                                                        }
-                                                        .buttonStyle(.plain)
-                                                    }
-                                                    
-                                                    Spacer()
-                                                    
-                                                    Button(action: {
-                                                        withAnimation {
-                                                            clearCompletedTasks()
-                                                        }
-                                                    }) {
-                                                        Text("Clear All".localized)
-                                                            .font(.system(size: 12, weight: .light))
-                                                            .foregroundColor(.secondary)
-                                                    }
-                                                    .buttonStyle(.plain)
-                                                }
-                                                .padding(.top, 5)
-                                            }
-                                            .padding(.top, 10)
-                                            .padding(.leading, 5)
-                                        } label: {
-                                            Text("COMPLETED".localized)
-                                                .font(.system(size: 10, weight: .light, design: .default))
-                                                .tracking(2.0)
-                                                .foregroundColor(.secondary)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                                .contentShape(Rectangle())
-                                                .onTapGesture {
-                                                    withAnimation { isCompletedExpanded.toggle() }
-                                                }
-                                        }
-                                        .tint(.secondary)
-                                        .onChange(of: isCompletedExpanded) { _, newValue in
-                                            if !newValue { showAllCompleted = false }
-                                        }
+                    ScrollViewReader { scrollProxy in
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(alignment: .leading, spacing: 40) {
+                                if currentViewMode == .scratchpad {
+                                    ScratchpadView(focusedTaskId: $focusedTaskId, selectedListId: $scratchpadSelectedListId)
+                                } else {
+                                    if isAccountEmpty && !hasDismissedOnboardingImport {
+                                        onboardingImportCard
                                     }
                                     
-                                    let deletedTasks = allTasks.filter { $0.deletedAt != nil }.sorted { ($0.deletedAt ?? Date()) > ($1.deletedAt ?? Date()) }
-                                    if !deletedTasks.isEmpty {
-                                        DisclosureGroup(isExpanded: $isDeletedExpanded) {
-                                            VStack(alignment: .leading, spacing: 15) {
-                                                let displayed = showAllDeleted ? deletedTasks : Array(deletedTasks.prefix(10))
-                                                ForEach(displayed) { task in
-                                                    BinRowView(task: task, fontSize: 14.0)
-                                                }
-                                                HStack {
-                                                    if deletedTasks.count > 10 {
-                                                        Button(action: { withAnimation { showAllDeleted.toggle() } }) {
-                                                            Text(showAllDeleted ? "Show Less".localized : "\("Show More".localized) (\(deletedTasks.count - 10))")
-                                                                .font(.system(size: 12, weight: .light))
-                                                                .foregroundColor(.secondary)
-                                                        }
-                                                        .buttonStyle(.plain)
-                                                    }
-                                                    
-                                                    Spacer()
-                                                    
-                                                    Button(action: {
-                                                        withAnimation {
-                                                            clearDeletedTasks()
-                                                        }
-                                                    }) {
-                                                        Text("Clear All".localized)
-                                                            .font(.system(size: 12, weight: .light))
-                                                            .foregroundColor(.secondary)
-                                                    }
-                                                    .buttonStyle(.plain)
-                                                }
-                                                .padding(.top, 5)
-                                            }
-                                            .padding(.top, 10)
-                                            .padding(.leading, 5)
-                                        } label: {
-                                            Text("RECENTLY DELETED".localized)
-                                                .font(.system(size: 10, weight: .light, design: .default))
-                                                .tracking(2.0)
-                                                .foregroundColor(.secondary)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                                .contentShape(Rectangle())
-                                                .onTapGesture {
-                                                    withAnimation { isDeletedExpanded.toggle() }
-                                                }
-                                        }
-                                        .tint(.secondary)
-                                        .onChange(of: isDeletedExpanded) { _, newValue in
-                                            if !newValue { showAllDeleted = false }
-                                        }
+                                    if showHabits {
+                                        HabitsBarView()
                                     }
+                                    
+                                    ForEach(intervals, id: \.0) { interval in
+                                        TaskListView(
+                                            title: interval.0,
+                                            fontSize: interval.1,
+                                            tasks: allTasks.filter { $0.intervalType == interval.0 && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order },
+                                            focusedTaskId: $focusedTaskId
+                                        )
+                                    }
+                                
+                                    completedAndDeletedSection
                                 }
-                                .padding(.top, 20)
+                            }
+                            .padding(40)
+                            .frame(minWidth: geo.size.width, minHeight: geo.size.height, alignment: .topLeading)
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            focusedTaskId = nil
+                            NotificationCenter.default.post(name: .scratchpadClearSelection, object: nil)
+                            #if os(iOS)
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            #endif
+                        }
+                        .refreshable {
+                            focusedTaskId = nil
+                            #if os(iOS)
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            #endif
+                            await syncManager.triggerManualSync()
+                        }
+                        .onChange(of: focusedTaskId) { _, newId in
+                            if let id = newId {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    scrollProxy.scrollTo(id, anchor: nil)
+                                }
                             }
                         }
-                        .padding(40)
-                        .frame(minWidth: geo.size.width, minHeight: geo.size.height, alignment: .topLeading)
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        focusedTaskId = nil
-                        NotificationCenter.default.post(name: .scratchpadClearSelection, object: nil)
-                        #if os(iOS)
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                        #endif
-                    }
-                    .refreshable {
-                        focusedTaskId = nil
-                        #if os(iOS)
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                        #endif
-                        await syncManager.triggerManualSync()
+                        .onReceive(NotificationCenter.default.publisher(for: .taskTextDidGrow)) { _ in
+                            if let id = focusedTaskId {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    scrollProxy.scrollTo(id, anchor: nil)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -529,6 +439,126 @@ struct ContentView: View {
                 )
             }
         }
+    }
+    
+    // MARK: - Completed & Deleted Lists Section
+    
+    @ViewBuilder
+    private var completedAndDeletedSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            let completedTasks = allTasks.filter { $0.completed && $0.deletedAt == nil }.sorted { ($0.completedAt ?? Date()) > ($1.completedAt ?? Date()) }
+            if !completedTasks.isEmpty {
+                DisclosureGroup(isExpanded: $isCompletedExpanded) {
+                    VStack(alignment: .leading, spacing: 15) {
+                        let displayed = showAllCompleted ? completedTasks : Array(completedTasks.prefix(10))
+                        ForEach(displayed) { task in
+                            BinRowView(task: task, fontSize: 14.0)
+                        }
+                        HStack {
+                            if completedTasks.count > 10 {
+                                Button(action: {
+                                    withAnimation { showAllCompleted.toggle() }
+                                }) {
+                                    Text(showAllCompleted ? "Show Less".localized : "\("Show All".localized) (\(completedTasks.count))")
+                                        .font(.system(size: 11, weight: .light))
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .pointingHandCursor()
+                            }
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                withAnimation {
+                                    clearCompletedTasks()
+                                }
+                            }) {
+                                Text("Clear All".localized)
+                                    .font(.system(size: 11, weight: .light))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .pointingHandCursor()
+                        }
+                        .padding(.top, 4)
+                    }
+                    .padding(.leading, 12)
+                    .padding(.top, 8)
+                } label: {
+                    Text("\("COMPLETED".localized) (\(completedTasks.count))")
+                        .font(.system(size: 10, weight: .light, design: .default))
+                        .tracking(2.0)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            withAnimation { isCompletedExpanded.toggle() }
+                        }
+                }
+                .tint(.secondary)
+                .onChange(of: isCompletedExpanded) { _, newValue in
+                    if !newValue { showAllCompleted = false }
+                }
+            }
+            
+            let deletedTasks = allTasks.filter { $0.deletedAt != nil }.sorted { ($0.deletedAt ?? Date()) > ($1.deletedAt ?? Date()) }
+            if !deletedTasks.isEmpty {
+                DisclosureGroup(isExpanded: $isDeletedExpanded) {
+                    VStack(alignment: .leading, spacing: 15) {
+                        let displayed = showAllDeleted ? deletedTasks : Array(deletedTasks.prefix(10))
+                        ForEach(displayed) { task in
+                            BinRowView(task: task, fontSize: 14.0)
+                        }
+                        HStack {
+                            if deletedTasks.count > 10 {
+                                Button(action: {
+                                    withAnimation { showAllDeleted.toggle() }
+                                }) {
+                                    Text(showAllDeleted ? "Show Less".localized : "\("Show All".localized) (\(deletedTasks.count))")
+                                        .font(.system(size: 11, weight: .light))
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .pointingHandCursor()
+                            }
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                withAnimation {
+                                    clearDeletedTasks()
+                                }
+                            }) {
+                                Text("Empty Bin".localized)
+                                    .font(.system(size: 11, weight: .light))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .pointingHandCursor()
+                        }
+                        .padding(.top, 4)
+                    }
+                    .padding(.leading, 12)
+                    .padding(.top, 8)
+                } label: {
+                    Text("\("BIN".localized) (\(deletedTasks.count))")
+                        .font(.system(size: 10, weight: .light, design: .default))
+                        .tracking(2.0)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            withAnimation { isDeletedExpanded.toggle() }
+                        }
+                }
+                .tint(.secondary)
+                .onChange(of: isDeletedExpanded) { _, newValue in
+                    if !newValue { showAllDeleted = false }
+                }
+            }
+        }
+        .padding(.top, 20)
     }
     
     // MARK: - Onboarding Import Card

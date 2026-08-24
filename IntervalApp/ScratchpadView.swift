@@ -825,6 +825,7 @@ struct ScratchpadItemRowView: View {
             return NSItemProvider()
         }
         .onDrop(of: [.data], delegate: ScratchpadItemDropDelegate(item: item, context: modelContext))
+        .id(myId)
     }
 
     // MARK: - Transfer Popover Content

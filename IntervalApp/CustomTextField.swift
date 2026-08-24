@@ -158,6 +158,7 @@ struct CustomTextField: NSViewRepresentable {
         func controlTextDidChange(_ obj: Notification) {
             guard let tf = obj.object as? NSTextField else { return }
             textBinding.wrappedValue = tf.stringValue
+            NotificationCenter.default.post(name: .taskTextDidGrow, object: nil)
         }
 
         func controlTextDidBeginEditing(_ obj: Notification) {
@@ -192,7 +193,7 @@ struct CustomTextField: NSViewRepresentable {
 #else
 import UIKit
 
-struct CustomTextField: View {
+struct CustomTextField: UIViewRepresentable {
     @Binding var text: String
     var isFocused: Bool
     var onFocusChanged: (Bool) -> Void
@@ -201,52 +202,147 @@ struct CustomTextField: View {
     var onPasteMultipleLines: (([String]) -> Void)? = nil
     var fontSize: CGFloat
     var placeholder: String
-    
-    @FocusState private var fieldFocused: Bool
-    
-    var body: some View {
-        let active = isFocused || fieldFocused
-        TextField(placeholder, text: $text, axis: .vertical)
-            .font(.system(size: fontSize, weight: .light))
-            .lineLimit(active ? nil : 1)
-            .fixedSize(horizontal: false, vertical: active)
-            .focused($fieldFocused)
-            .onSubmit {
-                onSubmit(text.isEmpty)
+
+    func makeUIView(context: Context) -> UITextView {
+        let tv = UITextView()
+        tv.backgroundColor = .clear
+        tv.font = .systemFont(ofSize: fontSize, weight: .light)
+        tv.textColor = .label
+        tv.textContainerInset = .zero
+        tv.textContainer.lineFragmentPadding = 0
+        tv.isScrollEnabled = false
+        tv.delegate = context.coordinator
+        tv.returnKeyType = .default
+        tv.autocorrectionType = .yes
+        tv.spellCheckingType = .yes
+        tv.text = text
+        
+        let isRTL = LocalizationManager.shared.currentLanguage == .arabic
+        tv.textAlignment = isRTL ? .right : .left
+        
+        // Accessory bar to dismiss keyboard
+        let toolbar = UIToolbar(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 44))
+        let flex = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        let doneBtn = UIBarButtonItem(
+            image: UIImage(systemName: "keyboard.chevron.compact.down"),
+            style: .plain,
+            target: context.coordinator,
+            action: #selector(Coordinator.dismissKeyboard)
+        )
+        doneBtn.tintColor = .secondaryLabel
+        toolbar.items = [flex, doneBtn]
+        toolbar.sizeToFit()
+        tv.inputAccessoryView = toolbar
+        
+        if isFocused {
+            DispatchQueue.main.async {
+                tv.becomeFirstResponder()
             }
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button(action: {
-                        fieldFocused = false
-                    }) {
-                        Image(systemName: "keyboard.chevron.compact.down")
-                            .font(.system(size: 16, weight: .regular))
-                            .foregroundColor(.secondary)
-                    }
+        }
+        return tv
+    }
+
+    func updateUIView(_ uiView: UITextView, context: Context) {
+        let c = context.coordinator
+        c.onFocusChanged = onFocusChanged
+        c.onSubmit = onSubmit
+        c.onDeleteEmpty = onDeleteEmpty
+        c.onPasteMultipleLines = onPasteMultipleLines
+        c.textView = uiView
+
+        if c.isEditing { return }
+
+        if uiView.text != text {
+            uiView.text = text
+        }
+        
+        uiView.font = .systemFont(ofSize: fontSize, weight: .light)
+        let isRTL = LocalizationManager.shared.currentLanguage == .arabic
+        uiView.textAlignment = isRTL ? .right : .left
+
+        if isFocused && !uiView.isFirstResponder {
+            DispatchQueue.main.async {
+                uiView.becomeFirstResponder()
+            }
+        } else if !isFocused && uiView.isFirstResponder {
+            DispatchQueue.main.async {
+                uiView.resignFirstResponder()
+            }
+        }
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
+        let w = proposal.width ?? uiView.bounds.width
+        let width = w > 0 ? w : (UIScreen.main.bounds.width - 80)
+        let size = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        return CGSize(width: width, height: max(size.height, fontSize * 1.2))
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(textBinding: $text)
+    }
+
+    class Coordinator: NSObject, UITextViewDelegate {
+        var textBinding: Binding<String>
+        var onFocusChanged: ((Bool) -> Void)?
+        var onSubmit: ((_ isAtBeginning: Bool) -> Void)?
+        var onDeleteEmpty: (() -> Void)?
+        var onPasteMultipleLines: (([String]) -> Void)?
+        var isEditing: Bool = false
+        weak var textView: UITextView?
+
+        init(textBinding: Binding<String>) {
+            self.textBinding = textBinding
+        }
+
+        @objc func dismissKeyboard() {
+            textView?.resignFirstResponder()
+        }
+
+        func textViewDidChange(_ textView: UITextView) {
+            textBinding.wrappedValue = textView.text
+            textView.scrollRangeToVisible(textView.selectedRange)
+            NotificationCenter.default.post(name: .taskTextDidGrow, object: nil)
+        }
+
+        func textViewDidBeginEditing(_ textView: UITextView) {
+            isEditing = true
+            onFocusChanged?(true)
+        }
+
+        func textViewDidEndEditing(_ textView: UITextView) {
+            isEditing = false
+            textBinding.wrappedValue = textView.text
+            onFocusChanged?(false)
+        }
+
+        func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+            // Enter key pressed -> Submit new item
+            if text == "\n" {
+                let isAtBeginning = range.location == 0
+                onSubmit?(isAtBeginning)
+                return false
+            }
+            
+            // Backspace on empty text
+            if text.isEmpty && range.length == 0 && textView.text.isEmpty {
+                onDeleteEmpty?()
+                return false
+            }
+            
+            // Multiple lines pasted
+            if text.contains("\n") || text.contains("\r") {
+                let rawLines = text.components(separatedBy: .newlines)
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+                if rawLines.count > 1 {
+                    onPasteMultipleLines?(rawLines)
+                    return false
                 }
             }
-            .onChange(of: text) { _, newText in
-                if newText.contains("\n") || newText.contains("\r") {
-                    let rawLines = newText.components(separatedBy: .newlines)
-                        .map { $0.trimmingCharacters(in: .whitespaces) }
-                        .filter { !$0.isEmpty }
-                    if rawLines.count > 1, let onPaste = onPasteMultipleLines {
-                        onPaste(rawLines)
-                    }
-                }
-            }
-            .onChange(of: isFocused) { _, newValue in
-                fieldFocused = newValue
-            }
-            .onChange(of: fieldFocused) { _, newValue in
-                onFocusChanged(newValue)
-            }
-            .onAppear {
-                if isFocused {
-                    fieldFocused = true
-                }
-            }
+            
+            return true
+        }
     }
 }
 #endif
