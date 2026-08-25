@@ -77,16 +77,36 @@ final class MenuBarManager: NSObject {
         }
     }
     
+    private static func createIntervalLogoImage() -> NSImage {
+        let size = NSSize(width: 15, height: 12)
+        let image = NSImage(size: size, flipped: false) { rect in
+            // 5 vertical Interval bars of decreasing widths
+            let bars: [(x: CGFloat, w: CGFloat)] = [
+                (0.0, 4.5),
+                (5.5, 3.0),
+                (9.5, 1.8),
+                (12.1, 1.1),
+                (13.9, 0.8)
+            ]
+            NSColor.black.setFill()
+            for bar in bars {
+                let barRect = NSRect(x: bar.x, y: 0.5, width: bar.w, height: rect.height - 1.0)
+                let path = NSBezierPath(roundedRect: barRect, xRadius: 0.3, yRadius: 0.3)
+                path.fill()
+            }
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }
+    
     private func updateButtonTitle() {
         guard let button = statusItem?.button else { return }
         let now = Date()
         let minute = Calendar.current.component(.minute, from: now)
         let remaining = max(0, 60 - minute)
         
-        let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .regular)
-        let img = NSImage(systemSymbolName: "clock", accessibilityDescription: "Interval")?.withSymbolConfiguration(config)
-        img?.isTemplate = true
-        button.image = img
+        button.image = Self.createIntervalLogoImage()
         button.imagePosition = .imageLeading
         button.title = " \(remaining)m"
         button.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .light)
