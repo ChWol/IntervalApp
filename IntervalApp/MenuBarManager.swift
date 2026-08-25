@@ -12,20 +12,27 @@ final class MenuBarManager: NSObject {
     private var timer: Timer?
     private var modelContainer: ModelContainer?
     
+    private var isSetup = false
+    
     func setup(container: ModelContainer) {
         self.modelContainer = container
-        updateStatusItem()
-        
-        NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
+        if !isSetup {
+            isSetup = true
+            NotificationCenter.default.addObserver(
+                forName: UserDefaults.didChangeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.updateStatusItem()
+            }
+        }
+        DispatchQueue.main.async { [weak self] in
             self?.updateStatusItem()
         }
     }
     
     func updateStatusItem() {
+        assert(Thread.isMainThread, "updateStatusItem must be called on main thread")
         let isEnabled = UserDefaults.standard.object(forKey: "showMenuBarExtra") != nil
             ? UserDefaults.standard.bool(forKey: "showMenuBarExtra")
             : true

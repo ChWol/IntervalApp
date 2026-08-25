@@ -3,6 +3,10 @@ import SwiftData
 
 #if os(macOS)
 class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        MenuBarManager.shared.setup(container: IntervalApp.sharedModelContainer)
+    }
+
     func application(_ application: NSApplication, open urls: [URL]) {
         if let url = urls.first {
             SupabaseSyncManager.shared.handleIncomingURL(url)
@@ -17,7 +21,7 @@ struct IntervalApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     #endif
 
-    var sharedModelContainer: ModelContainer = {
+    static let sharedModelContainer: ModelContainer = {
         let schema = Schema([
             TaskItem.self,
             HabitItem.self,
@@ -49,18 +53,18 @@ struct IntervalApp: App {
                 .handlesExternalEvents(preferring: Set(arrayLiteral: "main"), allowing: Set(arrayLiteral: "*"))
                 .onAppear {
                     #if os(macOS)
-                    MenuBarManager.shared.setup(container: sharedModelContainer)
+                    MenuBarManager.shared.setup(container: Self.sharedModelContainer)
                     #endif
                 }
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(Self.sharedModelContainer)
         .handlesExternalEvents(matching: Set(arrayLiteral: "*"))
         #if os(macOS)
         .windowStyle(HiddenTitleBarWindowStyle())
         .commands {
             CommandGroup(replacing: .printItem) {
                 Button("Print / Save as PDF...".localized) {
-                    PrintManager.printIntervals(context: sharedModelContainer.mainContext)
+                    PrintManager.printIntervals(context: IntervalApp.sharedModelContainer.mainContext)
                 }
                 .keyboardShortcut("p", modifiers: .command)
             }
