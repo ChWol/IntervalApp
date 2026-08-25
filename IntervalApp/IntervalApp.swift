@@ -47,6 +47,11 @@ struct IntervalApp: App {
         WindowGroup(id: "main") {
             ContentView()
                 .handlesExternalEvents(preferring: Set(arrayLiteral: "main"), allowing: Set(arrayLiteral: "*"))
+                .onAppear {
+                    #if os(macOS)
+                    MenuBarManager.shared.setup(container: sharedModelContainer)
+                    #endif
+                }
         }
         .modelContainer(sharedModelContainer)
         .handlesExternalEvents(matching: Set(arrayLiteral: "*"))
@@ -60,14 +65,6 @@ struct IntervalApp: App {
                 .keyboardShortcut("p", modifiers: .command)
             }
         }
-        #endif
-
-        #if os(macOS)
-        MenuBarExtra("Interval", systemImage: "clock.arrow.circlepath", isInserted: $showMenuBarExtra) {
-            MenuBarTaskView()
-                .modelContainer(sharedModelContainer)
-        }
-        .menuBarExtraStyle(.window)
         #endif
     }
 }

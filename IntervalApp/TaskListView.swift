@@ -22,11 +22,6 @@ struct TaskListView: View {
                     .tracking(2.0)
                     .foregroundColor(.gray)
                 
-                if title == "1 Hour" {
-                    HourProgressView(showRing: true, fontSize: 10)
-                        .padding(.leading, 6)
-                }
-                
                 Spacer()
                 
                 Button(action: {

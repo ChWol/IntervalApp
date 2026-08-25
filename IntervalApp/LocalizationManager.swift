@@ -834,6 +834,11 @@ class LocalizationManager: ObservableObject {
             .spanish: "restante", .portuguese: "restante", .italian: "rimanente",
             .arabic: "متبقي", .chinese: "剩余", .japanese: "残り", .korean: "남음"
         ],
+        "MIN LEFT": [
+            .english: "MIN LEFT", .german: "MIN ÜBRIG", .french: "MIN RESTANTES",
+            .spanish: "MIN RESTANTES", .portuguese: "MIN RESTANTES", .italian: "MIN RIMASTI",
+            .arabic: "دقيقة متبقية", .chinese: "分钟剩余", .japanese: "分残り", .korean: "분 남음"
+        ],
         "Postpone for today": [
             .english: "Postpone for today", .german: "Für heute aufschieben", .french: "Reporter pour aujourd'hui",
             .spanish: "Posponer para hoy", .portuguese: "Adiar para hoje", .italian: "Posticipa per oggi",

@@ -34,24 +34,16 @@ struct MenuBarTaskView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            // MARK: - Header
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("1 HOUR FOCUS".localized)
-                        .font(.system(size: 10, weight: .medium))
-                        .tracking(2.0)
-                        .foregroundColor(.secondary)
-                    
-                    Text(currentHourRangeString)
-                        .font(.system(size: 13, weight: .light))
-                        .foregroundColor(.primary)
-                }
+            // MARK: - Header with Timeline Progress
+            VStack(alignment: .leading, spacing: 6) {
+                Text("1 HOUR FOCUS".localized)
+                    .font(.system(size: 10, weight: .light))
+                    .tracking(2.0)
+                    .foregroundColor(.secondary)
                 
-                Spacer()
-                
-                HourProgressView(showRing: true, fontSize: 11)
+                HourProgressView()
             }
-            .padding(.bottom, 4)
+            .padding(.bottom, 2)
             
             Divider()
                 .opacity(0.4)
