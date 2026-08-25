@@ -39,6 +39,10 @@ struct IntervalApp: App {
         }
     }()
 
+    #if os(macOS)
+    @AppStorage("showMenuBarExtra") private var showMenuBarExtra: Bool = true
+    #endif
+
     var body: some Scene {
         WindowGroup(id: "main") {
             ContentView()
@@ -56,6 +60,14 @@ struct IntervalApp: App {
                 .keyboardShortcut("p", modifiers: .command)
             }
         }
+        #endif
+
+        #if os(macOS)
+        MenuBarExtra("Interval", systemImage: "clock.arrow.circlepath", isInserted: $showMenuBarExtra) {
+            MenuBarTaskView()
+                .modelContainer(sharedModelContainer)
+        }
+        .menuBarExtraStyle(.window)
         #endif
     }
 }

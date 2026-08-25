@@ -14,6 +14,7 @@ final class HabitItem {
     /// Value of `updatedAt` at the time the row was last confirmed by the server.
     /// `nil`, or older than `updatedAt`, means the row still has unpublished local changes.
     var syncedAt: Date? = nil
+    var postponedDate: Date? = nil
     
     init(text: String, frequency: String = "Daily", order: Int = 0) {
         self.id = UUID().uuidString
@@ -24,6 +25,25 @@ final class HabitItem {
         self.deletedAt = nil
         self.updatedAt = Date()
         self.syncedAt = nil
+        self.postponedDate = nil
+    }
+    
+    /// Whether the habit is currently postponed/snoozed for today.
+    var isPostponedToday: Bool {
+        guard let postponed = postponedDate else { return false }
+        let calendar = Calendar.current
+        let adjustedNow = Self.intervalDayDate(for: Date(), calendar: calendar)
+        let adjustedPostponed = Self.intervalDayDate(for: postponed, calendar: calendar)
+        return calendar.isDate(adjustedPostponed, inSameDayAs: adjustedNow)
+    }
+    
+    func togglePostponeForToday() {
+        if isPostponedToday {
+            postponedDate = nil
+        } else {
+            postponedDate = Date()
+        }
+        updatedAt = Date()
     }
     
     var isDaily: Bool {

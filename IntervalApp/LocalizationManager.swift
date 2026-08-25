@@ -819,6 +819,51 @@ class LocalizationManager: ObservableObject {
             .spanish: "Campana armónica", .portuguese: "Sino harmônico", .italian: "Campana armonica",
             .arabic: "جرس متناغم", .chinese: "和声铃音", .japanese: "ハーモニックベル", .korean: "하모닉 벨"
         ],
+        "Show in Menu Bar": [
+            .english: "Show in Menu Bar", .german: "In Menüleiste anzeigen", .french: "Afficher dans la barre des menus",
+            .spanish: "Mostrar en la barra de menús", .portuguese: "Mostrar na barra de menus", .italian: "Mostra nella barra dei menu",
+            .arabic: "عرض في شريط القوائم", .chinese: "在菜单栏中显示", .japanese: "メニューバーに表示", .korean: "메뉴 막대에 표시"
+        ],
+        "1 HOUR FOCUS": [
+            .english: "1 HOUR FOCUS", .german: "1 STUNDE FOKUS", .french: "FOCUS 1 HEURE",
+            .spanish: "ENFOQUE 1 HORA", .portuguese: "FOCO 1 HORA", .italian: "FOCUS 1 ORA",
+            .arabic: "تركيز ساعة واحدة", .chinese: "1小时专注", .japanese: "1時間集中", .korean: "1시간 집중"
+        ],
+        "left": [
+            .english: "left", .german: "übrig", .french: "restant",
+            .spanish: "restante", .portuguese: "restante", .italian: "rimanente",
+            .arabic: "متبقي", .chinese: "剩余", .japanese: "残り", .korean: "남음"
+        ],
+        "Postpone for today": [
+            .english: "Postpone for today", .german: "Für heute aufschieben", .french: "Reporter pour aujourd'hui",
+            .spanish: "Posponer para hoy", .portuguese: "Adiar para hoje", .italian: "Posticipa per oggi",
+            .arabic: "تأجيل لليوم", .chinese: "推迟到今天以后", .japanese: "今日は延期", .korean: "오늘 연기"
+        ],
+        "Unpostpone for today": [
+            .english: "Unpostpone for today", .german: "Aufschub aufheben", .french: "Annuler le report",
+            .spanish: "Deshacer posposición", .portuguese: "Desfazer adiamento", .italian: "Annulla posticipo",
+            .arabic: "إلغاء التأجيل", .chinese: "取消推迟", .japanese: "延期を解除", .korean: "연기 취소"
+        ],
+        "Open Interval": [
+            .english: "Open Interval", .german: "Interval öffnen", .french: "Ouvrir Interval",
+            .spanish: "Abrir Interval", .portuguese: "Abrir Interval", .italian: "Apri Interval",
+            .arabic: "فتح Interval", .chinese: "打开 Interval", .japanese: "Intervalを開く", .korean: "Interval 열기"
+        ],
+        "Quit": [
+            .english: "Quit", .german: "Beenden", .french: "Quitter",
+            .spanish: "Salir", .portuguese: "Encerrar", .italian: "Esci",
+            .arabic: "إنهاء", .chinese: "退出", .japanese: "終了", .korean: "종료"
+        ],
+        "Add 1-hour task...": [
+            .english: "Add 1-hour task...", .german: "1-Stunden-Aufgabe hinzufügen...", .french: "Ajouter tâche 1 heure...",
+            .spanish: "Añadir tarea de 1 hora...", .portuguese: "Adicionar tarefa de 1 hora...", .italian: "Aggiungi attività 1 ora...",
+            .arabic: "إضافة مهمة لساعة واحدة...", .chinese: "添加1小时任务...", .japanese: "1時間のタスクを追加...", .korean: "1시간 할 일 추가..."
+        ],
+        "No tasks in 1 Hour focus.": [
+            .english: "No tasks in 1 Hour focus.", .german: "Keine Aufgaben im 1-Stunden-Fokus.", .french: "Aucune tâche dans le focus 1 heure.",
+            .spanish: "No hay tareas en el enfoque de 1 hora.", .portuguese: "Nenhuma tarefa no foco de 1 hora.", .italian: "Nessuna attività nel focus 1 ora.",
+            .arabic: "لا توجد مهام في تركيز الساعة.", .chinese: "1小时专注中暂无任务。", .japanese: "1時間集中にタスクはありません。", .korean: "1시간 집중 작업이 없습니다."
+        ],
         "NOTIFICATIONS": [
             .english: "NOTIFICATIONS", .german: "MITTEILUNGEN", .french: "NOTIFICATIONS",
             .spanish: "NOTIFICACIONES", .portuguese: "NOTIFICAÇÕES", .italian: "NOTIFICHE",

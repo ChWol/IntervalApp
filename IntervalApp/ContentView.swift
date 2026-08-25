@@ -172,6 +172,11 @@ struct ContentView: View {
                                 }
                             }
                         }
+                        .onReceive(NotificationCenter.default.publisher(for: .focusNextTask)) { notification in
+                            guard let currentId = notification.userInfo?["currentId"] as? String,
+                                  let direction = notification.userInfo?["direction"] as? String else { return }
+                            handleFocusNavigation(from: currentId, direction: direction)
+                        }
                     }
                 }
             }
@@ -701,5 +706,39 @@ struct ContentView: View {
     
     private func cleanupOldTasks() {
         TaskHousekeeping.deletePermanently(TaskHousekeeping.expired(from: allTasks), in: modelContext)
+    }
+    
+    private func handleFocusNavigation(from currentId: String, direction: String) {
+        if currentViewMode == .scratchpad {
+            let descriptor = FetchDescriptor<ScratchpadItem>()
+            if let allItems = try? modelContext.fetch(descriptor) {
+                let listItems = allItems.filter { $0.deletedAt == nil && !$0.completed && $0.listId == scratchpadSelectedListId }.sorted { $0.order < $1.order }
+                if let currentIndex = listItems.firstIndex(where: { $0.id == currentId }) {
+                    let targetIndex = direction == "forward" ? currentIndex + 1 : currentIndex - 1
+                    if targetIndex >= 0 && targetIndex < listItems.count {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            focusedTaskId = listItems[targetIndex].id
+                        }
+                    }
+                }
+            }
+        } else {
+            let intervalOrder = ["1 Hour", "1 Day", "1 Week", "1 Month", "1 Year"]
+            var allOrderedTasks: [TaskItem] = []
+            for interval in intervalOrder {
+                let sectionTasks = allTasks.filter { $0.intervalType == interval && $0.deletedAt == nil && !$0.completed }
+                    .sorted { $0.order < $1.order }
+                allOrderedTasks.append(contentsOf: sectionTasks)
+            }
+            
+            if let currentIndex = allOrderedTasks.firstIndex(where: { $0.id == currentId }) {
+                let targetIndex = direction == "forward" ? currentIndex + 1 : currentIndex - 1
+                if targetIndex >= 0 && targetIndex < allOrderedTasks.count {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        focusedTaskId = allOrderedTasks[targetIndex].id
+                    }
+                }
+            }
+        }
     }
 }

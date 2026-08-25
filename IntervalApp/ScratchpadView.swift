@@ -708,6 +708,22 @@ struct ScratchpadItemRowView: View {
                                 onPasteMultipleLines: { lines in
                                     handleMultiLinePaste(lines: lines)
                                 },
+                                onTab: {
+                                    saveItem()
+                                    NotificationCenter.default.post(
+                                        name: .focusNextTask,
+                                        object: nil,
+                                        userInfo: ["currentId": myId, "direction": "forward"]
+                                    )
+                                },
+                                onBacktab: {
+                                    saveItem()
+                                    NotificationCenter.default.post(
+                                        name: .focusNextTask,
+                                        object: nil,
+                                        userInfo: ["currentId": myId, "direction": "backward"]
+                                    )
+                                },
                                 fontSize: 14,
                                 placeholder: isNew ? "Item...".localized : ""
                             )

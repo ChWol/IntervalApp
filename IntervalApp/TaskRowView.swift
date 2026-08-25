@@ -324,6 +324,22 @@ struct TaskRowView: View {
                             onPasteMultipleLines: { lines in
                                 handleMultiLinePaste(lines: lines)
                             },
+                            onTab: {
+                                saveTask()
+                                NotificationCenter.default.post(
+                                    name: .focusNextTask,
+                                    object: nil,
+                                    userInfo: ["currentId": myId, "direction": "forward"]
+                                )
+                            },
+                            onBacktab: {
+                                saveTask()
+                                NotificationCenter.default.post(
+                                    name: .focusNextTask,
+                                    object: nil,
+                                    userInfo: ["currentId": myId, "direction": "backward"]
+                                )
+                            },
                             fontSize: fontSize,
                             placeholder: isNew ? "Add task...".localized : ""
                         )

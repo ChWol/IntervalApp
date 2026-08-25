@@ -231,6 +231,9 @@ struct SettingsView: View {
     @AppStorage("dayStartHour") private var dayStartHour: Int = 6
     @AppStorage("dayStartMinute") private var dayStartMinute: Int = 0
     @AppStorage("weekStartDay") private var weekStartDay: String = "Monday"
+    #if os(macOS)
+    @AppStorage("showMenuBarExtra") private var showMenuBarExtra: Bool = true
+    #endif
 
     @State private var launchAtLogin: Bool = false
     @State private var hoveredLang: AppLanguage? = nil
@@ -333,6 +336,10 @@ struct SettingsView: View {
                             ),
                             label: "Launch at Login".localized
                         )
+                        #endif
+
+                        #if os(macOS)
+                        MinimalistToggle(isOn: $showMenuBarExtra, label: "Show in Menu Bar".localized)
                         #endif
 
                         MinimalistToggle(isOn: $showHabits, label: "Show Habits Bar".localized)

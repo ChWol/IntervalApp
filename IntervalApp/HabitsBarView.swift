@@ -108,14 +108,16 @@ struct HabitsBarView: View {
     
     private var sortedHabits: [HabitItem] {
         let active = habits.filter { $0.deletedAt == nil && $0.isScheduledForTodayOrOverdue() }
-        let overdueIncomplete = active.filter { $0.isOverdue() && !$0.isCompletedCurrentPeriod }
+        let overdueIncomplete = active.filter { $0.isOverdue() && !$0.isCompletedCurrentPeriod && !$0.isPostponedToday }
             .sorted { $0.order < $1.order }
-        let todayIncomplete = active.filter { !$0.isOverdue() && !$0.isCompletedCurrentPeriod }
+        let todayIncomplete = active.filter { !$0.isOverdue() && !$0.isCompletedCurrentPeriod && !$0.isPostponedToday }
+            .sorted { $0.order < $1.order }
+        let postponed = active.filter { $0.isPostponedToday && !$0.isCompletedCurrentPeriod }
             .sorted { $0.order < $1.order }
         let completed = active.filter { $0.isCompletedCurrentPeriod }.sorted {
             ($0.lastCompletedDate ?? Date.distantPast) > ($1.lastCompletedDate ?? Date.distantPast)
         }
-        return overdueIncomplete + todayIncomplete + completed
+        return overdueIncomplete + todayIncomplete + postponed + completed
     }
     
     private var weeklyButtonLabel: String {
@@ -402,19 +404,30 @@ struct HabitChipView: View {
     
     var body: some View {
         let isDone = habit.isCompletedCurrentPeriod
-        let isOverdue = habit.isOverdue() && !isDone
+        let isPostponed = habit.isPostponedToday && !isDone
+        let isOverdue = habit.isOverdue() && !isDone && !isPostponed
         
         HStack(spacing: 8) {
             Button(action: toggleCompletion) {
                 HStack(spacing: 6) {
-                    Image(systemName: isDone ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 11, weight: .light))
-                        .foregroundColor(isDone ? .primary : (isOverdue ? .primary : .secondary))
+                    if isDone {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 11, weight: .light))
+                            .foregroundColor(.primary)
+                    } else if isPostponed {
+                        Image(systemName: "clock")
+                            .font(.system(size: 11, weight: .light))
+                            .foregroundColor(.secondary.opacity(0.8))
+                    } else {
+                        Image(systemName: "circle")
+                            .font(.system(size: 11, weight: .light))
+                            .foregroundColor(isOverdue ? .primary : .secondary)
+                    }
                     
                     Text(habit.text)
                         .font(.system(size: 12, weight: isOverdue ? .medium : .light))
-                        .foregroundColor(isDone ? .secondary : .primary)
-                        .strikethrough(isDone)
+                        .foregroundColor(isDone || isPostponed ? .secondary : .primary)
+                        .strikethrough(isDone || isPostponed)
                     
                     if habit.isWeekly, let day = habit.targetWeekday, let opt = WeekdayOption.option(for: day) {
                         Text(opt.shortName)
@@ -432,24 +445,47 @@ struct HabitChipView: View {
             .pointingHandCursor()
             
             if hoveredHabitId == habit.id {
-                Button(action: deleteHabit) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 8))
-                        .foregroundColor(.secondary)
+                HStack(spacing: 6) {
+                    // Postpone / Snooze for today
+                    if !isDone {
+                        Button(action: togglePostpone) {
+                            Image(systemName: isPostponed ? "arrow.uturn.backward" : "clock")
+                                .font(.system(size: 8))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .pointingHandCursor()
+                        .help(isPostponed ? "Unpostpone for today".localized : "Postpone for today".localized)
+                    }
+                    
+                    // Delete
+                    Button(action: deleteHabit) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 8))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .pointingHandCursor()
                 }
-                .buttonStyle(.plain)
-                .pointingHandCursor()
             }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(isDone ? Color.gray.opacity(colorScheme == .dark ? 0.12 : 0.06) : Color.gray.opacity(colorScheme == .dark ? 0.2 : 0.1))
+                .fill((isDone || isPostponed) ? Color.gray.opacity(colorScheme == .dark ? 0.12 : 0.06) : Color.gray.opacity(colorScheme == .dark ? 0.2 : 0.1))
         )
         .opacity(isDragged ? 0.3 : 1.0)
         .onHover { hovering in
             hoveredHabitId = hovering ? habit.id : nil
+        }
+    }
+    
+    private func togglePostpone() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            habit.togglePostponeForToday()
+            try? modelContext.save()
+            SupabaseSyncManager.shared.push()
         }
     }
     
@@ -459,6 +495,10 @@ struct HabitChipView: View {
             let willBeCompleted = !habit.isCompletedCurrentPeriod
             if willBeCompleted {
                 SoundManager.playHabitCompleted()
+                // If it was postponed, un-postpone it when completed
+                if habit.isPostponedToday {
+                    habit.postponedDate = nil
+                }
             } else {
                 SoundManager.playUndo()
             }

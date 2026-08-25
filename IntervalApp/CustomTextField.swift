@@ -50,6 +50,8 @@ struct CustomTextField: NSViewRepresentable {
     var onSubmit: (_ isAtBeginning: Bool) -> Void
     var onDeleteEmpty: () -> Void
     var onPasteMultipleLines: (([String]) -> Void)? = nil
+    var onTab: (() -> Void)? = nil
+    var onBacktab: (() -> Void)? = nil
     var fontSize: CGFloat
     var placeholder: String
 
@@ -108,6 +110,8 @@ struct CustomTextField: NSViewRepresentable {
         c.onSubmit = onSubmit
         c.onDeleteEmpty = onDeleteEmpty
         c.onPasteMultipleLines = onPasteMultipleLines
+        c.onTab = onTab
+        c.onBacktab = onBacktab
 
         if c.isEditing {
             return
@@ -149,6 +153,8 @@ struct CustomTextField: NSViewRepresentable {
         var onSubmit: ((_ isAtBeginning: Bool) -> Void)?
         var onDeleteEmpty: (() -> Void)?
         var onPasteMultipleLines: (([String]) -> Void)?
+        var onTab: (() -> Void)?
+        var onBacktab: (() -> Void)?
         var isEditing: Bool = false
 
         init(textBinding: Binding<String>) {
@@ -186,6 +192,18 @@ struct CustomTextField: NSViewRepresentable {
                     return true
                 }
             }
+            if sel == #selector(NSResponder.insertTab(_:)) {
+                if let onTab = onTab {
+                    onTab()
+                    return true
+                }
+            }
+            if sel == #selector(NSResponder.insertBacktab(_:)) {
+                if let onBacktab = onBacktab {
+                    onBacktab()
+                    return true
+                }
+            }
             return false
         }
     }
@@ -200,6 +218,8 @@ struct CustomTextField: UIViewRepresentable {
     var onSubmit: (_ isAtBeginning: Bool) -> Void
     var onDeleteEmpty: () -> Void
     var onPasteMultipleLines: (([String]) -> Void)? = nil
+    var onTab: (() -> Void)? = nil
+    var onBacktab: (() -> Void)? = nil
     var fontSize: CGFloat
     var placeholder: String
 
@@ -248,6 +268,8 @@ struct CustomTextField: UIViewRepresentable {
         c.onSubmit = onSubmit
         c.onDeleteEmpty = onDeleteEmpty
         c.onPasteMultipleLines = onPasteMultipleLines
+        c.onTab = onTab
+        c.onBacktab = onBacktab
         c.textView = uiView
 
         if c.isEditing { return }
@@ -288,6 +310,8 @@ struct CustomTextField: UIViewRepresentable {
         var onSubmit: ((_ isAtBeginning: Bool) -> Void)?
         var onDeleteEmpty: (() -> Void)?
         var onPasteMultipleLines: (([String]) -> Void)?
+        var onTab: (() -> Void)?
+        var onBacktab: (() -> Void)?
         var isEditing: Bool = false
         weak var textView: UITextView?
 
@@ -317,6 +341,14 @@ struct CustomTextField: UIViewRepresentable {
         }
 
         func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+            // Tab key pressed
+            if text == "\t" {
+                if let onTab = onTab {
+                    onTab()
+                    return false
+                }
+            }
+
             // Enter key pressed -> Submit new item
             if text == "\n" {
                 let isAtBeginning = range.location == 0
