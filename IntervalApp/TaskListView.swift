@@ -43,7 +43,7 @@ struct TaskListView: View {
             }
             .padding(.bottom, 5)
             .contentShape(Rectangle())
-            .onDrop(of: [.data], delegate: TaskListHeaderDropDelegate(listTitle: title, sectionFontSize: fontSize, context: modelContext))
+            .onDrop(of: [UTType.data, UTType.plainText, UTType.text], delegate: TaskListHeaderDropDelegate(listTitle: title, sectionFontSize: fontSize, context: modelContext))
             
             ForEach(tasks) { task in
                 TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title, focusedTaskId: $focusedTaskId)
@@ -57,7 +57,7 @@ struct TaskListView: View {
             Color.clear
                 .frame(height: 25)
                 .contentShape(Rectangle())
-                .onDrop(of: [.data], delegate: TaskListBottomDropDelegate(listTitle: title, sectionFontSize: fontSize, context: modelContext))
+                .onDrop(of: [UTType.data, UTType.plainText, UTType.text], delegate: TaskListBottomDropDelegate(listTitle: title, sectionFontSize: fontSize, context: modelContext))
         }
         .padding(.bottom, 10)
         .overlay(
@@ -95,13 +95,33 @@ func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listT
     let descriptor = FetchDescriptor<TaskItem>()
     guard let allTasks = try? context.fetch(descriptor) else { return }
     
-    // Check if habit already has a live task in the hour list
-    let alreadyExists = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
-    guard !alreadyExists else { return }
-    
     var sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
-    
     let now = Date()
+    
+    // If the habit task already exists in the 1 Hour list, reposition it to the requested location
+    if let existingTask = sorted.first(where: { $0.habitId == habit.id }) {
+        if let currentIdx = sorted.firstIndex(where: { $0.id == existingTask.id }) {
+            sorted.remove(at: currentIdx)
+        }
+        switch position {
+        case .top:
+            sorted.insert(existingTask, at: 0)
+        case .bottom:
+            sorted.append(existingTask)
+        case .atIndex(let idx):
+            let clamped = min(idx, sorted.count)
+            sorted.insert(existingTask, at: clamped)
+        }
+        for (i, t) in sorted.enumerated() {
+            t.order = i
+        }
+        existingTask.updatedAt = now
+        try? context.save()
+        SupabaseSyncManager.shared.push()
+        return
+    }
+    
+    // Otherwise create a new TaskItem linked to the habit
     let newTask = TaskItem(text: habit.text, intervalType: HabitTaskLink.hourInterval, order: 0, habitId: habit.id)
     newTask.updatedAt = now
     context.insert(newTask)

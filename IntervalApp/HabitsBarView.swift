@@ -143,9 +143,19 @@ struct HabitsBarView: View {
                                 .id(habit.id)
                                 .onDrag {
                                     HabitDragState.shared.draggedHabit = habit
-                                    return NSItemProvider(object: habit.id as NSString)
+                                    return NSItemProvider(item: habit.id as NSString, typeIdentifier: UTType.data.identifier)
+                                } preview: {
+                                    Text(habit.text)
+                                        .font(.system(size: 12, weight: .light))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .fill(colorScheme == .dark ? Color(white: 0.2) : Color.white)
+                                                .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
+                                        )
                                 }
-                                .onDrop(of: [.data], delegate: HabitDropDelegate(item: habit, context: modelContext, proxy: proxy))
+                                .onDrop(of: [UTType.data, UTType.plainText, UTType.text], delegate: HabitDropDelegate(item: habit, context: modelContext, proxy: proxy))
                         }
                     
                     if !isAdding {
@@ -475,7 +485,6 @@ struct HabitChipView: View {
             RoundedRectangle(cornerRadius: 6)
                 .fill((isDone || isPostponed) ? Color.gray.opacity(colorScheme == .dark ? 0.12 : 0.06) : Color.gray.opacity(colorScheme == .dark ? 0.2 : 0.1))
         )
-        .opacity(isDragged ? 0.3 : 1.0)
         .onHover { hovering in
             hoveredHabitId = hovering ? habit.id : nil
         }

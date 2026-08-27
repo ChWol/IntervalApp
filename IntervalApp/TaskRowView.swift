@@ -155,7 +155,7 @@ struct TaskRowView: View {
                     .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
             )
         }
-        .onDrop(of: [UTType.data], delegate: TaskDropDelegate(item: task, sectionFontSize: fontSize, context: modelContext))
+        .onDrop(of: [UTType.data, UTType.plainText, UTType.text], delegate: TaskDropDelegate(item: task, sectionFontSize: fontSize, context: modelContext))
         #endif
     }
     
