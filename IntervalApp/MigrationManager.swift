@@ -346,16 +346,14 @@ class MigrationManager: ObservableObject {
         var maxOrder = (active.filter { $0.intervalType == migration.dest }.map { $0.order }.max() ?? -1) + 1
         let now = Date()
         
-        var droppedTasks: [TaskItem] = []
         for task in active where task.intervalType == migration.source {
             if selectedTaskIds.contains(task.id) {
                 task.intervalType = migration.dest
                 task.order = maxOrder
                 task.updatedAt = now
                 maxOrder += 1
-            } else {
-                droppedTasks.append(task)
             }
+            // Non-selected tasks stay in their source interval – they are NOT deleted.
         }
         
         if migration.dest == HabitTaskLink.hourInterval && !selectedHabitIds.isEmpty {
@@ -369,10 +367,6 @@ class MigrationManager: ObservableObject {
             for newTask in hourHabitTasks {
                 context.insert(newTask)
             }
-        }
-        
-        for task in droppedTasks {
-            TaskHousekeeping.moveToBin(task, in: context, now: now)
         }
         
         try? context.save()

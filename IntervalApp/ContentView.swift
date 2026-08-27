@@ -442,6 +442,7 @@ struct ContentView: View {
                         migrationManager.skipMigration()
                     }
                 )
+                .id(migration.id)
             }
         }
     }
