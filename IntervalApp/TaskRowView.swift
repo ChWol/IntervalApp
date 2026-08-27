@@ -603,15 +603,18 @@ struct TaskDropDelegate: DropDelegate {
 
     func dropEntered(info: DropInfo) {
         // 1. Handle habit drag entering a task row in 1 Hour
-        if HabitDragState.shared.draggedHabit != nil {
+        if let habit = HabitDragState.shared.draggedHabit {
             if item.intervalType == HabitTaskLink.hourInterval {
                 let descriptor = FetchDescriptor<TaskItem>()
                 let allTasks = (try? context.fetch(descriptor)) ?? []
-                let sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
-                let itemIdx = sorted.firstIndex(where: { $0.id == item.id }) ?? 0
-                withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
-                    HabitDragState.shared.targetIndex = itemIdx
-                    HabitDragState.shared.isTargetingHour = true
+                let alreadyInHour = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
+                if !alreadyInHour {
+                    let sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+                    let itemIdx = sorted.firstIndex(where: { $0.id == item.id }) ?? 0
+                    withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
+                        HabitDragState.shared.targetIndex = itemIdx
+                        HabitDragState.shared.isTargetingHour = true
+                    }
                 }
             }
             return
@@ -644,14 +647,28 @@ struct TaskDropDelegate: DropDelegate {
         }
     }
     
+    func dropExited(info: DropInfo) {
+        if HabitDragState.shared.draggedHabit != nil {
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
+                HabitDragState.shared.targetIndex = nil
+                HabitDragState.shared.isTargetingHour = false
+            }
+        }
+    }
+    
     func dropUpdated(info: DropInfo) -> DropProposal? {
         // Handle habit drag
-        if HabitDragState.shared.draggedHabit != nil {
+        if let habit = HabitDragState.shared.draggedHabit {
             if item.intervalType != HabitTaskLink.hourInterval {
                 return DropProposal(operation: .forbidden)
             }
             let descriptor = FetchDescriptor<TaskItem>()
             let allTasks = (try? context.fetch(descriptor)) ?? []
+            let alreadyInHour = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
+            if alreadyInHour {
+                return DropProposal(operation: .forbidden)
+            }
+            
             let sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
             if let itemIdx = sorted.firstIndex(where: { $0.id == item.id }) {
                 // If cursor is in the lower half of this task row, place placeholder below it (index + 1)
@@ -679,6 +696,16 @@ struct TaskDropDelegate: DropDelegate {
                 }
                 return false
             }
+            let descriptor = FetchDescriptor<TaskItem>()
+            let allTasks = (try? context.fetch(descriptor)) ?? []
+            let alreadyInHour = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
+            guard !alreadyInHour else {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    HabitDragState.shared.reset()
+                }
+                return false
+            }
+            
             let targetIdx = HabitDragState.shared.targetIndex ?? 0
             insertHabitAsTask(habit: habit, at: .atIndex(targetIdx), listTitle: HabitTaskLink.hourInterval, context: context)
             withAnimation(.easeInOut(duration: 0.15)) {

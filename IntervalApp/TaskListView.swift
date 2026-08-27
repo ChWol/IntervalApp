@@ -18,6 +18,15 @@ struct TaskListView: View {
         title == HabitTaskLink.hourInterval
     }
 
+    private var habitAlreadyInHour: Bool {
+        guard let dragged = habitDragState.draggedHabit else { return false }
+        return tasks.contains { $0.habitId == dragged.id && $0.deletedAt == nil && !$0.completed }
+    }
+
+    private var shouldShowHabitPlaceholder: Bool {
+        isHourSection && habitDragState.draggedHabit != nil && habitDragState.isTargetingHour && !habitAlreadyInHour
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: max(5, fontSize * 0.4)) {
             // Category Header with subtle + button: Drop here to place at top of list
@@ -51,18 +60,18 @@ struct TaskListView: View {
             .onDrop(of: [UTType.data, UTType.plainText, UTType.text], delegate: TaskListHeaderDropDelegate(listTitle: title, sectionFontSize: fontSize, context: modelContext))
             
             ForEach(Array(tasks.enumerated()), id: \.element.id) { index, task in
-                if isHourSection && habitDragState.draggedHabit != nil && habitDragState.targetIndex == index {
+                if shouldShowHabitPlaceholder && habitDragState.targetIndex == index {
                     habitInsertionPlaceholder
                 }
                 
                 TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title, focusedTaskId: $focusedTaskId)
             }
             
-            if isHourSection && habitDragState.draggedHabit != nil && (habitDragState.targetIndex == tasks.count || (tasks.isEmpty && habitDragState.isTargetingHour)) {
+            if shouldShowHabitPlaceholder && (habitDragState.targetIndex == tasks.count || (tasks.isEmpty && habitDragState.isTargetingHour)) {
                 habitInsertionPlaceholder
             }
             
-            if tasks.isEmpty && !(isHourSection && habitDragState.draggedHabit != nil && habitDragState.isTargetingHour) {
+            if tasks.isEmpty && !shouldShowHabitPlaceholder {
                 TaskRowView(task: TaskItem(text: "", intervalType: title), fontSize: fontSize, isNew: true, listTitle: title, focusedTaskId: $focusedTaskId)
             }
             
@@ -127,7 +136,7 @@ struct TaskListView: View {
 // MARK: - Habit Drop into 1-Hour Helper
 
 /// Creates a new TaskItem linked to the dragged habit and inserts it at the given position
-/// in the 1 Hour list. Only works when listTitle == "1 Hour".
+/// in the 1 Hour list. Only works when listTitle == "1 Hour" and habit is not already in 1 Hour.
 @MainActor
 func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listTitle: String, context: ModelContext) {
     guard listTitle == HabitTaskLink.hourInterval else { return }
@@ -135,33 +144,13 @@ func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listT
     let descriptor = FetchDescriptor<TaskItem>()
     guard let allTasks = try? context.fetch(descriptor) else { return }
     
+    // If the habit is already present in 1 Hour as an active task, do NOT insert or duplicate
+    let alreadyExists = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
+    guard !alreadyExists else { return }
+    
     var sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
     let now = Date()
     
-    // If the habit task already exists in the 1 Hour list, reposition it to the requested location
-    if let existingTask = sorted.first(where: { $0.habitId == habit.id }) {
-        if let currentIdx = sorted.firstIndex(where: { $0.id == existingTask.id }) {
-            sorted.remove(at: currentIdx)
-        }
-        switch position {
-        case .top:
-            sorted.insert(existingTask, at: 0)
-        case .bottom:
-            sorted.append(existingTask)
-        case .atIndex(let idx):
-            let clamped = min(idx, sorted.count)
-            sorted.insert(existingTask, at: clamped)
-        }
-        for (i, t) in sorted.enumerated() {
-            t.order = i
-        }
-        existingTask.updatedAt = now
-        try? context.save()
-        SupabaseSyncManager.shared.push()
-        return
-    }
-    
-    // Otherwise create a new TaskItem linked to the habit
     let newTask = TaskItem(text: habit.text, intervalType: HabitTaskLink.hourInterval, order: 0, habitId: habit.id)
     newTask.updatedAt = now
     context.insert(newTask)
@@ -172,7 +161,7 @@ func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listT
     case .bottom:
         sorted.append(newTask)
     case .atIndex(let idx):
-        let clamped = min(idx, sorted.count)
+        let clamped = min(max(0, idx), sorted.count)
         sorted.insert(newTask, at: clamped)
     }
     
@@ -199,11 +188,16 @@ struct TaskListHeaderDropDelegate: DropDelegate {
 
     func dropEntered(info: DropInfo) {
         // Handle habit drag entering header
-        if HabitDragState.shared.draggedHabit != nil {
+        if let habit = HabitDragState.shared.draggedHabit {
             if listTitle == HabitTaskLink.hourInterval {
-                withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
-                    HabitDragState.shared.targetIndex = 0
-                    HabitDragState.shared.isTargetingHour = true
+                let descriptor = FetchDescriptor<TaskItem>()
+                let allTasks = (try? context.fetch(descriptor)) ?? []
+                let alreadyInHour = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
+                if !alreadyInHour {
+                    withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
+                        HabitDragState.shared.targetIndex = 0
+                        HabitDragState.shared.isTargetingHour = true
+                    }
                 }
             }
             return
@@ -230,16 +224,32 @@ struct TaskListHeaderDropDelegate: DropDelegate {
         }
     }
     
+    func dropExited(info: DropInfo) {
+        if HabitDragState.shared.draggedHabit != nil {
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
+                HabitDragState.shared.targetIndex = nil
+                HabitDragState.shared.isTargetingHour = false
+            }
+        }
+    }
+    
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        // Allow habit drops only into 1 Hour
-        if HabitDragState.shared.draggedHabit != nil && listTitle != HabitTaskLink.hourInterval {
-            return DropProposal(operation: .forbidden)
+        if let habit = HabitDragState.shared.draggedHabit {
+            if listTitle != HabitTaskLink.hourInterval {
+                return DropProposal(operation: .forbidden)
+            }
+            let descriptor = FetchDescriptor<TaskItem>()
+            let allTasks = (try? context.fetch(descriptor)) ?? []
+            let alreadyInHour = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
+            if alreadyInHour {
+                return DropProposal(operation: .forbidden)
+            }
+            return DropProposal(operation: .move)
         }
         return DropProposal(operation: .move)
     }
     
     func performDrop(info: DropInfo) -> Bool {
-        // Handle habit drop into 1 Hour
         if let habit = HabitDragState.shared.draggedHabit {
             guard listTitle == HabitTaskLink.hourInterval else {
                 withAnimation(.easeInOut(duration: 0.15)) {
@@ -247,6 +257,16 @@ struct TaskListHeaderDropDelegate: DropDelegate {
                 }
                 return false
             }
+            let descriptor = FetchDescriptor<TaskItem>()
+            let allTasks = (try? context.fetch(descriptor)) ?? []
+            let alreadyInHour = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
+            guard !alreadyInHour else {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    HabitDragState.shared.reset()
+                }
+                return false
+            }
+            
             let targetIdx = HabitDragState.shared.targetIndex ?? 0
             insertHabitAsTask(habit: habit, at: .atIndex(targetIdx), listTitle: listTitle, context: context)
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -274,15 +294,17 @@ struct TaskListBottomDropDelegate: DropDelegate {
     let context: ModelContext
 
     func dropEntered(info: DropInfo) {
-        // Handle habit drag entering bottom zone
-        if HabitDragState.shared.draggedHabit != nil {
+        if let habit = HabitDragState.shared.draggedHabit {
             if listTitle == HabitTaskLink.hourInterval {
                 let descriptor = FetchDescriptor<TaskItem>()
                 let allTasks = (try? context.fetch(descriptor)) ?? []
-                let sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
-                withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
-                    HabitDragState.shared.targetIndex = sorted.count
-                    HabitDragState.shared.isTargetingHour = true
+                let alreadyInHour = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
+                if !alreadyInHour {
+                    let sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
+                    withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
+                        HabitDragState.shared.targetIndex = sorted.count
+                        HabitDragState.shared.isTargetingHour = true
+                    }
                 }
             }
             return
@@ -309,15 +331,32 @@ struct TaskListBottomDropDelegate: DropDelegate {
         }
     }
     
+    func dropExited(info: DropInfo) {
+        if HabitDragState.shared.draggedHabit != nil {
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
+                HabitDragState.shared.targetIndex = nil
+                HabitDragState.shared.isTargetingHour = false
+            }
+        }
+    }
+    
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        if HabitDragState.shared.draggedHabit != nil && listTitle != HabitTaskLink.hourInterval {
-            return DropProposal(operation: .forbidden)
+        if let habit = HabitDragState.shared.draggedHabit {
+            if listTitle != HabitTaskLink.hourInterval {
+                return DropProposal(operation: .forbidden)
+            }
+            let descriptor = FetchDescriptor<TaskItem>()
+            let allTasks = (try? context.fetch(descriptor)) ?? []
+            let alreadyInHour = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
+            if alreadyInHour {
+                return DropProposal(operation: .forbidden)
+            }
+            return DropProposal(operation: .move)
         }
         return DropProposal(operation: .move)
     }
     
     func performDrop(info: DropInfo) -> Bool {
-        // Handle habit drop into 1 Hour
         if let habit = HabitDragState.shared.draggedHabit {
             guard listTitle == HabitTaskLink.hourInterval else {
                 withAnimation(.easeInOut(duration: 0.15)) {
@@ -325,6 +364,16 @@ struct TaskListBottomDropDelegate: DropDelegate {
                 }
                 return false
             }
+            let descriptor = FetchDescriptor<TaskItem>()
+            let allTasks = (try? context.fetch(descriptor)) ?? []
+            let alreadyInHour = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
+            guard !alreadyInHour else {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    HabitDragState.shared.reset()
+                }
+                return false
+            }
+            
             let targetIdx = HabitDragState.shared.targetIndex ?? 0
             insertHabitAsTask(habit: habit, at: .atIndex(targetIdx), listTitle: listTitle, context: context)
             withAnimation(.easeInOut(duration: 0.15)) {
