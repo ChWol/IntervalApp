@@ -92,7 +92,7 @@ class MigrationManager: ObservableObject {
         var didUpdate = false
         for (key, val) in markers {
             let local = UserDefaults.standard.string(forKey: key) ?? ""
-            if val > local {
+            if val >= local {
                 UserDefaults.standard.set(val, forKey: key)
                 didUpdate = true
             }

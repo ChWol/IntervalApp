@@ -14,11 +14,12 @@ final class HabitTaskLinkTests: XCTestCase {
     
     // MARK: - Selection
     
-    func testSelectableHabitsSkipDeletedCompletedAndAlreadyListed() throws {
+    func testSelectableHabitsSkipDeletedCompletedPostponedAndAlreadyListed() throws {
         let open = store.addHabit("Meditate", order: 0, id: "h-open")
         let done = store.addHabit("Run", order: 1, lastCompletedDate: now, id: "h-done")
         let deleted = store.addHabit("Journal", order: 2, id: "h-gone", deletedAt: now)
-        let listed = store.addHabit("Stretch", order: 3, id: "h-listed")
+        let postponed = store.addHabit("Gym", order: 3, postponedDate: now, id: "h-postponed")
+        let listed = store.addHabit("Stretch", order: 4, id: "h-listed")
         store.addTask("Stretch", interval: HabitTaskLink.hourInterval, habitId: listed.id, id: "t-listed")
         
         let selectable = HabitTaskLink.selectableHabits(
@@ -30,6 +31,7 @@ final class HabitTaskLinkTests: XCTestCase {
         XCTAssertEqual(selectable.map(\.id), [open.id])
         XCTAssertFalse(selectable.contains { $0.id == done.id })
         XCTAssertFalse(selectable.contains { $0.id == deleted.id })
+        XCTAssertFalse(selectable.contains { $0.id == postponed.id })
         XCTAssertFalse(selectable.contains { $0.id == listed.id })
     }
     
@@ -99,6 +101,22 @@ final class HabitTaskLinkTests: XCTestCase {
         
         XCTAssertTrue(task.completed)
         XCTAssertEqual(task.completedAt, now)
+    }
+    
+    func testUntickingHabitUnticksItsHourTasks() throws {
+        let habit = store.addHabit("Meditate", lastCompletedDate: now, id: "h1")
+        let task = store.addTask("Meditate",
+                                 interval: HabitTaskLink.hourInterval,
+                                 completed: true,
+                                 habitId: habit.id,
+                                 id: "t1",
+                                 completedAt: now)
+        
+        HabitTaskLink.setHabitCompleted(false, on: habit, now: now)
+        XCTAssertTrue(HabitTaskLink.applyHabitCompletionToTasks(habit, tasks: try store.tasks(), now: now))
+        
+        XCTAssertFalse(task.completed)
+        XCTAssertNil(task.completedAt)
     }
     
     func testDoubleTickIsIdempotent() throws {

@@ -22,13 +22,13 @@ enum TaskHousekeeping {
         }
     }
     
-    /// Completed tasks that are not already in the bin.
+    /// Completed tasks that are not already in the bin (excluding transferred habit tasks).
     static func completed(from tasks: [TaskItem]) -> [TaskItem] {
-        tasks.filter { $0.completed && $0.deletedAt == nil }
+        tasks.filter { $0.completed && $0.deletedAt == nil && $0.habitId == nil }
     }
     
     static func binned(from tasks: [TaskItem]) -> [TaskItem] {
-        tasks.filter { $0.deletedAt != nil }
+        tasks.filter { $0.deletedAt != nil && $0.habitId == nil }
     }
     
     /// Soft delete: the task moves to the bin and stays recoverable on every device.

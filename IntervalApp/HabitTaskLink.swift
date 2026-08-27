@@ -19,7 +19,7 @@ enum HabitTaskLink {
             .filter { $0.deletedAt == nil }
             .filter { $0.isScheduledForTodayOrOverdue(date: now) }
             .filter { !$0.isCompleted(at: now) }
-            .filter { !$0.isPostponedToday }
+            .filter { !$0.isPostponed(at: now) }
             .filter { !alreadyListed.contains($0.id) }
             .sorted { h1, h2 in
                 let o1 = h1.isOverdueInCurrentWeek(date: now)

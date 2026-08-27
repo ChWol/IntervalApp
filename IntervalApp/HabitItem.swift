@@ -28,13 +28,17 @@ final class HabitItem {
         self.postponedDate = nil
     }
     
-    /// Whether the habit is currently postponed/snoozed for today.
-    var isPostponedToday: Bool {
+    /// Whether the habit is currently postponed/snoozed for a given date.
+    func isPostponed(at date: Date = Date()) -> Bool {
         guard let postponed = postponedDate else { return false }
         let calendar = Calendar.current
-        let adjustedNow = Self.intervalDayDate(for: Date(), calendar: calendar)
+        let adjustedNow = Self.intervalDayDate(for: date, calendar: calendar)
         let adjustedPostponed = Self.intervalDayDate(for: postponed, calendar: calendar)
         return calendar.isDate(adjustedPostponed, inSameDayAs: adjustedNow)
+    }
+    
+    var isPostponedToday: Bool {
+        isPostponed(at: Date())
     }
     
     func togglePostponeForToday() {

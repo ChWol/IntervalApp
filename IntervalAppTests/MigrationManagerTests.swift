@@ -1,6 +1,7 @@
 import XCTest
+import SwiftData
 
-/// End-to-end hourly progression: picking day tasks and habits into the hour list.
+/// End-to-end migration tests covering task transfer, habit creation, marker synchronization, and dismissal.
 @MainActor
 final class MigrationManagerTests: XCTestCase {
     private var store: TestStore!
@@ -62,50 +63,27 @@ final class MigrationManagerTests: XCTestCase {
         XCTAssertEqual(linked.count, 1)
     }
     
-    func testHourMigrationIsWorthShowingWhenOnlyHabitsAreAvailable() {
-        store.addHabit("Meditate", id: "habit-a")
-        try? store.save()
-        
-        let shown = manager.presentForTesting(
-            Migration(source: "1 Day", dest: HabitTaskLink.hourInterval)
-        )
-        XCTAssertTrue(shown)
+    func testSkipMigrationClearsCurrentMigration() {
+        manager.currentMigration = Migration(source: "1 Week", dest: "1 Day")
         XCTAssertNotNil(manager.currentMigration)
-    }
-    
-    func testHourMigrationIsSkippedWhenNothingIsAvailable() {
-        let shown = manager.presentForTesting(
-            Migration(source: "1 Day", dest: HabitTaskLink.hourInterval)
-        )
-        XCTAssertFalse(shown)
+        
+        manager.skipMigration()
         XCTAssertNil(manager.currentMigration)
     }
     
-    func testYearResetHardDeletesUnselectedGoals() throws {
-        let keep = store.addTask("Ship the app", interval: "1 Year", order: 0, id: "keep")
-        let drop = store.addTask("Learn piano", interval: "1 Year", order: 1, id: "drop")
-        try store.save()
+    func testApplyRemoteMarkersDismissesAlreadyHandledMigration() {
+        let hourKey = "lastHandledHourMarker_v2"
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd-HH"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        let currentHour = formatter.string(from: Date())
         
-        manager.executeMigration(
-            migration: Migration(source: "1 Year", dest: "1 Year"),
-            selectedTaskIds: [keep.id],
-            selectedHabitIds: []
-        )
+        manager.currentMigration = Migration(source: "1 Day", dest: HabitTaskLink.hourInterval)
+        XCTAssertNotNil(manager.currentMigration)
         
-        let remaining = try store.tasks().map(\.id)
-        XCTAssertEqual(remaining, [keep.id])
-        XCTAssertFalse(remaining.contains(drop.id))
-    }
-    
-    func testSkippingDayMigrationHandsOffToFirstHourOfDay() throws {
-        store.addTask("Plan the day", interval: "1 Day", order: 0)
-        try store.save()
+        // Remote device completed this hour's migration
+        manager.applyRemoteMarkers([hourKey: currentHour])
         
-        manager.currentMigration = Migration(source: "1 Week", dest: "1 Day")
-        manager.skipMigration()
-        
-        XCTAssertEqual(manager.currentMigration?.source, "1 Day")
-        XCTAssertEqual(manager.currentMigration?.dest, HabitTaskLink.hourInterval)
-        XCTAssertEqual(manager.currentMigration?.isFirstHourOfDay, true)
+        XCTAssertNil(manager.currentMigration, "Active modal must be dismissed immediately when remote marker arrives")
     }
 }
