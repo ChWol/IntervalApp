@@ -475,16 +475,21 @@ class SupabaseSyncManager: ObservableObject {
         }
         
         // 3. Flush any pending unsynced changes to Supabase before purging local data
+        var pushSucceeded = true
         if isAuthenticated {
-            _ = await pushToSupabase()
+            pushSucceeded = await pushToSupabase()
             _ = await flushTombstones()
         }
         
         // 4. Safely wipe local store and clear authentication state
-        if let ctx = modelContext {
-            purgeLocalStore(context: ctx)
-        } else {
-            pendingLocalPurge = true
+        // Only purge local data if push succeeded or user is not authenticated.
+        // If push failed, local data is preserved so the user doesn't lose unsynced work.
+        if pushSucceeded || !isAuthenticated {
+            if let ctx = modelContext {
+                purgeLocalStore(context: ctx)
+            } else {
+                pendingLocalPurge = true
+            }
         }
         accessToken = nil
         refreshToken = nil
@@ -804,7 +809,9 @@ class SupabaseSyncManager: ObservableObject {
                 break
             }
             for (index, task) in chunk.enumerated() {
-                task.syncedAt = stamps[index]
+                if !task.isDeleted {
+                    task.syncedAt = stamps[index]
+                }
             }
         }
         
@@ -818,7 +825,9 @@ class SupabaseSyncManager: ObservableObject {
                 break
             }
             for (index, habit) in chunk.enumerated() {
-                habit.syncedAt = stamps[index]
+                if !habit.isDeleted {
+                    habit.syncedAt = stamps[index]
+                }
             }
         }
         
@@ -829,7 +838,9 @@ class SupabaseSyncManager: ObservableObject {
             let payload = chunk.map { scratchpadListPayload($0, uid: uid) }
             if await upsert(table: SyncTable.scratchpadLists, payload: payload) {
                 for (index, item) in chunk.enumerated() {
-                    item.syncedAt = stamps[index]
+                    if !item.isDeleted {
+                        item.syncedAt = stamps[index]
+                    }
                 }
             }
         }
@@ -841,7 +852,9 @@ class SupabaseSyncManager: ObservableObject {
             let payload = chunk.map { scratchpadItemPayload($0, uid: uid) }
             if await upsert(table: SyncTable.scratchpadItems, payload: payload) {
                 for (index, item) in chunk.enumerated() {
-                    item.syncedAt = stamps[index]
+                    if !item.isDeleted {
+                        item.syncedAt = stamps[index]
+                    }
                 }
             }
         }

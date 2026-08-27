@@ -116,12 +116,8 @@ struct TaskListHeaderDropDelegate: DropDelegate {
     }
     
     func performDrop(info: DropInfo) -> Bool {
-        let descriptor = FetchDescriptor<TaskItem>()
-        if let allTasks = try? context.fetch(descriptor) {
-            let now = Date()
-            for task in allTasks {
-                task.updatedAt = now
-            }
+        if let draggedItem = DragState.shared.draggedTask {
+            draggedItem.updatedAt = Date()
         }
         try? context.save()
         SupabaseSyncManager.shared.push()
@@ -162,12 +158,8 @@ struct TaskListBottomDropDelegate: DropDelegate {
     }
     
     func performDrop(info: DropInfo) -> Bool {
-        let descriptor = FetchDescriptor<TaskItem>()
-        if let allTasks = try? context.fetch(descriptor) {
-            let now = Date()
-            for task in allTasks {
-                task.updatedAt = now
-            }
+        if let draggedItem = DragState.shared.draggedTask {
+            draggedItem.updatedAt = Date()
         }
         try? context.save()
         SupabaseSyncManager.shared.push()

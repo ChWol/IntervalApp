@@ -1284,12 +1284,8 @@ struct ScratchpadItemDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        let descriptor = FetchDescriptor<ScratchpadItem>()
-        if let all = try? context.fetch(descriptor) {
-            let now = Date()
-            for it in all {
-                it.updatedAt = now
-            }
+        if let draggedItem = ScratchpadDragState.shared.draggedItem {
+            draggedItem.updatedAt = Date()
         }
         try? context.save()
         SupabaseSyncManager.shared.push()
@@ -1330,12 +1326,8 @@ struct ScratchpadListDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        let descriptor = FetchDescriptor<ScratchpadList>()
-        if let all = try? context.fetch(descriptor) {
-            let now = Date()
-            for l in all {
-                l.updatedAt = now
-            }
+        if let draggedList = ScratchpadDragState.shared.draggedList {
+            draggedList.updatedAt = Date()
         }
         try? context.save()
         SupabaseSyncManager.shared.push()

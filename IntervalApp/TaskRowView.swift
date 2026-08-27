@@ -634,12 +634,11 @@ struct TaskDropDelegate: DropDelegate {
     
     func performDrop(info: DropInfo) -> Bool {
         SoundManager.playTaskDropped()
-        let descriptor = FetchDescriptor<TaskItem>()
-        if let allTasks = try? context.fetch(descriptor) {
-            let now = Date()
-            for task in allTasks {
-                task.updatedAt = now
-            }
+        // Only the dragged task needs its updatedAt refreshed; other tasks'
+        // order changes are picked up because dropEntered already mutated them
+        // and SwiftData tracks dirty properties automatically.
+        if let draggedItem = DragState.shared.draggedTask {
+            draggedItem.updatedAt = Date()
         }
         try? context.save()
         SupabaseSyncManager.shared.push()

@@ -30,6 +30,8 @@ class MigrationManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var isFirstHourAfterDayMigration = false
     private var modelContext: ModelContext?
+    private var pendingMarkerKey: String?
+    private var pendingMarkerValue: String?
     
     private static let hourFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -285,7 +287,10 @@ class MigrationManager: ObservableObject {
         let habitCount = migration.dest == HabitTaskLink.hourInterval ? selectableHabits(tasks: tasks).count : 0
         
         if MigrationSchedule.shouldPresent(migration, sourceTaskCount: sourceCount, selectableHabitCount: habitCount) {
-            setMarker(marker, for: key)
+            // Marker is set AFTER the user commits or skips, not here.
+            // Store pending marker info so executeMigration/skipMigration can commit it.
+            pendingMarkerKey = key
+            pendingMarkerValue = marker
             SoundManager.playTransitionChime()
             NotificationManager.shared.sendMigrationNotification(for: migration)
             NotificationManager.shared.scheduleUpcomingBoundaryNotifications()
@@ -320,7 +325,8 @@ class MigrationManager: ObservableObject {
         let migration = Migration(source: "1 Day", dest: HabitTaskLink.hourInterval, isFirstHourOfDay: true)
         if MigrationSchedule.shouldPresent(migration, sourceTaskCount: sourceCount, selectableHabitCount: habitCount) {
             let currentHour = Self.hourFormatter.string(from: Date())
-            setMarker(currentHour, for: StoreKey.lastHandledHour)
+            pendingMarkerKey = StoreKey.lastHandledHour
+            pendingMarkerValue = currentHour
             SoundManager.playTransitionChime()
             NotificationManager.shared.sendMigrationNotification(for: migration)
             NotificationManager.shared.scheduleUpcomingBoundaryNotifications()
@@ -337,6 +343,13 @@ class MigrationManager: ObservableObject {
         guard let context = modelContext else {
             currentMigration = nil
             return
+        }
+        
+        // Commit the pending marker now that the user has taken action
+        if let key = pendingMarkerKey, let value = pendingMarkerValue {
+            setMarker(value, for: key)
+            pendingMarkerKey = nil
+            pendingMarkerValue = nil
         }
         
         let allTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
@@ -384,6 +397,13 @@ class MigrationManager: ObservableObject {
     }
     
     func skipMigration() {
+        // Commit the pending marker now that the user has skipped
+        if let key = pendingMarkerKey, let value = pendingMarkerValue {
+            setMarker(value, for: key)
+            pendingMarkerKey = nil
+            pendingMarkerValue = nil
+        }
+        
         let skipped = currentMigration
         withAnimation(.easeInOut(duration: 0.15)) {
             currentMigration = nil

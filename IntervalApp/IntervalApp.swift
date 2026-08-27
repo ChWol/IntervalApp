@@ -33,13 +33,7 @@ struct IntervalApp: App {
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
-            print("Failed to create persistent ModelContainer: \(error). Using in-memory fallback...")
-            let fallbackConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-            do {
-                return try ModelContainer(for: schema, configurations: [fallbackConfiguration])
-            } catch {
-                fatalError("Could not create ModelContainer: \(error)")
-            }
+            fatalError("Could not create persistent ModelContainer. Your data cannot be saved safely. Error: \(error)")
         }
     }()
 

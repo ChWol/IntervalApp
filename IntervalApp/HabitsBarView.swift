@@ -547,7 +547,6 @@ struct HabitDropDelegate: DropDelegate {
             withAnimation(.easeInOut(duration: 0.2)) {
                 let descriptor = FetchDescriptor<HabitItem>()
                 guard let allHabits = try? context.fetch(descriptor) else { return }
-                // Soft-deleted habits stay out of the order so they cannot steal slots.
                 var sorted = allHabits.filter { $0.deletedAt == nil }.sorted { $0.order < $1.order }
                 
                 if let sourceIdx = sorted.firstIndex(where: { $0.id == draggedItem.id }),
@@ -556,13 +555,9 @@ struct HabitDropDelegate: DropDelegate {
                     sorted.insert(moved, at: targetIdx)
                 }
                 
-                let now = Date()
                 for (i, h) in sorted.enumerated() {
                     h.order = i
-                    h.updatedAt = now
                 }
-                try? context.save()
-                SupabaseSyncManager.shared.push()
             }
             withAnimation(.easeInOut(duration: 0.2)) {
                 proxy?.scrollTo(item.id, anchor: .center)
@@ -575,6 +570,12 @@ struct HabitDropDelegate: DropDelegate {
     }
     
     func performDrop(info: DropInfo) -> Bool {
+        // Persist reorder only once, at the end of the drag gesture
+        if let draggedItem = HabitDragState.shared.draggedHabit {
+            draggedItem.updatedAt = Date()
+        }
+        try? context.save()
+        SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
             HabitDragState.shared.draggedHabit = nil
         }

@@ -83,6 +83,7 @@ final class HabitItem {
             } else {
                 frequency = "Weekly"
             }
+            updatedAt = Date()
         }
     }
     
