@@ -12,16 +12,12 @@ struct MenuBarTaskView: View {
     @Query(sort: \TaskItem.order) private var allTasks: [TaskItem]
     
     @State private var newTaskText: String = ""
+    @State private var isInputHovered: Bool = false
     @FocusState private var isInputFocused: Bool
     
     private var hourTasks: [TaskItem] {
         allTasks.filter { $0.intervalType == "1 Hour" && $0.deletedAt == nil && !$0.completed }
             .sorted { $0.order < $1.order }
-    }
-    
-    private var completedHourTasks: [TaskItem] {
-        allTasks.filter { $0.intervalType == "1 Hour" && $0.deletedAt == nil && $0.completed }
-            .sorted { ($0.completedAt ?? Date()) > ($1.completedAt ?? Date()) }
     }
     
     private var currentHourRangeString: String {
@@ -48,7 +44,7 @@ struct MenuBarTaskView: View {
             Divider()
                 .opacity(0.4)
             
-            // MARK: - Tasks List
+            // MARK: - Tasks List (active only, no completed)
             VStack(alignment: .leading, spacing: 8) {
                 if hourTasks.isEmpty {
                     Text("No tasks in 1 Hour focus.".localized)
@@ -77,41 +73,10 @@ struct MenuBarTaskView: View {
                         .padding(.vertical, 2)
                     }
                 }
-                
-                // Completed Tasks Section
-                if !completedHourTasks.isEmpty {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("\("COMPLETED".localized) (\(completedHourTasks.count))")
-                            .font(.system(size: 9, weight: .light))
-                            .tracking(1.5)
-                            .foregroundColor(.secondary.opacity(0.6))
-                            .padding(.top, 4)
-                        
-                        ForEach(completedHourTasks.prefix(3)) { task in
-                            HStack(spacing: 8) {
-                                Button(action: {
-                                    toggleTask(task)
-                                }) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 12, weight: .light))
-                                        .foregroundColor(.primary)
-                                }
-                                .buttonStyle(.plain)
-                                .pointingHandCursor()
-                                
-                                Text(task.text)
-                                    .font(.system(size: 12, weight: .light))
-                                    .foregroundColor(.secondary)
-                                    .strikethrough(true)
-                                    .lineLimit(1)
-                            }
-                        }
-                    }
-                }
             }
             .frame(maxHeight: 220)
             
-            // MARK: - Quick Add Input
+            // MARK: - Quick Add Input (no autofocus, on-hover accent)
             HStack(spacing: 6) {
                 Image(systemName: "plus")
                     .font(.system(size: 10, weight: .light))
@@ -129,14 +94,27 @@ struct MenuBarTaskView: View {
             .padding(.vertical, 5)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.gray.opacity(colorScheme == .dark ? 0.15 : 0.08))
+                    .fill(isInputHovered || isInputFocused
+                          ? Color.gray.opacity(colorScheme == .dark ? 0.25 : 0.14)
+                          : Color.gray.opacity(colorScheme == .dark ? 0.12 : 0.06))
             )
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.12)) {
+                    isInputHovered = hovering
+                }
+            }
+            .onTapGesture {
+                isInputFocused = true
+            }
             
             Divider()
                 .opacity(0.4)
             
-            // MARK: - Footer Actions
+            // MARK: - Footer (Open Interval only, no Quit)
             HStack {
+                Spacer()
+                
                 Button(action: openMainWindow) {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.up.forward.app")
@@ -150,16 +128,6 @@ struct MenuBarTaskView: View {
                 .pointingHandCursor()
                 
                 Spacer()
-                
-                Button(action: {
-                    NSApplication.shared.terminate(nil)
-                }) {
-                    Text("Quit".localized)
-                        .font(.system(size: 11, weight: .light))
-                        .foregroundColor(.secondary.opacity(0.6))
-                }
-                .buttonStyle(.plain)
-                .pointingHandCursor()
             }
         }
         .padding(16)

@@ -602,6 +602,7 @@ struct TaskDropDelegate: DropDelegate {
     let context: ModelContext
 
     func dropEntered(info: DropInfo) {
+        // Only handle regular task drags in dropEntered for live reorder preview
         guard let draggedItem = DragState.shared.draggedTask else { return }
         
         withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
@@ -629,14 +630,28 @@ struct TaskDropDelegate: DropDelegate {
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {
+        // Forbid habit drops into non-1-Hour sections
+        if HabitDragState.shared.draggedHabit != nil && item.intervalType != HabitTaskLink.hourInterval {
+            return DropProposal(operation: .forbidden)
+        }
         return DropProposal(operation: .move)
     }
     
     func performDrop(info: DropInfo) -> Bool {
+        // Handle habit drop into 1 Hour at the specific task's position
+        if let habit = HabitDragState.shared.draggedHabit {
+            guard item.intervalType == HabitTaskLink.hourInterval else { return false }
+            let descriptor = FetchDescriptor<TaskItem>()
+            let allTasks = (try? context.fetch(descriptor)) ?? []
+            let sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+            let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) ?? sorted.count
+            insertHabitAsTask(habit: habit, at: .atIndex(targetIdx), listTitle: HabitTaskLink.hourInterval, context: context)
+            HabitDragState.shared.draggedHabit = nil
+            return true
+        }
+        
+        // Handle regular task drop
         SoundManager.playTaskDropped()
-        // Only the dragged task needs its updatedAt refreshed; other tasks'
-        // order changes are picked up because dropEntered already mutated them
-        // and SwiftData tracks dirty properties automatically.
         if let draggedItem = DragState.shared.draggedTask {
             draggedItem.updatedAt = Date()
         }
@@ -648,3 +663,4 @@ struct TaskDropDelegate: DropDelegate {
         return true
     }
 }
+

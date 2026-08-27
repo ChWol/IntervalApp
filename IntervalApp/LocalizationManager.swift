@@ -197,6 +197,16 @@ class LocalizationManager: ObservableObject {
             .spanish: "Eliminado recientemente", .portuguese: "Excluído recentemente", .italian: "Eliminati di recente",
             .arabic: "المحذوفة مؤخراً", .chinese: "最近删除", .japanese: "最近削除した項目", .korean: "최근 삭제된 항목"
         ],
+        "BIN": [
+            .english: "RECENTLY DELETED", .german: "KÜRZLICH GELÖSCHT", .french: "RÉCEMMENT SUPPRIMÉ",
+            .spanish: "ELIMINADO RECIENTEMENTE", .portuguese: "EXCLUÍDO RECENTEMENTE", .italian: "ELIMINATI DI RECENTE",
+            .arabic: "المحذوفة مؤخراً", .chinese: "最近删除", .japanese: "最近削除した項目", .korean: "최근 삭제된 항목"
+        ],
+        "Empty Bin": [
+            .english: "Empty Bin", .german: "Papierkorb leeren", .french: "Vider la corbeille",
+            .spanish: "Vaciar papelera", .portuguese: "Esvaziar lixeira", .italian: "Svuota cestino",
+            .arabic: "إفراغ المحذوفات", .chinese: "清空回收站", .japanese: "ごみ箱を空にする", .korean: "휴지통 비우기"
+        ],
         "Clear All": [
             .english: "Clear All", .german: "Alle löschen", .french: "Tout effacer",
             .spanish: "Borrar todo", .portuguese: "Limpar tudo", .italian: "Cancella tutto",

@@ -452,7 +452,7 @@ struct ContentView: View {
     @ViewBuilder
     private var completedAndDeletedSection: some View {
         VStack(alignment: .leading, spacing: 20) {
-            let completedTasks = allTasks.filter { $0.completed && $0.deletedAt == nil }.sorted { ($0.completedAt ?? Date()) > ($1.completedAt ?? Date()) }
+            let completedTasks = allTasks.filter { $0.completed && $0.deletedAt == nil && $0.habitId == nil }.sorted { ($0.completedAt ?? Date()) > ($1.completedAt ?? Date()) }
             if !completedTasks.isEmpty {
                 DisclosureGroup(isExpanded: $isCompletedExpanded) {
                     VStack(alignment: .leading, spacing: 15) {
@@ -508,7 +508,7 @@ struct ContentView: View {
                 }
             }
             
-            let deletedTasks = allTasks.filter { $0.deletedAt != nil }.sorted { ($0.deletedAt ?? Date()) > ($1.deletedAt ?? Date()) }
+            let deletedTasks = allTasks.filter { $0.deletedAt != nil && $0.habitId == nil }.sorted { ($0.deletedAt ?? Date()) > ($1.deletedAt ?? Date()) }
             if !deletedTasks.isEmpty {
                 DisclosureGroup(isExpanded: $isDeletedExpanded) {
                     VStack(alignment: .leading, spacing: 15) {
@@ -548,7 +548,7 @@ struct ContentView: View {
                     .padding(.leading, 12)
                     .padding(.top, 8)
                 } label: {
-                    Text("\("BIN".localized) (\(deletedTasks.count))")
+                    Text("\("RECENTLY DELETED".localized) (\(deletedTasks.count))")
                         .font(.system(size: 10, weight: .light, design: .default))
                         .tracking(2.0)
                         .foregroundColor(.secondary)

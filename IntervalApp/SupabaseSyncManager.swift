@@ -624,8 +624,9 @@ class SupabaseSyncManager: ObservableObject {
     // MARK: - User Metadata (Cross-Device Migration Markers)
     
     func updateUserMetadata(_ data: [String: String]) async {
-        guard isAuthenticated, let token = accessToken, let url = URL(string: "\(supabaseURL)/auth/v1/user") else { return }
+        guard isAuthenticated, let url = URL(string: "\(supabaseURL)/auth/v1/user") else { return }
         await ensureFreshToken()
+        guard let token = accessToken else { return }
         
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
@@ -634,12 +635,19 @@ class SupabaseSyncManager: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["data": data])
         
-        _ = try? await session.data(for: request)
+        if let (respData, response) = try? await session.data(for: request),
+           let http = response as? HTTPURLResponse {
+            if http.statusCode != 200 {
+                let errStr = String(data: respData, encoding: .utf8) ?? ""
+                print("[Sync] Failed to update user metadata (HTTP \(http.statusCode)): \(errStr)")
+            }
+        }
     }
     
     func fetchUserMetadata() async -> [String: String]? {
-        guard isAuthenticated, let token = accessToken, let url = URL(string: "\(supabaseURL)/auth/v1/user") else { return nil }
+        guard isAuthenticated, let url = URL(string: "\(supabaseURL)/auth/v1/user") else { return nil }
         await ensureFreshToken()
+        guard let token = accessToken else { return nil }
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
