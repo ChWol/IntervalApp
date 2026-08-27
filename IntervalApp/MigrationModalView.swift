@@ -157,9 +157,11 @@ struct MigrationModalView: View {
             .frame(maxWidth: isHourMigration ? 620 : 500)
             .padding(20)
         }
+        #if os(macOS)
         .onExitCommand {
             onSkip()
         }
+        #endif
         .onAppear {
             selectedTaskIds = []
             selectedHabitIds = []
