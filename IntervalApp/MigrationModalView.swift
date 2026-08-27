@@ -105,7 +105,7 @@ struct MigrationModalView: View {
                 HStack(spacing: 12) {
                     Spacer()
                     
-                    // Skip button: Active ONLY when nothing is selected
+                    // Skip button: Active ONLY when nothing is selected, or triggered via Escape (ESC)
                     Button("Skip".localized) { onSkip() }
                         .buttonStyle(.plain)
                         .padding(.horizontal, 15)
@@ -117,6 +117,8 @@ struct MigrationModalView: View {
                         )
                         .disabled(hasSelection)
                         .pointingHandCursor()
+                        .keyboardShortcut(.cancelAction)
+                        .keyboardShortcut(.escape, modifiers: [])
                     
                     if isYearReset {
                         Button("Commit".localized) {
@@ -131,6 +133,7 @@ struct MigrationModalView: View {
                         .cornerRadius(8)
                         .disabled(!hasSelection)
                         .pointingHandCursor()
+                        .keyboardShortcut(.defaultAction)
                     } else {
                         // Migrate button: Active ONLY when at least one item is selected
                         Button("Migrate".localized) { onMigrate(selectedTaskIds, selectedHabitIds) }
@@ -142,6 +145,7 @@ struct MigrationModalView: View {
                             .cornerRadius(8)
                             .disabled(!hasSelection)
                             .pointingHandCursor()
+                            .keyboardShortcut(.defaultAction)
                     }
                 }
                 .padding(.top, 10)
@@ -152,6 +156,9 @@ struct MigrationModalView: View {
             .shadow(radius: 20)
             .frame(maxWidth: isHourMigration ? 620 : 500)
             .padding(20)
+        }
+        .onExitCommand {
+            onSkip()
         }
         .onAppear {
             selectedTaskIds = []

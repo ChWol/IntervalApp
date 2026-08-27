@@ -133,6 +133,18 @@ struct MenuBarTaskView: View {
         .padding(16)
         .frame(width: 280)
         .background(Color(colorScheme == .dark ? .black : .white))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isInputFocused = false
+            NSApp.keyWindow?.makeFirstResponder(nil)
+        }
+        .onAppear {
+            isInputFocused = false
+            DispatchQueue.main.async {
+                isInputFocused = false
+                NSApp.keyWindow?.makeFirstResponder(nil)
+            }
+        }
     }
     
     private func toggleTask(_ task: TaskItem) {

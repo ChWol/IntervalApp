@@ -126,6 +126,9 @@ final class MenuBarManager: NSObject {
             }
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
+            DispatchQueue.main.async {
+                self.popover.contentViewController?.view.window?.makeFirstResponder(nil)
+            }
         }
     }
 }
