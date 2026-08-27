@@ -602,7 +602,22 @@ struct TaskDropDelegate: DropDelegate {
     let context: ModelContext
 
     func dropEntered(info: DropInfo) {
-        // Only handle regular task drags in dropEntered for live reorder preview
+        // 1. Handle habit drag entering a task row in 1 Hour
+        if HabitDragState.shared.draggedHabit != nil {
+            if item.intervalType == HabitTaskLink.hourInterval {
+                let descriptor = FetchDescriptor<TaskItem>()
+                let allTasks = (try? context.fetch(descriptor)) ?? []
+                let sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+                let itemIdx = sorted.firstIndex(where: { $0.id == item.id }) ?? 0
+                withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
+                    HabitDragState.shared.targetIndex = itemIdx
+                    HabitDragState.shared.isTargetingHour = true
+                }
+            }
+            return
+        }
+        
+        // 2. Handle regular task drag
         guard let draggedItem = DragState.shared.draggedTask else { return }
         
         withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
@@ -630,23 +645,45 @@ struct TaskDropDelegate: DropDelegate {
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        // Forbid habit drops into non-1-Hour sections
-        if HabitDragState.shared.draggedHabit != nil && item.intervalType != HabitTaskLink.hourInterval {
-            return DropProposal(operation: .forbidden)
+        // Handle habit drag
+        if HabitDragState.shared.draggedHabit != nil {
+            if item.intervalType != HabitTaskLink.hourInterval {
+                return DropProposal(operation: .forbidden)
+            }
+            let descriptor = FetchDescriptor<TaskItem>()
+            let allTasks = (try? context.fetch(descriptor)) ?? []
+            let sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
+            if let itemIdx = sorted.firstIndex(where: { $0.id == item.id }) {
+                // If cursor is in the lower half of this task row, place placeholder below it (index + 1)
+                let isBottomHalf = info.location.y > (sectionFontSize * 1.5 / 2.0)
+                let candidateIdx = isBottomHalf ? itemIdx + 1 : itemIdx
+                if HabitDragState.shared.targetIndex != candidateIdx {
+                    withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
+                        HabitDragState.shared.targetIndex = candidateIdx
+                        HabitDragState.shared.isTargetingHour = true
+                    }
+                }
+            }
+            return DropProposal(operation: .move)
         }
+        
         return DropProposal(operation: .move)
     }
     
     func performDrop(info: DropInfo) -> Bool {
-        // Handle habit drop into 1 Hour at the specific task's position
+        // Handle habit drop into 1 Hour at the dynamically determined index
         if let habit = HabitDragState.shared.draggedHabit {
-            guard item.intervalType == HabitTaskLink.hourInterval else { return false }
-            let descriptor = FetchDescriptor<TaskItem>()
-            let allTasks = (try? context.fetch(descriptor)) ?? []
-            let sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
-            let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) ?? sorted.count
+            guard item.intervalType == HabitTaskLink.hourInterval else {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    HabitDragState.shared.reset()
+                }
+                return false
+            }
+            let targetIdx = HabitDragState.shared.targetIndex ?? 0
             insertHabitAsTask(habit: habit, at: .atIndex(targetIdx), listTitle: HabitTaskLink.hourInterval, context: context)
-            HabitDragState.shared.draggedHabit = nil
+            withAnimation(.easeInOut(duration: 0.15)) {
+                HabitDragState.shared.reset()
+            }
             return true
         }
         

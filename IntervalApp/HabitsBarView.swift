@@ -543,6 +543,14 @@ struct HabitChipView: View {
 class HabitDragState: ObservableObject {
     static let shared = HabitDragState()
     @Published var draggedHabit: HabitItem?
+    @Published var targetIndex: Int?
+    @Published var isTargetingHour: Bool = false
+    
+    func reset() {
+        draggedHabit = nil
+        targetIndex = nil
+        isTargetingHour = false
+    }
 }
 
 struct HabitDropDelegate: DropDelegate {
