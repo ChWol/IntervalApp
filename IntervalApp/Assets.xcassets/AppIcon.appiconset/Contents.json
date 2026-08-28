@@ -8,8 +8,8 @@
     },
     {
       "filename" : "icon_1024x1024.png",
-      "idiom" : "watch",
-      "platform" : "watchos",
+      "idiom" : "watch-marketing",
+      "scale" : "1x",
       "size" : "1024x1024"
     },
     {
