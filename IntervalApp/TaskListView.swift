@@ -266,7 +266,7 @@ struct TaskListHeaderDropDelegate: DropDelegate {
                 }
                 return false
             }
-            let success = insertHabitAsTask(habit: habit, at: .atIndex(0), listTitle: listTitle, context: context)
+            insertHabitAsTask(habit: habit, at: .atIndex(0), listTitle: listTitle, context: context)
             withAnimation(.easeInOut(duration: 0.15)) {
                 HabitDragState.shared.reset()
             }
