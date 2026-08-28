@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 import SwiftData
 
@@ -64,3 +65,5 @@ struct BinRowView: View {
         }
     }
 }
+
+#endif

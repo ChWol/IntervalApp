@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 
 struct UpdatePasswordModalView: View {
@@ -229,3 +230,5 @@ struct UpdatePasswordModalView: View {
         }
     }
 }
+
+#endif

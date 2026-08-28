@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 
 struct SyncSetupView: View {
@@ -47,3 +48,5 @@ struct SyncSetupView: View {
         .padding(30)
     }
 }
+
+#endif

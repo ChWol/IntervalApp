@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 import SwiftData
 
@@ -497,3 +498,5 @@ private struct MemberRowView: View {
         .padding(.vertical, 4)
     }
 }
+
+#endif

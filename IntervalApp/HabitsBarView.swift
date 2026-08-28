@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
@@ -139,8 +140,10 @@ struct HabitsBarView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
                         ForEach(sortedHabits) { habit in
-                            HabitChipView(habit: habit, hoveredHabitId: $hoveredHabitId)
+                            let chip = HabitChipView(habit: habit, hoveredHabitId: $hoveredHabitId)
                                 .id(habit.id)
+                            #if !os(watchOS)
+                            chip
                                 .onDrag {
                                     HabitDragState.shared.draggedHabit = habit
                                     return NSItemProvider(item: habit.id as NSString, typeIdentifier: UTType.data.identifier)
@@ -156,6 +159,9 @@ struct HabitsBarView: View {
                                         )
                                 }
                                 .onDrop(of: [UTType.data, UTType.plainText, UTType.text], delegate: HabitDropDelegate(item: habit, context: modelContext, proxy: proxy))
+                            #else
+                            chip
+                            #endif
                         }
                     
                     if !isAdding {
@@ -553,6 +559,7 @@ class HabitDragState: ObservableObject {
     }
 }
 
+#if !os(watchOS)
 struct HabitDropDelegate: DropDelegate {
     let item: HabitItem
     let context: ModelContext
@@ -599,3 +606,6 @@ struct HabitDropDelegate: DropDelegate {
         return true
     }
 }
+#endif
+
+#endif

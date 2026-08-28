@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 import SwiftData
 
@@ -385,3 +386,5 @@ struct SpotlightSearchView: View {
     }
     #endif
 }
+
+#endif

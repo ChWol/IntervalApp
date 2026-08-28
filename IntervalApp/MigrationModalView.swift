@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 
 struct MigrationModalView: View {
@@ -303,3 +304,5 @@ struct MigrationModalView: View {
         }
     }
 }
+
+#endif

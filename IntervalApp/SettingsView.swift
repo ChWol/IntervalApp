@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 import SwiftData
 import UserNotifications
@@ -761,3 +762,5 @@ struct SettingsView: View {
             .foregroundColor(.secondary.opacity(0.7))
     }
 }
+
+#endif

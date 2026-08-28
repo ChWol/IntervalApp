@@ -208,7 +208,7 @@ struct CustomTextField: NSViewRepresentable {
         }
     }
 }
-#else
+#elseif os(iOS)
 import UIKit
 
 struct CustomTextField: UIViewRepresentable {
@@ -293,19 +293,20 @@ struct CustomTextField: UIViewRepresentable {
         }
     }
 
-    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
-        let w = proposal.width ?? uiView.bounds.width
-        let width = w > 0 ? w : (UIScreen.main.bounds.width - 80)
-        let size = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
-        return CGSize(width: width, height: max(size.height, fontSize * 1.2))
-    }
-
     func makeCoordinator() -> Coordinator {
-        Coordinator(textBinding: $text)
+        Coordinator(
+            text: $text,
+            onFocusChanged: onFocusChanged,
+            onSubmit: onSubmit,
+            onDeleteEmpty: onDeleteEmpty,
+            onPasteMultipleLines: onPasteMultipleLines,
+            onTab: onTab,
+            onBacktab: onBacktab
+        )
     }
 
     class Coordinator: NSObject, UITextViewDelegate {
-        var textBinding: Binding<String>
+        @Binding var text: String
         var onFocusChanged: ((Bool) -> Void)?
         var onSubmit: ((_ isAtBeginning: Bool) -> Void)?
         var onDeleteEmpty: (() -> Void)?
@@ -315,18 +316,26 @@ struct CustomTextField: UIViewRepresentable {
         var isEditing: Bool = false
         weak var textView: UITextView?
 
-        init(textBinding: Binding<String>) {
-            self.textBinding = textBinding
+        init(
+            text: Binding<String>,
+            onFocusChanged: @escaping (Bool) -> Void,
+            onSubmit: @escaping (_ isAtBeginning: Bool) -> Void,
+            onDeleteEmpty: @escaping () -> Void,
+            onPasteMultipleLines: (([String]) -> Void)?,
+            onTab: (() -> Void)?,
+            onBacktab: (() -> Void)?
+        ) {
+            self._text = text
+            self.onFocusChanged = onFocusChanged
+            self.onSubmit = onSubmit
+            self.onDeleteEmpty = onDeleteEmpty
+            self.onPasteMultipleLines = onPasteMultipleLines
+            self.onTab = onTab
+            self.onBacktab = onBacktab
         }
 
         @objc func dismissKeyboard() {
             textView?.resignFirstResponder()
-        }
-
-        func textViewDidChange(_ textView: UITextView) {
-            textBinding.wrappedValue = textView.text
-            textView.scrollRangeToVisible(textView.selectedRange)
-            NotificationCenter.default.post(name: .taskTextDidGrow, object: nil)
         }
 
         func textViewDidBeginEditing(_ textView: UITextView) {
@@ -336,17 +345,19 @@ struct CustomTextField: UIViewRepresentable {
 
         func textViewDidEndEditing(_ textView: UITextView) {
             isEditing = false
-            textBinding.wrappedValue = textView.text
             onFocusChanged?(false)
         }
 
+        func textViewDidChange(_ textView: UITextView) {
+            text = textView.text
+            textView.scrollRangeToVisible(textView.selectedRange)
+        }
+
         func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
-            // Tab key pressed
+            // Tab key pressed (hardware keyboard)
             if text == "\t" {
-                if let onTab = onTab {
-                    onTab()
-                    return false
-                }
+                onTab?()
+                return false
             }
 
             // Enter key pressed -> Submit new item
@@ -375,6 +386,24 @@ struct CustomTextField: UIViewRepresentable {
             
             return true
         }
+    }
+}
+#elseif os(watchOS)
+struct CustomTextField: View {
+    @Binding var text: String
+    var isFocused: Bool
+    var onFocusChanged: (Bool) -> Void
+    var onSubmit: (_ isAtBeginning: Bool) -> Void
+    var onDeleteEmpty: () -> Void
+    var onPasteMultipleLines: (([String]) -> Void)? = nil
+    var onTab: (() -> Void)? = nil
+    var onBacktab: (() -> Void)? = nil
+    var fontSize: CGFloat
+    var placeholder: String
+
+    var body: some View {
+        TextField(placeholder, text: $text)
+            .font(.system(size: fontSize, weight: .light))
     }
 }
 #endif

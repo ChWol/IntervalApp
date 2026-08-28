@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 
 struct AuthView: View {
@@ -428,3 +429,5 @@ struct AuthView: View {
         }
     }
 }
+
+#endif

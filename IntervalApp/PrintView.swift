@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 import SwiftData
 #if os(macOS)
@@ -255,4 +256,6 @@ final class PrintManager {
         }
     }
 }
+#endif
+
 #endif

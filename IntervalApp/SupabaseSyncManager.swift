@@ -694,9 +694,12 @@ class SupabaseSyncManager: ObservableObject {
         #if os(macOS)
         let activeNotification = NSApplication.didBecomeActiveNotification
         let inactiveNotification = NSApplication.willResignActiveNotification
-        #else
+        #elseif os(iOS)
         let activeNotification = UIApplication.didBecomeActiveNotification
         let inactiveNotification = UIApplication.didEnterBackgroundNotification
+        #else
+        let activeNotification = Notification.Name("WKApplicationDidBecomeActiveNotification")
+        let inactiveNotification = Notification.Name("WKApplicationDidEnterBackgroundNotification")
         #endif
         
         NotificationCenter.default.publisher(for: activeNotification)

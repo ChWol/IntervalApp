@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 import SwiftData
 
@@ -743,3 +744,4 @@ struct ContentView: View {
         }
     }
 }
+#endif

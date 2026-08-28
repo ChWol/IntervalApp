@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import Foundation
 import SwiftData
 
@@ -77,3 +78,5 @@ enum TaskHousekeeping {
         try? context.save()
     }
 }
+
+#endif

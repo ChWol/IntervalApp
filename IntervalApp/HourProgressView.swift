@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 import Combine
 
@@ -102,3 +103,5 @@ struct HourProgressView: View {
         }
     }
 }
+
+#endif

@@ -43,6 +43,9 @@ struct IntervalApp: App {
 
     var body: some Scene {
         WindowGroup(id: "main") {
+            #if os(watchOS)
+            WatchContentView()
+            #else
             ContentView()
                 .handlesExternalEvents(preferring: Set(arrayLiteral: "main"), allowing: Set(arrayLiteral: "*"))
                 .onAppear {
@@ -50,9 +53,12 @@ struct IntervalApp: App {
                     MenuBarManager.shared.setup(container: Self.sharedModelContainer)
                     #endif
                 }
+            #endif
         }
         .modelContainer(Self.sharedModelContainer)
+        #if !os(watchOS)
         .handlesExternalEvents(matching: Set(arrayLiteral: "*"))
+        #endif
         #if os(macOS)
         .windowStyle(HiddenTitleBarWindowStyle())
         .commands {

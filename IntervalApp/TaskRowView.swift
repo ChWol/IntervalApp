@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
@@ -594,6 +595,7 @@ class DragState: ObservableObject {
     }
 }
 
+#if !os(watchOS)
 // MARK: - Drop Delegates
 
 struct TaskDropDelegate: DropDelegate {
@@ -727,4 +729,6 @@ struct TaskDropDelegate: DropDelegate {
         return true
     }
 }
+#endif
 
+#endif

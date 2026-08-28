@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
@@ -834,3 +835,5 @@ struct KanbanScratchpadListCardView: View {
         .onHover { isHovered = $0 }
     }
 }
+
+#endif

@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
@@ -176,11 +177,13 @@ struct ScratchpadView: View {
                                 Capsule()
                                     .stroke(Color.primary.opacity(isSelected ? 0.2 : 0.08), lineWidth: 1)
                             )
+                            #if !os(watchOS)
                             .onDrag {
                                 ScratchpadDragState.shared.draggedList = list
                                 return NSItemProvider(object: list.id as NSString)
                             }
                             .onDrop(of: [.data], delegate: ScratchpadListDropDelegate(item: list, context: modelContext))
+                            #endif
                         }
 
                         if !isCreatingList {
@@ -833,6 +836,7 @@ struct ScratchpadItemRowView: View {
             }
             #endif
         }
+        #if !os(watchOS)
         .onDrag {
             if !isNew {
                 ScratchpadDragState.shared.draggedItem = item
@@ -841,6 +845,7 @@ struct ScratchpadItemRowView: View {
             return NSItemProvider()
         }
         .onDrop(of: [.data], delegate: ScratchpadItemDropDelegate(item: item, context: modelContext))
+        #endif
         .id(myId)
     }
 
@@ -1251,6 +1256,7 @@ struct TransferPopoverRow: View {
     }
 }
 
+#if !os(watchOS)
 // MARK: - Drop Delegates for Scratchpad Items & Lists
 
 struct ScratchpadItemDropDelegate: DropDelegate {
@@ -1337,3 +1343,5 @@ struct ScratchpadListDropDelegate: DropDelegate {
         return true
     }
 }
+#endif
+#endif

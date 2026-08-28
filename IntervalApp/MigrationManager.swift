@@ -196,7 +196,7 @@ class MigrationManager: ObservableObject {
         NotificationCenter.default.publisher(for: .NSSystemClockDidChange)
             .sink { [weak self] _ in self?.checkMigrations() }
             .store(in: &cancellables)
-        #else
+        #elseif os(iOS)
         NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
             .sink { [weak self] _ in self?.checkMigrations() }
             .store(in: &cancellables)
