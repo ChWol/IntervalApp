@@ -285,8 +285,10 @@ class MigrationManager: ObservableObject {
         let tasks = activeTasks()
         let sourceCount = tasks.filter { $0.intervalType == migration.source }.count
         let habitCount = migration.dest == HabitTaskLink.hourInterval ? selectableHabits(tasks: tasks).count : 0
+        let reverseTasks = TaskAgingHelper.findLingeringTasks(for: migration, in: tasks)
+        let reverseCount = reverseTasks.count
         
-        if MigrationSchedule.shouldPresent(migration, sourceTaskCount: sourceCount, selectableHabitCount: habitCount) {
+        if MigrationSchedule.shouldPresent(migration, sourceTaskCount: sourceCount, selectableHabitCount: habitCount, reverseTaskCount: reverseCount) {
             // Marker is set AFTER the user commits or skips, not here.
             // Store pending marker info so executeMigration/skipMigration can commit it.
             pendingMarkerKey = key
@@ -321,9 +323,11 @@ class MigrationManager: ObservableObject {
         let tasks = activeTasks()
         let sourceCount = tasks.filter { $0.intervalType == "1 Day" }.count
         let habitCount = selectableHabits(tasks: tasks).count
-        
         let migration = Migration(source: "1 Day", dest: HabitTaskLink.hourInterval, isFirstHourOfDay: true)
-        if MigrationSchedule.shouldPresent(migration, sourceTaskCount: sourceCount, selectableHabitCount: habitCount) {
+        let reverseTasks = TaskAgingHelper.findLingeringTasks(for: migration, in: tasks)
+        let reverseCount = reverseTasks.count
+        
+        if MigrationSchedule.shouldPresent(migration, sourceTaskCount: sourceCount, selectableHabitCount: habitCount, reverseTaskCount: reverseCount) {
             let currentHour = Self.hourFormatter.string(from: Date())
             pendingMarkerKey = StoreKey.lastHandledHour
             pendingMarkerValue = currentHour
@@ -339,7 +343,8 @@ class MigrationManager: ObservableObject {
     
     func executeMigration(migration: Migration,
                           selectedTaskIds: Set<String>,
-                          selectedHabitIds: Set<String> = []) {
+                          selectedHabitIds: Set<String> = [],
+                          selectedReverseTaskIds: Set<String> = []) {
         guard let context = modelContext else {
             currentMigration = nil
             return
@@ -359,6 +364,7 @@ class MigrationManager: ObservableObject {
         var maxOrder = (active.filter { $0.intervalType == migration.dest }.map { $0.order }.max() ?? -1) + 1
         let now = Date()
         
+        // 1. Forward Migration: Move selected tasks from source to dest
         for task in active where task.intervalType == migration.source {
             if selectedTaskIds.contains(task.id) {
                 task.intervalType = migration.dest
@@ -369,6 +375,20 @@ class MigrationManager: ObservableObject {
             // Non-selected tasks stay in their source interval – they are NOT deleted.
         }
         
+        // 2. Reverse Demotion: Move selected lingering tasks from dest to parent interval
+        if let parent = TaskAgingHelper.parentInterval(for: migration.dest), !selectedReverseTaskIds.isEmpty {
+            var parentMaxOrder = (active.filter { $0.intervalType == parent }.map { $0.order }.max() ?? -1) + 1
+            for task in active where task.intervalType == migration.dest {
+                if selectedReverseTaskIds.contains(task.id) {
+                    task.intervalType = parent
+                    task.order = parentMaxOrder
+                    task.updatedAt = now
+                    parentMaxOrder += 1
+                }
+            }
+        }
+        
+        // 3. Habits to Hour Tasks
         if migration.dest == HabitTaskLink.hourInterval && !selectedHabitIds.isEmpty {
             let chosenHabits = allHabits.filter { selectedHabitIds.contains($0.id) }
             let hourHabitTasks = HabitTaskLink.makeHourTasks(

@@ -5,12 +5,14 @@ struct MigrationModalView: View {
     let migration: Migration
     let tasks: [TaskItem]
     let habits: [HabitItem]
-    let onMigrate: (Set<String>, Set<String>) -> Void
+    var reverseTasks: [TaskItem] = []
+    let onMigrate: (Set<String>, Set<String>, Set<String>) -> Void
     let onCommitGoals: ([String]) -> Void
     let onSkip: () -> Void
     
     @State private var selectedTaskIds: Set<String> = []
     @State private var selectedHabitIds: Set<String> = []
+    @State private var selectedReverseTaskIds: Set<String> = []
     @State private var yearGoals: [String] = ["", "", ""]
     @Environment(\.colorScheme) private var colorScheme
     
@@ -63,12 +65,32 @@ struct MigrationModalView: View {
         }
     }
     
+    private var reverseSectionTitle: String {
+        switch (migration.source, migration.dest) {
+        case ("1 Day", "1 Hour"):
+            return "You've been meaning to do these tasks for the past 3 hours — move to your Day overview to regain focus?".localized
+        case ("1 Week", "1 Day"):
+            return "These tasks have been on your Day list for 2+ days — move to your Week overview?".localized
+        case ("1 Month", "1 Week"):
+            return "These tasks have been on your Week list for 2+ weeks — move to your Month overview?".localized
+        case ("1 Year", "1 Month"):
+            return "These tasks have been on your Month list for 3+ months — move to your Year overview?".localized
+        default:
+            return "Move lingering tasks to overview?".localized
+        }
+    }
+    
+    private var reverseBadgeText: String? {
+        guard let parent = TaskAgingHelper.parentInterval(for: migration.dest) else { return nil }
+        return "→ \(parent)".localized
+    }
+    
     var body: some View {
         ZStack {
             // Darkened/greyed out backdrop for strong modal focus
             Color.black.opacity(0.75).ignoresSafeArea()
             
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 18) {
                 Text(modalTitle)
                     .font(.title)
                     .fontWeight(.light)
@@ -85,9 +107,9 @@ struct MigrationModalView: View {
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 10) {
-                            if tasks.isEmpty {
-                                emptyHint("No incomplete tasks available to transfer.")
-                            } else {
+                            if tasks.isEmpty && reverseTasks.isEmpty {
+                                emptyHint("No incomplete tasks available to transfer.".localized)
+                            } else if !tasks.isEmpty {
                                 ForEach(tasks) { task in
                                     selectionRow(text: task.text, isSelected: selectedTaskIds.contains(task.id)) {
                                         toggle(task.id, in: &selectedTaskIds)
@@ -96,12 +118,17 @@ struct MigrationModalView: View {
                             }
                         }
                     }
-                    .frame(maxHeight: 250)
+                    .frame(maxHeight: reverseTasks.isEmpty ? 250 : 180)
+                }
+                
+                // Intelligent Reverse Demotion Section
+                if !reverseTasks.isEmpty && !isYearReset {
+                    reverseDemotionSection
                 }
                 
                 let hasSelection = isYearReset
                     ? yearGoals.contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-                    : (!selectedTaskIds.isEmpty || !selectedHabitIds.isEmpty)
+                    : (!selectedTaskIds.isEmpty || !selectedHabitIds.isEmpty || !selectedReverseTaskIds.isEmpty)
 
                 HStack(spacing: 12) {
                     Spacer()
@@ -137,25 +164,27 @@ struct MigrationModalView: View {
                         .keyboardShortcut(.defaultAction)
                     } else {
                         // Migrate button: Active ONLY when at least one item is selected
-                        Button("Migrate".localized) { onMigrate(selectedTaskIds, selectedHabitIds) }
-                            .buttonStyle(.plain)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 8)
-                            .background(hasSelection ? Color.primary : Color.primary.opacity(0.12))
-                            .foregroundColor(hasSelection ? Color(colorScheme == .dark ? .black : .white) : Color.secondary.opacity(0.4))
-                            .cornerRadius(8)
-                            .disabled(!hasSelection)
-                            .pointingHandCursor()
-                            .keyboardShortcut(.defaultAction)
+                        Button("Migrate".localized) {
+                            onMigrate(selectedTaskIds, selectedHabitIds, selectedReverseTaskIds)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 8)
+                        .background(hasSelection ? Color.primary : Color.primary.opacity(0.12))
+                        .foregroundColor(hasSelection ? Color(colorScheme == .dark ? .black : .white) : Color.secondary.opacity(0.4))
+                        .cornerRadius(8)
+                        .disabled(!hasSelection)
+                        .pointingHandCursor()
+                        .keyboardShortcut(.defaultAction)
                     }
                 }
-                .padding(.top, 10)
+                .padding(.top, 6)
             }
-            .padding(40)
+            .padding(36)
             .background(Color(colorScheme == .dark ? .black : .white))
             .cornerRadius(16)
             .shadow(radius: 20)
-            .frame(maxWidth: isHourMigration ? 620 : 500)
+            .frame(maxWidth: isHourMigration ? 620 : 520)
             .padding(20)
         }
         #if os(macOS)
@@ -166,6 +195,39 @@ struct MigrationModalView: View {
         .onAppear {
             selectedTaskIds = []
             selectedHabitIds = []
+            selectedReverseTaskIds = []
+        }
+    }
+    
+    // MARK: - Reverse Demotion Section
+    
+    private var reverseDemotionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+                .overlay(Color(white: colorScheme == .dark ? 0.22 : 0.88))
+                .padding(.vertical, 2)
+            
+            Text(reverseSectionTitle)
+                .font(.system(size: 12, weight: .light))
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(2)
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(reverseTasks) { task in
+                        selectionRow(
+                            text: task.text,
+                            isSelected: selectedReverseTaskIds.contains(task.id),
+                            badge: reverseBadgeText
+                        ) {
+                            toggle(task.id, in: &selectedReverseTaskIds)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: 120)
         }
     }
     
@@ -206,7 +268,7 @@ struct MigrationModalView: View {
                 }
             }
         }
-        .frame(maxHeight: 250)
+        .frame(maxHeight: reverseTasks.isEmpty ? 250 : 180)
     }
     
     private func pickerColumn<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -304,5 +366,4 @@ struct MigrationModalView: View {
         }
     }
 }
-
 #endif

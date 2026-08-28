@@ -295,6 +295,59 @@ class LocalizationManager: ObservableObject {
             .japanese: "移行可能な未完了タスクはありません。",
             .korean: "이동할 미완료 할 일이 없습니다."
         ],
+        "You've been meaning to do these tasks for the past 3 hours — move to your Day overview to regain focus?": [
+            .english: "You've been meaning to do these tasks for the past 3 hours — move to your Day overview to regain focus?",
+            .german: "Diese Aufgaben stehen seit 3 Stunden in deiner 1-Stunden-Liste — in die Tagesübersicht verschieben, um Fokus zu gewinnen?",
+            .french: "Vous prévoyez ces tâches depuis 3 heures — les déplacer vers l'aperçu du jour pour retrouver votre concentration ?",
+            .spanish: "Llevas 3 horas intentando hacer estas tareas — ¿moverlas a tu vista diaria para recuperar el enfoque?",
+            .portuguese: "Você planeja fazer essas tarefas há 3 horas — mover para o resumo do dia para retomar o foco?",
+            .italian: "Hai queste attività in sospeso da 3 ore — spostarle nella panoramica del giorno per ritrovare la concentrazione?",
+            .arabic: "أردت القيام بهذه المهام خلال الساعات الثلاث الماضية - هل تريد نقلها إلى نظرة اليوم لاستعادة التركيز؟",
+            .chinese: "这几项任务已在您的1小时列表中停留超过3小时 — 移至今日概览以重新集中精力？",
+            .japanese: "このタスクは過去3時間残っています — 1日の概要に戻して集中を取り戻しますか？",
+            .korean: "지난 3시간 동안 이 작업을 진행하려고 했습니다 — 집중력을 되찾기 위해 하루 개요로 이동할까요?"
+        ],
+        "These tasks have been on your Day list for 2+ days — move to your Week overview?": [
+            .english: "These tasks have been on your Day list for 2+ days — move to your Week overview?",
+            .german: "Diese Aufgaben stehen seit 2 Tagen auf deiner Tagesliste — in die Wochenübersicht verschieben?",
+            .french: "Ces tâches sont sur votre liste du jour depuis 2+ jours — les déplacer vers la semaine ?",
+            .spanish: "Estas tareas llevan 2+ días en tu lista diaria — ¿moverlas a la vista semanal?",
+            .portuguese: "Estas tarefas estão na sua lista diária há mais de 2 dias — mover para a semana?",
+            .italian: "Queste attività sono nella lista del giorno da oltre 2 giorni — spostarle nella settimana?",
+            .arabic: "هذه المهام موجودة في قائمة اليوم منذ أكثر من يومين - نقل إلى الأسبوع؟",
+            .chinese: "这些任务已在今日列表中停留超过2天 — 移至本周概览？",
+            .japanese: "これらのタスクは2日以上本日のリストにあります — 週の概要に移動しますか？",
+            .korean: "이 작업은 2일 이상 하루 목록에 있었습니다 — 주간 개요로 이동할까요?"
+        ],
+        "These tasks have been on your Week list for 2+ weeks — move to your Month overview?": [
+            .english: "These tasks have been on your Week list for 2+ weeks — move to your Month overview?",
+            .german: "Diese Aufgaben stehen seit 2 Wochen auf deiner Wochenliste — in die Monatsübersicht verschieben?",
+            .french: "Ces tâches sont sur votre liste de semaine depuis 2+ semaines — les déplacer vers le mois ?",
+            .spanish: "Estas tareas llevan 2+ semanas en tu lista semanal — ¿moverlas a la vista mensual?",
+            .portuguese: "Estas tarefas estão na sua lista semanal há mais de 2 semanas — mover para o mês?",
+            .italian: "Queste attività sono nella lista settimanale da oltre 2 settimane — spostarle nel mese?",
+            .arabic: "هذه المهام موجودة في قائمة الأسبوع منذ أكثر من أسبوعين - نقل إلى الشهر؟",
+            .chinese: "这些任务已在周列表中停留超过2周 — 移至本月概览？",
+            .japanese: "これらのタスクは2週間以上週のリストにあります — 月の概要に移動しますか？",
+            .korean: "이 작업은 2주 이상 주간 목록에 있었습니다 — 월간 개요로 이동할까요?"
+        ],
+        "These tasks have been on your Month list for 3+ months — move to your Year overview?": [
+            .english: "These tasks have been on your Month list for 3+ months — move to your Year overview?",
+            .german: "Diese Aufgaben stehen seit 3 Monaten auf deiner Monatsliste — in die Jahresübersicht verschieben?",
+            .french: "Ces tâches sont sur votre liste de mois depuis 3+ mois — les déplacer vers l'année ?",
+            .spanish: "Estas tareas llevan 3+ meses en tu lista mensual — ¿moverlas a la vista anual?",
+            .portuguese: "Estas tarefas estão na sua lista mensal há mais de 3 meses — mover para o ano?",
+            .italian: "Queste attività sono nella lista mensile da oltre 3 mesi — spostarle nell'anno?",
+            .arabic: "هذه المهام موجودة في قائمة الشهر منذ أكثر من 3 أشهر - نقل إلى السنة؟",
+            .chinese: "这些任务已在月列表中停留超过3个月 — 移至年度概览？",
+            .japanese: "これらのタスクは3ヶ月以上月のリストにあります — 年の概要に移動しますか？",
+            .korean: "이 작업은 3개월 이상 월간 목록에 있었습니다 — 연간 개요로 이동할까요?"
+        ],
+        "MOVE TO OVERVIEW": [
+            .english: "MOVE TO OVERVIEW", .german: "IN ÜBERSICHT VERSCHIEBEN", .french: "DÉPLACER VERS L'APERÇU",
+            .spanish: "MOVER A VISTA GENERAL", .portuguese: "MOVER PARA VISÃO GERAL", .italian: "SPOSTA NELLA PANORAMICA",
+            .arabic: "نقل إلى النظرة العامة", .chinese: "移至上级概览", .japanese: "概要に移動", .korean: "개요로 이동"
+        ],
         
         // Settings & Preferences
         "SETTINGS": [

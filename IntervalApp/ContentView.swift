@@ -420,11 +420,13 @@ struct ContentView: View {
                         from: allHabits,
                         hourTasks: allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval }
                     ),
-                    onMigrate: { selectedTaskIds, selectedHabitIds in
+                    reverseTasks: TaskAgingHelper.findLingeringTasks(for: migration, in: allTasks),
+                    onMigrate: { selectedTaskIds, selectedHabitIds, selectedReverseTaskIds in
                         migrationManager.executeMigration(
                             migration: migration,
                             selectedTaskIds: selectedTaskIds,
-                            selectedHabitIds: selectedHabitIds
+                            selectedHabitIds: selectedHabitIds,
+                            selectedReverseTaskIds: selectedReverseTaskIds
                         )
                     },
                     onCommitGoals: { goals in
