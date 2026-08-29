@@ -348,6 +348,158 @@ class LocalizationManager: ObservableObject {
             .spanish: "MOVER A VISTA GENERAL", .portuguese: "MOVER PARA VISÃO GERAL", .italian: "SPOSTA NELLA PANORAMICA",
             .arabic: "نقل إلى النظرة العامة", .chinese: "移至上级概览", .japanese: "概要に移動", .korean: "개요로 이동"
         ],
+        "It's %@!": [
+            .english: "It's %@!", .german: "Es ist %@!", .french: "Il est %@ !",
+            .spanish: "¡Son las %@!", .portuguese: "São %@!", .italian: "Sono le %@!",
+            .arabic: "الساعة الآن %@!", .chinese: "现在是 %@！", .japanese: "現在時刻は %@ です！", .korean: "지금은 %@입니다!"
+        ],
+        "It's a new day – let's get it on!": [
+            .english: "It's a new day – let's get it on!",
+            .german: "Ein neuer Tag beginnt – packen wir es an!",
+            .french: "C'est un nouveau jour – c'est parti !",
+            .spanish: "¡Es un nuevo día – vamos con todo!",
+            .portuguese: "É um novo dia – vamos nessa!",
+            .italian: "È un nuovo giorno – diamoci da fare!",
+            .arabic: "يوم جديد – فلنبدأ بنشاط!",
+            .chinese: "新的一天开始了 – 让我们全力以赴！",
+            .japanese: "新しい1日の始まりです – さあ始めましょう！",
+            .korean: "새로운 하루가 시작되었습니다 – 시작해 볼까요!"
+        ],
+        "Fresh start into the next week – let's do some planning!": [
+            .english: "Fresh start into the next week – let's do some planning!",
+            .german: "Frischer Start in die neue Woche – lass uns planen!",
+            .french: "Nouveau départ pour la semaine – planifions !",
+            .spanish: "Comienzo fresco para la semana – ¡a planificar!",
+            .portuguese: "Começo fresco para a semana – vamos planejar!",
+            .italian: "Nuova settimana – facciamo un po' di pianificazione!",
+            .arabic: "بداية أسبوع جديدة – فلنخطط معاً!",
+            .chinese: "新的一周全新开始 – 让我们制定计划！",
+            .japanese: "新しい週のスタートです – 計画を立てましょう！",
+            .korean: "새로운 한 주의 시작입니다 – 계획을 세워볼까요!"
+        ],
+        "Time to reflect on your yearly goals!": [
+            .english: "Time to reflect on your yearly goals!",
+            .german: "Zeit, über deine Jahresziele nachzudenken!",
+            .french: "Il est temps de réfléchir à vos objectifs annuels !",
+            .spanish: "¡Momento de reflexionar sobre tus objetivos anuales!",
+            .portuguese: "Hora de refletir sobre suas metas anuais!",
+            .italian: "È tempo di riflettere sui tuoi obiettivi annuali!",
+            .arabic: "حان الوقت للتفكير في أهدافك السنوية!",
+            .chinese: "是时候回顾您的年度目标了！",
+            .japanese: "年間目標を振り返る時間です！",
+            .korean: "연간 목표를 돌아볼 시간입니다!"
+        ],
+        "Happy New Year!": [
+            .english: "Happy New Year!", .german: "Frohes neues Jahr!", .french: "Bonne année !",
+            .spanish: "¡Feliz Año Nuevo!", .portuguese: "Feliz Ano Novo!", .italian: "Buon Anno!",
+            .arabic: "سنة جديدة سعيدة!", .chinese: "新年快乐！", .japanese: "あけましておめでとうございます！", .korean: "새해 복 많이 받으세요!"
+        ],
+        "How shall we start today? Pick tasks from your 1 Day list and habits to begin.": [
+            .english: "How shall we start today? Pick tasks from your 1 Day list and habits to begin.",
+            .german: "Womit wollen wir heute beginnen? Wähle Aufgaben aus deiner 1-Tag-Liste und Gewohnheiten, um zu starten.",
+            .french: "Par quoi commençons-nous aujourd'hui ? Choisissez des tâches et habitudes pour démarrer.",
+            .spanish: "¿Con qué empezamos hoy? Elige tareas de tu lista de 1 Día y hábitos para comenzar.",
+            .portuguese: "Como vamos começar hoje? Escolha tarefas da sua lista de 1 Dia e hábitos para iniciar.",
+            .italian: "Da cosa vogliamo iniziare oggi? Scegli compiti e abitudini per partire.",
+            .arabic: "بماذا نريد أن نبدأ اليوم؟ اختر مهاماً وعادات للبدء بها.",
+            .chinese: "今天从什么开始？从今日列表和习惯中选择来开启这一天。",
+            .japanese: "今日は何から始めますか？1日リストや習慣から選んでスタートしましょう。",
+            .korean: "오늘 무엇부터 시작할까요? 1일 목록과 습관에서 선택하여 시작해 보세요."
+        ],
+        "Want to move any of these tasks or habits into your next hour's focus?": [
+            .english: "Want to move any of these tasks or habits into your next hour's focus?",
+            .german: "Möchtest du Aufgaben oder Gewohnheiten in den Fokus der nächsten Stunde übernehmen?",
+            .french: "Voulez-vous déplacer des tâches ou habitudes dans le focus de la prochaine heure ?",
+            .spanish: "¿Quieres mover alguna de estas tareas o hábitos al enfoque de la próxima hora?",
+            .portuguese: "Deseja mover alguma dessas tarefas ou hábitos para o foco da próxima hora?",
+            .italian: "Vuoi spostare queste attività o abitudini nel focus della prossima ora?",
+            .arabic: "هل تريد نقل أي من هذه المهام أو العادات إلى تركيز الساعة القادمة؟",
+            .chinese: "想要将这些任务或习惯移至下一小时的专注清单中吗？",
+            .japanese: "これらのタスクや習慣を次の1時間のフォーカスに移動しますか？",
+            .korean: "이 작업이나 습관을 다음 1시간의 집중 목록으로 이동할까요?"
+        ],
+        "Let's plan the day! What should be your top goals based on what you planned for the week?": [
+            .english: "Let's plan the day! What should be your top goals based on what you planned for the week?",
+            .german: "Lass uns den Tag planen! Was sind deine wichtigsten Ziele basierend auf deiner Woche?",
+            .french: "Planifions la journée ! Quels sont vos objectifs prioritaires pour aujourd'hui ?",
+            .spanish: "¡Planifiquemos el día! ¿Cuáles deberían ser tus objetivos principales para hoy?",
+            .portuguese: "Vamos planejar o dia! Quais devem ser seus principais objetivos para hoje?",
+            .italian: "Pianifichiamo la giornata! Quali dovrebbero essere i tuoi obiettivi principali?",
+            .arabic: "فلنخطط لليوم! ما هي أهم أهدافك بناءً على ما خططت له لهذا الأسبوع؟",
+            .chinese: "让我们规划今天！根据本周的计划，今天的头等目标是什么？",
+            .japanese: "今日の計画を立てましょう！週の計画に基づき、今日の最優先目標は何ですか？",
+            .korean: "오늘을 계획해 봅시다! 주간 계획을 바탕으로 오늘의 최우선 목표는 무엇인가요?"
+        ],
+        "What should be the top goals for the week based on what you planned for the month?": [
+            .english: "What should be the top goals for the week based on what you planned for the month?",
+            .german: "Was sollen die wichtigsten Ziele für die Woche sein, basierend auf deiner Monatsplanung?",
+            .french: "Quels devraient être les objectifs prioritaires de la semaine d'après votre mois ?",
+            .spanish: "¿Cuáles deberían ser los objetivos clave de la semana basados en tu mes?",
+            .portuguese: "Quais devem ser os principais objetivos da semana com base no seu mês?",
+            .italian: "Quali dovrebbero essere gli obiettivi principali della settimana?",
+            .arabic: "ما هي الأهداف الرئيسية للأسبوع بناءً على خطتك للشهر؟",
+            .chinese: "根据本月的规划，本周的核心目标应该是什么？",
+            .japanese: "月の計画に基づき、今週の最優先目標は何ですか？",
+            .korean: "월간 계획을 바탕으로 이번 주의 핵심 목표는 무엇인가요?"
+        ],
+        "What should this month be about? Select items from your 1 Year list to focus on this month.": [
+            .english: "What should this month be about? Select items from your 1 Year list to focus on this month.",
+            .german: "Worum soll es diesen Monat gehen? Wähle Ziele aus deiner Jahresliste für diesen Monat.",
+            .french: "De quoi ce mois sera-t-il fait ? Sélectionnez des éléments de votre liste Année.",
+            .spanish: "¿De qué debería tratar este mes? Selecciona elementos de tu lista de 1 Año.",
+            .portuguese: "Sobre o que deve ser este mês? Selecione itens da sua lista de 1 Ano.",
+            .italian: "Cosa metterai al centro questo mese? Scegli obiettivi dalla lista di 1 Anno.",
+            .arabic: "ما هو تركيز هذا الشهر؟ اختر عناصر من قائمة العام للتركيز عليها.",
+            .chinese: "这个月的重点是什么？从年度列表中选择本月的专注目标。",
+            .japanese: "今月は何にフォーカスしますか？年間リストから選択してください。",
+            .korean: "이번 달의 중심은 무엇인가요? 1년 목록에서 집중할 항목을 선택하세요."
+        ],
+        "New year, new you? What should we plan for the year? Take some time to set your goals.": [
+            .english: "New year, new you? What should we plan for the year? Take some time to set your goals.",
+            .german: "Neues Jahr, neues Glück! Nimm dir etwas Zeit, um deine Jahresziele festzulegen.",
+            .french: "Nouvelle année, nouveau départ ! Prenez le temps de définir vos objectifs annuels.",
+            .spanish: "¡Año nuevo, vida nueva! Tómate un tiempo para fijar tus metas del año.",
+            .portuguese: "Ano novo, vida nova! Reserve um tempo para definir suas metas para o ano.",
+            .italian: "Nuovo anno, nuova energia! Prenditi del tempo per fissare i tuoi obiettivi annuali.",
+            .arabic: "سنة جديدة، بداية جديدة! خذ بعض الوقت لتحديد أهدافك للعام.",
+            .chinese: "新年新气象！花点时间为这一年设定清晰的目标。",
+            .japanese: "新しい1年の始まりです！今年の目標をじっくり設定してみましょう。",
+            .korean: "새로운 한 해, 새로운 시작! 시간을 갖고 올해의 목표를 세워보세요."
+        ],
+        "Would you like to transfer these tasks?": [
+            .english: "Would you like to transfer these tasks?",
+            .german: "Möchtest du diese Aufgaben übertragen?",
+            .french: "Souhaitez-vous transférer ces tâches ?",
+            .spanish: "¿Deseas transferir estas tareas?",
+            .portuguese: "Deseja transferir essas tarefas?",
+            .italian: "Vuoi trasferire queste attività?",
+            .arabic: "هل ترغب في نقل هذه المهام؟",
+            .chinese: "您想要迁移这些任务吗？",
+            .japanese: "これらのタスクを移行しますか？",
+            .korean: "이 작업을 이동하시겠습니까?"
+        ],
+        "Move lingering tasks to overview?": [
+            .english: "Move lingering tasks to overview?",
+            .german: "Verweilende Aufgaben in die Übersicht verschieben?",
+            .french: "Déplacer les tâches restantes vers l'aperçu ?",
+            .spanish: "¿Mover tareas pendientes a la vista general?",
+            .portuguese: "Mover tarefas pendentes para a visão geral?",
+            .italian: "Spostare le attività in sospeso nella panoramica?",
+            .arabic: "هل تريد نقل المهام العالقة إلى النظرة العامة؟",
+            .chinese: "将停留的任务移至概览吗？",
+            .japanese: "残っているタスクを概要に移動しますか？",
+            .korean: "남아있는 작업을 개요로 이동할까요?"
+        ],
+        "Add Another Goal": [
+            .english: "Add Another Goal", .german: "Weiteres Ziel hinzufügen", .french: "Ajouter un autre objectif",
+            .spanish: "Añadir otro objetivo", .portuguese: "Adicionar outra meta", .italian: "Aggiungi un altro obiettivo",
+            .arabic: "إضافة هدف آخر", .chinese: "添加另一个目标", .japanese: "別の目標を追加", .korean: "다른 목표 추가"
+        ],
+        "Goal #%d...": [
+            .english: "Goal #%d...", .german: "Ziel #%d...", .french: "Objectif #%d...",
+            .spanish: "Objetivo #%d...", .portuguese: "Meta #%d...", .italian: "Obiettivo #%d...",
+            .arabic: "الهدف رقم %d...", .chinese: "目标 #%d...", .japanese: "目標 #%d...", .korean: "목표 #%d..."
+        ],
         
         // Settings & Preferences
         "SETTINGS": [

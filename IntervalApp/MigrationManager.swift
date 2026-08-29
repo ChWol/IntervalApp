@@ -256,18 +256,22 @@ class MigrationManager: ObservableObject {
         // to avoid interrupting night work sessions.
         if isPastDayStart {
             if lastHandledYear != currentYear {
+                performBoundaryRollover(for: "1 Year")
                 pending = Migration(source: "1 Year", dest: "1 Year")
                 targetStoreKey = StoreKey.lastHandledYear
                 targetMarker = currentYear
             } else if lastHandledMonth != currentMonth {
+                performBoundaryRollover(for: "1 Month")
                 pending = Migration(source: "1 Year", dest: "1 Month")
                 targetStoreKey = StoreKey.lastHandledMonth
                 targetMarker = currentMonth
             } else if lastHandledWeek != currentWeek {
+                performBoundaryRollover(for: "1 Week")
                 pending = Migration(source: "1 Month", dest: "1 Week")
                 targetStoreKey = StoreKey.lastHandledWeek
                 targetMarker = currentWeek
             } else if lastHandledDay != currentDay {
+                performBoundaryRollover(for: "1 Day")
                 pending = Migration(source: "1 Week", dest: "1 Day")
                 targetStoreKey = StoreKey.lastHandledDay
                 targetMarker = currentDay
@@ -435,6 +439,54 @@ class MigrationManager: ObservableObject {
         }
     }
     
+    private func performBoundaryRollover(for targetInterval: String) {
+        guard let context = modelContext else { return }
+        let allTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        let active = allTasks.filter { !$0.completed && $0.deletedAt == nil }
+        let now = Date()
+        var didModify = false
+        
+        let subordinateIntervals: [String]
+        switch targetInterval {
+        case "1 Year":
+            subordinateIntervals = ["1 Month", "1 Week", "1 Day", HabitTaskLink.hourInterval]
+        case "1 Month":
+            subordinateIntervals = ["1 Week", "1 Day", HabitTaskLink.hourInterval]
+        case "1 Week":
+            subordinateIntervals = ["1 Day", HabitTaskLink.hourInterval]
+        case "1 Day":
+            subordinateIntervals = [HabitTaskLink.hourInterval]
+        default:
+            subordinateIntervals = []
+        }
+        
+        var maxOrder = (active.filter { $0.intervalType == targetInterval }.map { $0.order }.max() ?? -1) + 1
+        
+        for task in active where subordinateIntervals.contains(task.intervalType) {
+            // Habit-linked tasks are daily routines: do not move them to higher intervals
+            guard task.habitId == nil else { continue }
+            task.intervalType = targetInterval
+            task.order = maxOrder
+            task.updatedAt = now
+            maxOrder += 1
+            didModify = true
+        }
+        
+        // Also clean up any lingering temporary habit tasks from previous periods in 1 Hour
+        if targetInterval == "1 Day" || targetInterval == "1 Week" || targetInterval == "1 Month" || targetInterval == "1 Year" {
+            for task in allTasks where task.habitId != nil && !task.completed && task.deletedAt == nil {
+                task.deletedAt = now
+                task.updatedAt = now
+                didModify = true
+            }
+        }
+        
+        if didModify {
+            try? context.save()
+            SupabaseSyncManager.shared.push()
+        }
+    }
+    
     private func cleanUpPreviousDayHabitTasks() {
         guard let context = modelContext else { return }
         let all = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
@@ -454,6 +506,10 @@ class MigrationManager: ObservableObject {
     #if DEBUG
     func attachForTesting(context: ModelContext) {
         modelContext = context
+    }
+    
+    func testingPerformBoundaryRollover(for targetInterval: String) {
+        performBoundaryRollover(for: targetInterval)
     }
     #endif
     

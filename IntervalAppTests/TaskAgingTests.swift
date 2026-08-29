@@ -153,4 +153,76 @@ final class TaskAgingTests: XCTestCase {
         XCTAssertFalse(unselectedHourTask.completed)
         XCTAssertNil(unselectedHourTask.deletedAt)
     }
+    
+    // MARK: - Automated Horizon Boundary Rollover
+    
+    func testBoundaryRolloverMovesYesterdayHourTasksToDay() {
+        // Setup: Active 1-Hour tasks from yesterday
+        let hourTask1 = TaskItem(text: "Unfinished project from yesterday", intervalType: "1 Hour", order: 0)
+        let hourTask2 = TaskItem(text: "Another hour task", intervalType: "1 Hour", order: 1)
+        let habitTask = TaskItem(text: "Daily walk", intervalType: "1 Hour", order: 2, habitId: "habit-123")
+        let existingDayTask = TaskItem(text: "Existing Day Task", intervalType: "1 Day", order: 0)
+        
+        store.context.insert(hourTask1)
+        store.context.insert(hourTask2)
+        store.context.insert(habitTask)
+        store.context.insert(existingDayTask)
+        try? store.context.save()
+        
+        // Trigger Day boundary rollover (new day started)
+        manager.testingPerformBoundaryRollover(for: "1 Day")
+        
+        // Verify: Unfinished hour tasks rolled over into 1 Day
+        XCTAssertEqual(hourTask1.intervalType, "1 Day")
+        XCTAssertEqual(hourTask2.intervalType, "1 Day")
+        XCTAssertFalse(hourTask1.completed)
+        XCTAssertFalse(hourTask2.completed)
+        XCTAssertNil(hourTask1.deletedAt)
+        XCTAssertNil(hourTask2.deletedAt)
+        
+        // Verify: Habit task in 1 Hour was safely cleaned up for the new day
+        XCTAssertNotNil(habitTask.deletedAt)
+        XCTAssertEqual(habitTask.intervalType, "1 Hour", "Habit task must never be moved to 1 Day")
+        
+        // Verify: Existing day task untouched
+        XCTAssertEqual(existingDayTask.intervalType, "1 Day")
+    }
+    
+    func testBoundaryRolloverMovesPastWeekDayTasksToWeek() {
+        // Setup: Active tasks in 1 Day and 1 Hour when week boundary is crossed
+        let dayTask = TaskItem(text: "Unfinished day task from last week", intervalType: "1 Day", order: 0)
+        let hourTask = TaskItem(text: "Unfinished hour task from last week", intervalType: "1 Hour", order: 0)
+        let weekTask = TaskItem(text: "Existing week task", intervalType: "1 Week", order: 0)
+        
+        store.context.insert(dayTask)
+        store.context.insert(hourTask)
+        store.context.insert(weekTask)
+        try? store.context.save()
+        
+        // Trigger Week boundary rollover
+        manager.testingPerformBoundaryRollover(for: "1 Week")
+        
+        // Verify: Both Day and Hour tasks rolled over into 1 Week
+        XCTAssertEqual(dayTask.intervalType, "1 Week")
+        XCTAssertEqual(hourTask.intervalType, "1 Week")
+        XCTAssertEqual(weekTask.intervalType, "1 Week")
+    }
+    
+    // MARK: - Localization Completeness
+    
+    func testTransitionDialogLocalizationCompleteness() {
+        let loc = LocalizationManager.shared
+        loc.currentLanguage = .german
+        
+        XCTAssertEqual("How shall we start today? Pick tasks from your 1 Day list and habits to begin.".localized, "Womit wollen wir heute beginnen? Wähle Aufgaben aus deiner 1-Tag-Liste und Gewohnheiten, um zu starten.")
+        XCTAssertEqual("It's a new day – let's get it on!".localized, "Ein neuer Tag beginnt – packen wir es an!")
+        XCTAssertEqual("Fresh start into the next week – let's do some planning!".localized, "Frischer Start in die neue Woche – lass uns planen!")
+        XCTAssertEqual("Time to reflect on your yearly goals!".localized, "Zeit, über deine Jahresziele nachzudenken!")
+        XCTAssertEqual("Happy New Year!".localized, "Frohes neues Jahr!")
+        XCTAssertEqual(String(format: "It's %@!".localized, "12:23"), "Es ist 12:23!")
+        XCTAssertEqual("1 DAY".localized, "1 TAG")
+        XCTAssertEqual("1 WEEK".localized, "1 WOCHE")
+        XCTAssertEqual("1 MONTH".localized, "1 MONAT")
+        XCTAssertEqual("1 YEAR".localized, "1 JAHR")
+    }
 }

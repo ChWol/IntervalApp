@@ -31,17 +31,17 @@ struct MigrationModalView: View {
             let formatter = DateFormatter()
             formatter.dateFormat = "HH:mm"
             let timeString = formatter.string(from: Date())
-            return "It's \(timeString)!"
+            return String(format: "It's %@!".localized, timeString)
         case ("1 Week", "1 Day"):
-            return "It's a new day – let's get it on!"
+            return "It's a new day – let's get it on!".localized
         case ("1 Month", "1 Week"):
-            return "Fresh start into the next week – let's do some planning!"
+            return "Fresh start into the next week – let's do some planning!".localized
         case ("1 Year", "1 Month"):
-            return "Time to reflect on your yearly goals!"
+            return "Time to reflect on your yearly goals!".localized
         case ("1 Year", "1 Year"):
-            return "Happy New Year!"
+            return "Happy New Year!".localized
         default:
-            return "Migrate Tasks"
+            return "Migrate Tasks".localized
         }
     }
     
@@ -49,19 +49,19 @@ struct MigrationModalView: View {
         switch (migration.source, migration.dest) {
         case ("1 Day", "1 Hour"):
             if migration.isFirstHourOfDay {
-                return "Womit wollen wir heute beginnen? Pick tasks from your 1 Day list and habits to start with."
+                return "How shall we start today? Pick tasks from your 1 Day list and habits to begin.".localized
             }
-            return "Want to move any of these tasks or habits into your next hour's focus?"
+            return "Want to move any of these tasks or habits into your next hour's focus?".localized
         case ("1 Week", "1 Day"):
-            return "Let's plan the day! What should be your top goals based on what you planned for the week?"
+            return "Let's plan the day! What should be your top goals based on what you planned for the week?".localized
         case ("1 Month", "1 Week"):
-            return "What should be the top goals for the week based on what you planned for the month?"
+            return "What should be the top goals for the week based on what you planned for the month?".localized
         case ("1 Year", "1 Month"):
-            return "What should this month be about? Select items from your 1 Year list to focus on this month."
+            return "What should this month be about? Select items from your 1 Year list to focus on this month.".localized
         case ("1 Year", "1 Year"):
-            return "New year, new you? What should we plan for the year? Take some time to set your goals."
+            return "New year, new you? What should we plan for the year? Take some time to set your goals.".localized
         default:
-            return "Would you like to transfer these tasks?"
+            return "Would you like to transfer these tasks?".localized
         }
     }
     
@@ -82,7 +82,7 @@ struct MigrationModalView: View {
     
     private var reverseBadgeText: String? {
         guard let parent = TaskAgingHelper.parentInterval(for: migration.dest) else { return nil }
-        return "→ \(parent)".localized
+        return "→ \(parent.uppercased().localized)"
     }
     
     var body: some View {
@@ -331,7 +331,7 @@ struct MigrationModalView: View {
                         Text("–")
                             .font(.system(size: 14, weight: .light))
                             .foregroundColor(.secondary)
-                        TextField("Goal #\(idx + 1)...", text: $yearGoals[idx])
+                        TextField(String(format: "Goal #%d...".localized, idx + 1), text: $yearGoals[idx])
                             .textFieldStyle(.plain)
                             .font(.system(size: 14, weight: .light))
                     }
@@ -346,7 +346,7 @@ struct MigrationModalView: View {
                 Button(action: { yearGoals.append("") }) {
                     HStack(spacing: 6) {
                         Image(systemName: "plus")
-                        Text("Add Another Goal")
+                        Text("Add Another Goal".localized)
                     }
                     .font(.system(size: 12, weight: .light))
                     .foregroundColor(.secondary)
