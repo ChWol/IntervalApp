@@ -91,8 +91,9 @@ class MigrationManager: ObservableObject {
     func applyRemoteMarkers(_ markers: [String: String]) {
         var didUpdate = false
         for (key, val) in markers {
+            guard !val.isEmpty else { continue }
             let local = UserDefaults.standard.string(forKey: key) ?? ""
-            if val >= local {
+            if local.isEmpty || val > local {
                 UserDefaults.standard.set(val, forKey: key)
                 didUpdate = true
             }
@@ -142,8 +143,15 @@ class MigrationManager: ObservableObject {
     
     private func setMarker(_ value: String, for key: String) {
         UserDefaults.standard.set(value, forKey: key)
+        var allMarkers: [String: String] = [:]
+        for k in [StoreKey.lastHandledHour, StoreKey.lastHandledDay, StoreKey.lastHandledWeek, StoreKey.lastHandledMonth, StoreKey.lastHandledYear] {
+            if let v = UserDefaults.standard.string(forKey: k) {
+                allMarkers[k] = v
+            }
+        }
+        allMarkers[key] = value
         Task { @MainActor in
-            await SupabaseSyncManager.shared.updateUserMetadata([key: value])
+            await SupabaseSyncManager.shared.updateUserMetadata(allMarkers)
         }
     }
     
@@ -310,14 +318,10 @@ class MigrationManager: ObservableObject {
                 isFirstHourAfterDayMigration = false
             }
         } else {
-            // Source list is empty (and for hour migration, uncompleted habits for today are also empty)
+            // If the migration does not need to be presented, immediately commit the marker so it is not re-checked!
+            setMarker(marker, for: key)
             if migration.source == "1 Week" && migration.dest == "1 Day" {
-                setMarker(marker, for: key)
                 presentFirstHourOfDay()
-            } else if migration.source == "1 Year" && migration.dest == "1 Month" {
-                setMarker(marker, for: key)
-            } else if migration.source == "1 Month" && migration.dest == "1 Week" {
-                setMarker(marker, for: key)
             }
         }
     }
@@ -330,9 +334,9 @@ class MigrationManager: ObservableObject {
         let migration = Migration(source: "1 Day", dest: HabitTaskLink.hourInterval, isFirstHourOfDay: true)
         let reverseTasks = TaskAgingHelper.findLingeringTasks(for: migration, in: tasks)
         let reverseCount = reverseTasks.count
+        let currentHour = Self.hourFormatter.string(from: Date())
         
         if MigrationSchedule.shouldPresent(migration, sourceTaskCount: sourceCount, selectableHabitCount: habitCount, reverseTaskCount: reverseCount) {
-            let currentHour = Self.hourFormatter.string(from: Date())
             pendingMarkerKey = StoreKey.lastHandledHour
             pendingMarkerValue = currentHour
             SoundManager.playTransitionChime()
@@ -342,6 +346,8 @@ class MigrationManager: ObservableObject {
                 currentMigration = migration
             }
             isFirstHourAfterDayMigration = false
+        } else {
+            setMarker(currentHour, for: StoreKey.lastHandledHour)
         }
     }
     
