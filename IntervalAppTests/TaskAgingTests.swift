@@ -180,11 +180,15 @@ final class TaskAgingTests: XCTestCase {
         XCTAssertNil(hourTask1.deletedAt)
         XCTAssertNil(hourTask2.deletedAt)
         
+        // Verify: Rolled-over tasks appear ABOVE existing day tasks (lower order)
+        XCTAssertTrue(hourTask1.order < existingDayTask.order, "Rolled-over tasks must appear above existing tasks")
+        XCTAssertTrue(hourTask2.order < existingDayTask.order, "Rolled-over tasks must appear above existing tasks")
+        
         // Verify: Habit task in 1 Hour was safely cleaned up for the new day
         XCTAssertNotNil(habitTask.deletedAt)
         XCTAssertEqual(habitTask.intervalType, "1 Hour", "Habit task must never be moved to 1 Day")
         
-        // Verify: Existing day task untouched
+        // Verify: Existing day task untouched (still in 1 Day)
         XCTAssertEqual(existingDayTask.intervalType, "1 Day")
     }
     

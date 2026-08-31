@@ -449,7 +449,11 @@ struct TaskRowView: View {
             }
         } else {
             if trimmed.isEmpty {
-                TaskHousekeeping.moveToBin(task, in: modelContext)
+                // Silent bin – clearing an empty row is housekeeping, not a deliberate deletion
+                task.deletedAt = Date()
+                task.updatedAt = Date()
+                try? modelContext.save()
+                SupabaseSyncManager.shared.push()
             } else if task.text != trimmed {
                 task.text = trimmed
                 task.updatedAt = Date()

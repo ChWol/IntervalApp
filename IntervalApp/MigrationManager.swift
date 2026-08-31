@@ -462,13 +462,24 @@ class MigrationManager: ObservableObject {
         
         var maxOrder = (active.filter { $0.intervalType == targetInterval }.map { $0.order }.max() ?? -1) + 1
         
-        for task in active where subordinateIntervals.contains(task.intervalType) {
-            // Habit-linked tasks are daily routines: do not move them to higher intervals
-            guard task.habitId == nil else { continue }
-            task.intervalType = targetInterval
-            task.order = maxOrder
-            task.updatedAt = now
-            maxOrder += 1
+        // Collect tasks to roll over (excluding habit-linked tasks)
+        let tasksToRollOver = active.filter { subordinateIntervals.contains($0.intervalType) && $0.habitId == nil }
+        
+        if !tasksToRollOver.isEmpty {
+            // Shift existing tasks in the target interval DOWN so rolled-over tasks appear on top
+            let existingTargetTasks = active.filter { $0.intervalType == targetInterval }.sorted { $0.order < $1.order }
+            let rollOverCount = tasksToRollOver.count
+            for existingTask in existingTargetTasks {
+                existingTask.order += rollOverCount
+                existingTask.updatedAt = now
+            }
+            
+            // Place rolled-over tasks at the top with sequential order starting from 0
+            for (index, task) in tasksToRollOver.enumerated() {
+                task.intervalType = targetInterval
+                task.order = index
+                task.updatedAt = now
+            }
             didModify = true
         }
         
