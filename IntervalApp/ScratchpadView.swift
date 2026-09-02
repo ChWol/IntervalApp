@@ -705,7 +705,7 @@ struct ScratchpadItemRowView: View {
                                                 }
                                             }
                                         }
-                                        deleteItem()
+                                        deleteItem(playSound: false)
                                     }
                                 },
                                 onPasteMultipleLines: { lines in
@@ -1062,7 +1062,7 @@ struct ScratchpadItemRowView: View {
             }
         } else {
             if trimmed.isEmpty {
-                deleteItem()
+                deleteItem(playSound: false)
             } else if item.text != trimmed {
                 item.text = trimmed
                 item.updatedAt = Date()
@@ -1073,7 +1073,13 @@ struct ScratchpadItemRowView: View {
     }
 
     private func deleteItem() {
-        SoundManager.playTaskDeleted()
+        deleteItem(playSound: true)
+    }
+
+    private func deleteItem(playSound: Bool) {
+        if playSound {
+            SoundManager.playTaskDeleted()
+        }
         let now = Date()
         let itemsToDelete: [ScratchpadItem]
         if selectedItemIds.contains(myId) && selectedItemIds.count > 1 {
@@ -1113,7 +1119,7 @@ struct ScratchpadItemRowView: View {
             }
         } else {
             if trimmed.isEmpty {
-                deleteItem()
+                deleteItem(playSound: false)
             } else {
                 item.text = trimmed
                 item.updatedAt = Date()

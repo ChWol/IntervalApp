@@ -273,7 +273,11 @@ struct TaskRowView: View {
                                 } else {
                                     let trimmed = text.trimmingCharacters(in: .whitespaces)
                                     if trimmed.isEmpty {
-                                        TaskHousekeeping.moveToBin(task, in: modelContext)
+                                        // Silent bin – empty row submission must NOT play delete sound
+                                        task.deletedAt = Date()
+                                        task.updatedAt = Date()
+                                        try? modelContext.save()
+                                        SupabaseSyncManager.shared.push()
                                     } else {
                                         task.text = trimmed
                                         task.updatedAt = Date()
@@ -319,7 +323,11 @@ struct TaskRowView: View {
                                             focusedTaskId = sorted[idx - 1].id
                                         }
                                     }
-                                    TaskHousekeeping.moveToBin(task, in: modelContext)
+                                    // Silent bin – empty row deletion by backspace/delete must NOT play delete sound
+                                    task.deletedAt = Date()
+                                    task.updatedAt = Date()
+                                    try? modelContext.save()
+                                    SupabaseSyncManager.shared.push()
                                 }
                             },
                             onPasteMultipleLines: { lines in

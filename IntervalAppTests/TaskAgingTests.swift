@@ -192,24 +192,28 @@ final class TaskAgingTests: XCTestCase {
         XCTAssertEqual(existingDayTask.intervalType, "1 Day")
     }
     
-    func testBoundaryRolloverMovesPastWeekDayTasksToWeek() {
-        // Setup: Active tasks in 1 Day and 1 Hour when week boundary is crossed
-        let dayTask = TaskItem(text: "Unfinished day task from last week", intervalType: "1 Day", order: 0)
-        let hourTask = TaskItem(text: "Unfinished hour task from last week", intervalType: "1 Hour", order: 0)
-        let weekTask = TaskItem(text: "Existing week task", intervalType: "1 Week", order: 0)
+    func testBoundaryRolloverOnlyAppliesToDayBoundaryAndNotHigherHorizons() {
+        // Setup: Active tasks across horizons
+        let hourTask = TaskItem(text: "Unfinished hour task", intervalType: "1 Hour", order: 0)
+        let dayTask = TaskItem(text: "Unfinished day task", intervalType: "1 Day", order: 0)
+        let weekTask = TaskItem(text: "Unfinished week task", intervalType: "1 Week", order: 0)
+        let monthTask = TaskItem(text: "Unfinished month task", intervalType: "1 Month", order: 0)
         
-        store.context.insert(dayTask)
         store.context.insert(hourTask)
+        store.context.insert(dayTask)
         store.context.insert(weekTask)
+        store.context.insert(monthTask)
         try? store.context.save()
         
-        // Trigger Week boundary rollover
+        // Trigger Week, Month, and Year boundaries
         manager.testingPerformBoundaryRollover(for: "1 Week")
+        manager.testingPerformBoundaryRollover(for: "1 Month")
+        manager.testingPerformBoundaryRollover(for: "1 Year")
         
-        // Verify: Both Day and Hour tasks rolled over into 1 Week
-        XCTAssertEqual(dayTask.intervalType, "1 Week")
-        XCTAssertEqual(hourTask.intervalType, "1 Week")
-        XCTAssertEqual(weekTask.intervalType, "1 Week")
+        // Verify: Higher horizons do NOT pull subordinate tasks
+        XCTAssertEqual(dayTask.intervalType, "1 Day", "Day tasks must not be rolled into Week")
+        XCTAssertEqual(weekTask.intervalType, "1 Week", "Week tasks must not be rolled into Month")
+        XCTAssertEqual(monthTask.intervalType, "1 Month", "Month tasks must not be rolled into Year")
     }
     
     // MARK: - Localization Completeness
