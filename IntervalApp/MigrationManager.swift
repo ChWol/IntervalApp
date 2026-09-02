@@ -93,8 +93,10 @@ class MigrationManager: ObservableObject {
         for (key, val) in markers {
             guard !val.isEmpty else { continue }
             let local = UserDefaults.standard.string(forKey: key) ?? ""
-            if local.isEmpty || val > local {
-                UserDefaults.standard.set(val, forKey: key)
+            if val >= local {
+                if val != local {
+                    UserDefaults.standard.set(val, forKey: key)
+                }
                 didUpdate = true
             }
         }
@@ -133,7 +135,6 @@ class MigrationManager: ObservableObject {
                     }
                 }
             }
-            checkMigrations()
         }
     }
     
