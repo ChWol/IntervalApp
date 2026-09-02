@@ -190,10 +190,23 @@ public final class SoundManager {
     private var players: [SoundEffect: AVAudioPlayer] = [:]
     
     private init() {
+        configureAudioSession()
         preloadSounds()
     }
     
+    private func configureAudioSession() {
+        #if os(iOS)
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("[SoundManager] Audio session setup error: \(error)")
+        }
+        #endif
+    }
+    
     public func preloadSounds() {
+        configureAudioSession()
         for effect in SoundEffect.allCases {
             if let url = urlForSound(effect) {
                 if let player = try? AVAudioPlayer(contentsOf: url) {
