@@ -137,6 +137,11 @@ class SupabaseSyncManager: ObservableObject {
         static let tombstones = "sb_tombstones"
         static let binReconciled = "sb_bin_reconciled"
     }
+
+    private enum TokenAccount {
+        static let access = "supabase-access-token"
+        static let refresh = "supabase-refresh-token"
+    }
     
     private let pollInterval: TimeInterval = 10
     private let debounceDelay: TimeInterval = 0.6
@@ -158,10 +163,16 @@ class SupabaseSyncManager: ObservableObject {
     var isConfigured: Bool { isAuthenticated }
     
     private var accessToken: String? {
-        didSet { UserDefaults.standard.set(accessToken, forKey: StoreKey.accessToken) }
+        didSet {
+            persistSecureToken(accessToken, account: TokenAccount.access)
+            UserDefaults.standard.removeObject(forKey: StoreKey.accessToken)
+        }
     }
     private var refreshToken: String? {
-        didSet { UserDefaults.standard.set(refreshToken, forKey: StoreKey.refreshToken) }
+        didSet {
+            persistSecureToken(refreshToken, account: TokenAccount.refresh)
+            UserDefaults.standard.removeObject(forKey: StoreKey.refreshToken)
+        }
     }
     private(set) var userId: String? {
         didSet { UserDefaults.standard.set(userId, forKey: StoreKey.userId) }
@@ -214,10 +225,27 @@ class SupabaseSyncManager: ObservableObject {
         return URLSession(configuration: config)
     }()
     
-    private init() {
+    private init(loadStoredSession: Bool = true) {
         let defaults = UserDefaults.standard
-        accessToken = defaults.string(forKey: StoreKey.accessToken)
-        refreshToken = defaults.string(forKey: StoreKey.refreshToken)
+        if loadStoredSession {
+            let accessMigration = SessionTokenMigration.select(
+                secure: KeychainManager.shared.sessionToken(account: TokenAccount.access),
+                legacy: defaults.string(forKey: StoreKey.accessToken),
+                storeLegacySecurely: { KeychainManager.shared.saveSessionToken($0, account: TokenAccount.access) }
+            )
+            let refreshMigration = SessionTokenMigration.select(
+                secure: KeychainManager.shared.sessionToken(account: TokenAccount.refresh),
+                legacy: defaults.string(forKey: StoreKey.refreshToken),
+                storeLegacySecurely: { KeychainManager.shared.saveSessionToken($0, account: TokenAccount.refresh) }
+            )
+            accessToken = accessMigration.token
+            refreshToken = refreshMigration.token
+            if accessMigration.legacyCanBeRemoved { defaults.removeObject(forKey: StoreKey.accessToken) }
+            if refreshMigration.legacyCanBeRemoved { defaults.removeObject(forKey: StoreKey.refreshToken) }
+        } else {
+            accessToken = nil
+            refreshToken = nil
+        }
         userId = defaults.string(forKey: StoreKey.userId)
         userEmail = defaults.string(forKey: StoreKey.userEmail)
         isAuthenticated = accessToken != nil && userId != nil
@@ -227,7 +255,17 @@ class SupabaseSyncManager: ObservableObject {
         }
         ledger = TombstoneLedger.decode(from: defaults.data(forKey: StoreKey.tombstones))
     }
-    
+
+    private func persistSecureToken(_ token: String?, account: String) {
+        if let token {
+            if !KeychainManager.shared.saveSessionToken(token, account: account) {
+                lastError = "Secure session storage failed. Please sign in again."
+            }
+        } else {
+            KeychainManager.shared.deleteSessionToken(account: account)
+        }
+    }
+
     // MARK: - Authentication
     
     struct SignUpResult {
@@ -1800,7 +1838,7 @@ class SupabaseSyncManager: ObservableObject {
 /// build.
 extension SupabaseSyncManager {
     static func makeForTesting(context: ModelContext, uid: String = "test-user") -> SupabaseSyncManager {
-        let manager = SupabaseSyncManager()
+        let manager = SupabaseSyncManager(loadStoredSession: false)
         manager.persistsLedger = false
         manager.ledger = TombstoneLedger()
         manager.modelContext = context

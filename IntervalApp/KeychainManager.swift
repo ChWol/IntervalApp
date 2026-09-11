@@ -1,15 +1,72 @@
 import Foundation
 import Security
 
+struct SessionTokenMigrationResult: Equatable {
+    let token: String?
+    let legacyCanBeRemoved: Bool
+}
+
+enum SessionTokenMigration {
+    static func select(secure: String?, legacy: String?, storeLegacySecurely: (String) -> Bool) -> SessionTokenMigrationResult {
+        if let secure {
+            return SessionTokenMigrationResult(token: secure, legacyCanBeRemoved: true)
+        }
+        guard let legacy else {
+            return SessionTokenMigrationResult(token: nil, legacyCanBeRemoved: true)
+        }
+        let stored = storeLegacySecurely(legacy)
+        return SessionTokenMigrationResult(token: legacy, legacyCanBeRemoved: stored)
+    }
+}
+
 // MARK: - Keychain Manager
 
 final class KeychainManager {
     static let shared = KeychainManager()
     
     private let serviceName = "chw.IntervalApp"
+    private let tokenServiceName = "chw.IntervalApp.session"
     private let serverName = "interval.app"
     
     private init() {}
+
+    @discardableResult
+    func saveSessionToken(_ token: String, account: String) -> Bool {
+        guard let data = token.data(using: .utf8) else { return false }
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: tokenServiceName,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(query as CFDictionary)
+        var attributes = query
+        attributes[kSecValueData as String] = data
+        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        return SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess
+    }
+
+    func sessionToken(account: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: tokenServiceName,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: kCFBooleanTrue as Any,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    func deleteSessionToken(account: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: tokenServiceName,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(query as CFDictionary)
+    }
     
     // MARK: - Save Credential
     

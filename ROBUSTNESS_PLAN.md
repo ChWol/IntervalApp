@@ -199,7 +199,7 @@ Verify the Supabase database independently of the client:
 - Password reset links expire and cannot be reused.
 - Tokens are not written to logs, analytics, crash reports, or exported data.
 
-Review the current token storage. Tokens currently use `UserDefaults`; before tester release, evaluate moving access and refresh tokens to Keychain storage and verify token revocation and session invalidation. This is a security hardening change only.
+Access and refresh tokens now use a dedicated, device-only Keychain service. Existing `UserDefaults` tokens migrate once and are removed only after Keychain confirms the secure copy; other non-secret session metadata remains in preferences. Token revocation and server-side session invalidation still require live-backend verification.
 
 ## 9. Export, import, and recovery
 
