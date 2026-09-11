@@ -35,13 +35,13 @@ Add deterministic tests that simulate:
 - [ ] App termination during creation, editing, completion, deletion, restore, and drag-and-drop.
 - [ ] A crash immediately before and immediately after `modelContext.save()`.
 - [x] Save failures are reported while pending changes remain available for retry.
-- [ ] Corrupted SwiftData stores.
+- [x] A corrupted or unreadable SwiftData store enters a blocked recovery screen using an in-memory container; the original store remains untouched and the empty fallback cannot sync over remote data.
 - [ ] Device storage becoming full.
 - [x] App backgrounding flushes active task, habit, list-title, and scratchpad drafts, retries pending storage changes, and schedules sync only after the local save succeeds.
 - [x] Relaunch after committed create, completion, soft-delete, restore, and mixed-record operations is covered with a real on-disk store reopen test.
 - [ ] Schema migration from older versions, including stores containing habits, links, deleted items, and incomplete tasks.
 - [x] Duplicate IDs are deterministically collapsed by newest update; empty IDs and unambiguous relationships are repaired; blank drafts are preserved locally; malformed remote dates trigger republishing; invalid intervals are restored to a visible day bucket.
-- [ ] Failure to open the model container.
+- [x] Model-container open failure is handled without exposing an empty working app, with deterministic primary/fallback bootstrap tests.
 
 For every case, verify that the last known local state remains present and no record disappears silently.
 

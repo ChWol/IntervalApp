@@ -4,7 +4,9 @@ import SwiftData
 #if os(macOS)
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        MenuBarManager.shared.setup(container: IntervalApp.sharedModelContainer)
+        if IntervalApp.modelBootstrap.startupError == nil {
+            MenuBarManager.shared.setup(container: IntervalApp.sharedModelContainer)
+        }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -21,21 +23,16 @@ struct IntervalApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     #endif
 
-    static let sharedModelContainer: ModelContainer = {
+    static let modelBootstrap: ContainerBootstrapResult = {
         let schema = Schema([
             TaskItem.self,
             HabitItem.self,
             ScratchpadList.self,
             ScratchpadItem.self
         ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create persistent ModelContainer. Your data cannot be saved safely. Error: \(error)")
-        }
+        return PersistentContainerBootstrap.load(schema: schema)
     }()
+    static let sharedModelContainer = modelBootstrap.container
 
     #if os(macOS)
     @AppStorage("showMenuBarExtra") private var showMenuBarExtra: Bool = true
@@ -43,10 +40,13 @@ struct IntervalApp: App {
 
     var body: some Scene {
         WindowGroup(id: "main") {
-            #if os(watchOS)
-            WatchContentView()
-            #else
-            ContentView()
+            if let startupError = Self.modelBootstrap.startupError {
+                DataStoreUnavailableView(message: startupError)
+            } else {
+                #if os(watchOS)
+                WatchContentView()
+                #else
+                ContentView()
                 .handlesExternalEvents(preferring: Set(arrayLiteral: "main"), allowing: Set(arrayLiteral: "*"))
                 #if os(iOS)
                 .task {
@@ -58,7 +58,8 @@ struct IntervalApp: App {
                     MenuBarManager.shared.setup(container: Self.sharedModelContainer)
                     #endif
                 }
-            #endif
+                #endif
+            }
         }
         .modelContainer(Self.sharedModelContainer)
         #if !os(watchOS)
