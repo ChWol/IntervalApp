@@ -199,6 +199,7 @@ enum TaskDragMutation {
         guard DataIntegrityRepair.validIntervals.contains(interval) else { return false }
         let all = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
         let sourceInterval = dragged.intervalType
+        let intervalChanged = sourceInterval != interval
         var destination = all.filter {
             $0.intervalType == interval && $0.deletedAt == nil && !$0.completed && $0.id != dragged.id
         }.sorted { $0.order < $1.order }
@@ -215,7 +216,8 @@ enum TaskDragMutation {
         var changed = false
         for groupInterval in Set(affected.map(\.intervalType)) {
             let rows = affected.filter { $0.intervalType == groupInterval }
-            for (position, task) in rows.enumerated() where task.order != position || task.id == dragged.id {
+            for (position, task) in rows.enumerated()
+            where task.order != position || (task.id == dragged.id && intervalChanged) {
                 task.order = position
                 task.updatedAt = now
                 task.syncedAt = nil

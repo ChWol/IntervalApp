@@ -70,14 +70,14 @@ Verify that completed and binned rows retain all original data and that automati
 
 Add deterministic tests for:
 
-- [ ] Reordering within every interval.
-- [ ] Moving tasks between every allowed interval.
+- [x] Reordering within every interval.
+- [x] Moving tasks between every allowed interval.
 - [x] Drag cancellation leaves the model and persistent context unchanged.
 - [x] Committed task drops clamp safely to first, middle, and last positions; header and bottom delegates use the same commit path.
 - [x] Dropping outside a valid target only resets the proposed drag and cannot autosave a move.
-- [ ] Repeated drag attempts.
-- [ ] Two simultaneous drag states.
-- [ ] Dragging while a synchronization pull changes the list.
+- [x] Repeated identical drops are idempotent and do not advance timestamps.
+- [x] Starting a second drag replaces only transient drag state and cannot mutate either task.
+- [x] A drop recomputes ordering from current SwiftData rows, preserving records that arrived during the drag.
 - [x] Dragging a habit into 1 hour when existing tasks are present.
 - [x] Attempting to drag a habit into forbidden intervals.
 - [x] Dropping the same habit twice.
