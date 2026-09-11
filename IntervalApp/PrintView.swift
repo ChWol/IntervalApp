@@ -38,8 +38,8 @@ private struct PrintIntervalBlock: View {
                                 .frame(width: max(8, taskSize * 0.6), alignment: .center)
                             
                             Text(task.text)
-                                .font(.system(size: taskSize, weight: .light))
-                                .foregroundColor(Color.black)
+                                .font(.system(size: taskSize, weight: .light, design: .rounded))
+                                .foregroundColor(Color.black.opacity(0.78))
                                 .lineSpacing(1.5)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -98,7 +98,11 @@ struct PrintableIntervalsView: View {
             }
             
             // MARK: 2. Quiet Habits Bar (Single thin line separated by /)
-            let activeHabits = habits.filter { $0.deletedAt == nil && $0.isScheduledForTodayOrOverdue() }
+            let activeHabits = habits.filter {
+                $0.deletedAt == nil &&
+                !$0.isCompletedCurrentPeriod &&
+                $0.isScheduledForTodayOrOverdue()
+            }
             let habitTitles = activeHabits.map { $0.text }
             if !habitTitles.isEmpty {
                 Text(habitTitles.joined(separator: "   /   "))
@@ -121,8 +125,8 @@ struct PrintableIntervalsView: View {
                     title: "1 Hour",
                     tasks: activeTasks(for: "1 Hour"),
                     titleSize: 11,
-                    taskSize: 20,
-                    lineSpacing: 7
+                    taskSize: 17,
+                    lineSpacing: 6
                 )
                 .padding(.trailing, 16)
                 
@@ -138,8 +142,8 @@ struct PrintableIntervalsView: View {
                         title: "1 Day",
                         tasks: activeTasks(for: "1 Day"),
                         titleSize: 10,
-                        taskSize: 13.5,
-                        lineSpacing: 5.5
+                        taskSize: 12.5,
+                        lineSpacing: 5
                     )
                     .padding(.leading, 16)
                     .padding(.bottom, 10)
@@ -156,8 +160,8 @@ struct PrintableIntervalsView: View {
                             title: "1 Week",
                             tasks: activeTasks(for: "1 Week"),
                             titleSize: 8.5,
-                            taskSize: 9.2,
-                            lineSpacing: 4
+                            taskSize: 8.7,
+                            lineSpacing: 3.5
                         )
                         .padding(.leading, 16)
                         .padding(.trailing, 12)
@@ -175,8 +179,8 @@ struct PrintableIntervalsView: View {
                                 title: "1 Month",
                                 tasks: activeTasks(for: "1 Month"),
                                 titleSize: 7.5,
-                                taskSize: 6.8,
-                                lineSpacing: 3
+                                taskSize: 6.3,
+                                lineSpacing: 2.8
                             )
                             .padding(.leading, 12)
                             .padding(.top, 10)
@@ -192,8 +196,8 @@ struct PrintableIntervalsView: View {
                                 title: "1 Year",
                                 tasks: activeTasks(for: "1 Year"),
                                 titleSize: 7.0,
-                                taskSize: 5.2,
-                                lineSpacing: 2.5
+                                taskSize: 4.9,
+                                lineSpacing: 2.2
                             )
                             .padding(.leading, 12)
                             .padding(.top, 6)
