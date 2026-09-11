@@ -524,6 +524,14 @@ class SupabaseSyncManager: ObservableObject {
         // 1. Cancel debounce timers
         debounceTimer?.cancel()
         debounceTimer = nil
+
+        // Never treat an already-running operation as confirmation that remote
+        // persistence succeeded. Purging under an active pull also lets that pull
+        // write stale rows into the newly emptied context.
+        guard !isPushing, !isPulling else {
+            lastError = "Couldn't sign out while synchronization is still finishing. Please try again in a moment."
+            return
+        }
         
         // 2. Save any in-flight context state to disk
         if let ctx = modelContext {
@@ -1887,6 +1895,10 @@ extension SupabaseSyncManager {
 
     func testingDeleteAccount() async -> Bool { await deleteAccount() }
     var testingIsAuthenticated: Bool { isAuthenticated }
+    func testingSetSyncActivity(pushing: Bool, pulling: Bool) {
+        isPushing = pushing
+        isPulling = pulling
+    }
     
     var testingClockOffset: TimeInterval {
         get { clock.offset }

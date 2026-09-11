@@ -153,11 +153,11 @@ Relevant files:
 
 Test:
 
-- Logout with no local changes.
-- Logout with unsynced edits and a working network.
-- Logout with unsynced edits and a failed network.
-- Logout while a push is active.
-- Logout while a pull is active.
+- [x] Logout with no local changes.
+- [x] Logout with unsynced edits and a working network confirms upload before purge.
+- [x] Logout with unsynced edits and a failed network retains session and local rows.
+- [x] Logout while a push is active refuses to purge until it settles.
+- [x] Logout while a pull is active refuses to purge until it settles.
 - Closing the app during logout.
 - Logging back into the same account.
 - Logging into a different account on the same device.
