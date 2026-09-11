@@ -548,11 +548,12 @@ class SupabaseSyncManager: ObservableObject {
             return
         }
 
-        if let ctx = modelContext {
-            purgeLocalStore(context: ctx)
-        } else {
-            pendingLocalPurge = true
-        }
+        finalizeLocalSignOut()
+    }
+
+    private func finalizeLocalSignOut() {
+        if let ctx = modelContext { purgeLocalStore(context: ctx) }
+        else { pendingLocalPurge = true }
         accessToken = nil
         refreshToken = nil
         accessTokenExpiry = nil
@@ -574,21 +575,27 @@ class SupabaseSyncManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: StoreKey.tokenExpiry)
     }
     
-    func deleteAccount() async {
-        guard let uid = userId, let token = accessToken else {
-            await signOutAsync()
-            return
+    @discardableResult
+    func deleteAccount() async -> Bool {
+        guard isAuthenticated, userId != nil,
+              let url = URL(string: "\(supabaseURL)/rest/v1/rpc/delete_interval_account") else {
+            lastError = "Account deletion requires an authenticated session."
+            return false
         }
-        let tables = ["tasks", "habits", "scratchpad_items", "scratchpad_lists"]
-        for table in tables {
-            guard let url = URL(string: "\(supabaseURL)/rest/v1/\(table)?user_id=eq.\(uid)") else { continue }
-            var req = URLRequest(url: url)
-            req.httpMethod = "DELETE"
-            req.setValue(supabaseKey, forHTTPHeaderField: "apikey")
-            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            _ = try? await URLSession.shared.data(for: req)
+        await ensureFreshToken()
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data("{}".utf8)
+
+        guard let (data, response) = await authenticatedRequest(request),
+              validate(response: response, data: data, action: "Delete account") else {
+            lastError = lastError ?? "Account deletion failed. Your local data and session were preserved."
+            return false
         }
-        await signOutAsync()
+
+        finalizeLocalSignOut()
+        return true
     }
 
     
@@ -1877,6 +1884,9 @@ extension SupabaseSyncManager {
         guard let uid = userId else { return nil }
         return await fetchAll(table: SyncTable.tasks, uid: uid)
     }
+
+    func testingDeleteAccount() async -> Bool { await deleteAccount() }
+    var testingIsAuthenticated: Bool { isAuthenticated }
     
     var testingClockOffset: TimeInterval {
         get { clock.offset }

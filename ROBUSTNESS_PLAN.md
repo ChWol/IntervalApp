@@ -182,6 +182,8 @@ Relevant file:
 
 - `IntervalApp/SupabaseSyncManager.swift`
 
+Account deletion safety: the previous per-table-delete-then-logout sequence could re-upload local rows during logout and did not remove the auth account. It now calls one authenticated transactional `delete_interval_account` RPC and purges local rows/session credentials only after server confirmation. Failure preserves the authenticated session and every local record. The required SQL migration is tracked in `supabase/delete_interval_account.sql` and still requires deployment verification in section 8.
+
 ## 8. Server-side account security
 
 Verify the Supabase database independently of the client:
