@@ -186,6 +186,46 @@ enum HabitInsertPosition {
     case atIndex(Int)
 }
 
+@MainActor
+enum TaskDragMutation {
+    /// Applies a proposed move only after a real drop. Hover and cancellation do
+    /// not touch SwiftData, preventing accidental autosaved moves.
+    @discardableResult
+    static func commit(_ dragged: TaskItem,
+                       to interval: String,
+                       index: Int,
+                       context: ModelContext,
+                       now: Date = Date()) -> Bool {
+        guard DataIntegrityRepair.validIntervals.contains(interval) else { return false }
+        let all = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        let sourceInterval = dragged.intervalType
+        var destination = all.filter {
+            $0.intervalType == interval && $0.deletedAt == nil && !$0.completed && $0.id != dragged.id
+        }.sorted { $0.order < $1.order }
+        destination.insert(dragged, at: min(max(index, 0), destination.count))
+        dragged.intervalType = interval
+
+        var affected = destination
+        if sourceInterval != interval {
+            affected += all.filter {
+                $0.intervalType == sourceInterval && $0.deletedAt == nil && !$0.completed && $0.id != dragged.id
+            }.sorted { $0.order < $1.order }
+        }
+
+        var changed = false
+        for groupInterval in Set(affected.map(\.intervalType)) {
+            let rows = affected.filter { $0.intervalType == groupInterval }
+            for (position, task) in rows.enumerated() where task.order != position || task.id == dragged.id {
+                task.order = position
+                task.updatedAt = now
+                task.syncedAt = nil
+                changed = true
+            }
+        }
+        return changed
+    }
+}
+
 #if !os(watchOS)
 // MARK: - List Drop Delegates
 
@@ -212,22 +252,11 @@ struct TaskListHeaderDropDelegate: DropDelegate {
         }
         
         // Handle regular task drag
-        if let draggedItem = DragState.shared.draggedTask {
+        if DragState.shared.draggedTask != nil {
             withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                 DragState.shared.targetIntervalType = listTitle
                 DragState.shared.targetFontSize = sectionFontSize
-                
-                draggedItem.intervalType = listTitle
-                
-                let descriptor = FetchDescriptor<TaskItem>()
-                guard let allTasks = try? context.fetch(descriptor) else { return }
-                var sorted = allTasks.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
-                
-                sorted.insert(draggedItem, at: 0)
-                
-                for (i, t) in sorted.enumerated() {
-                    t.order = i
-                }
+                DragState.shared.targetIndex = 0
             }
         }
     }
@@ -272,7 +301,7 @@ struct TaskListHeaderDropDelegate: DropDelegate {
         // Handle regular task drop
         SoundManager.playTaskDropped()
         if let draggedItem = DragState.shared.draggedTask {
-            draggedItem.updatedAt = Date()
+            _ = TaskDragMutation.commit(draggedItem, to: listTitle, index: 0, context: context)
         }
         _ = PersistenceSafety.save(context)
         SupabaseSyncManager.shared.push()
@@ -311,18 +340,11 @@ struct TaskListBottomDropDelegate: DropDelegate {
             withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                 DragState.shared.targetIntervalType = listTitle
                 DragState.shared.targetFontSize = sectionFontSize
-                
-                draggedItem.intervalType = listTitle
-                
                 let descriptor = FetchDescriptor<TaskItem>()
-                guard let allTasks = try? context.fetch(descriptor) else { return }
-                var sorted = allTasks.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
-                
-                sorted.append(draggedItem)
-                
-                for (i, t) in sorted.enumerated() {
-                    t.order = i
-                }
+                let allTasks = (try? context.fetch(descriptor)) ?? []
+                DragState.shared.targetIndex = allTasks.filter {
+                    $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id
+                }.count
             }
         }
     }
@@ -370,7 +392,10 @@ struct TaskListBottomDropDelegate: DropDelegate {
         // Handle regular task drop
         SoundManager.playTaskDropped()
         if let draggedItem = DragState.shared.draggedTask {
-            draggedItem.updatedAt = Date()
+            let count = ((try? context.fetch(FetchDescriptor<TaskItem>())) ?? []).filter {
+                $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id
+            }.count
+            _ = TaskDragMutation.commit(draggedItem, to: listTitle, index: count, context: context)
         }
         _ = PersistenceSafety.save(context)
         SupabaseSyncManager.shared.push()

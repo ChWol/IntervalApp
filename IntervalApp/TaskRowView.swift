@@ -610,6 +610,7 @@ class DragState: ObservableObject {
     }
     @Published var dragPosition: CGPoint = .zero
     @Published var targetIntervalType: String?
+    @Published var targetIndex: Int?
     @Published var targetFontSize: CGFloat = 20.0
     
     private var monitor: Any?
@@ -617,6 +618,7 @@ class DragState: ObservableObject {
     func reset() {
         draggedTask = nil
         targetIntervalType = nil
+        targetIndex = nil
         stopMonitoring()
     }
     
@@ -686,28 +688,15 @@ struct TaskDropDelegate: DropDelegate {
         
         // 2. Handle regular task drag
         guard let draggedItem = DragState.shared.draggedTask else { return }
-        
+        let descriptor = FetchDescriptor<TaskItem>()
+        let allTasks = (try? context.fetch(descriptor)) ?? []
+        let sorted = allTasks.filter {
+            $0.intervalType == item.intervalType && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id
+        }.sorted { $0.order < $1.order }
         withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
             DragState.shared.targetIntervalType = item.intervalType
             DragState.shared.targetFontSize = sectionFontSize
-            
-            if draggedItem.id != item.id || draggedItem.intervalType != item.intervalType {
-                draggedItem.intervalType = item.intervalType
-                
-                let descriptor = FetchDescriptor<TaskItem>()
-                guard let allTasks = try? context.fetch(descriptor) else { return }
-                var sorted = allTasks.filter { $0.intervalType == item.intervalType && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
-                
-                if let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) {
-                    sorted.insert(draggedItem, at: targetIdx)
-                } else {
-                    sorted.append(draggedItem)
-                }
-                
-                for (i, t) in sorted.enumerated() {
-                    t.order = i
-                }
-            }
+            DragState.shared.targetIndex = sorted.firstIndex(where: { $0.id == item.id }) ?? sorted.count
         }
     }
     
@@ -778,7 +767,12 @@ struct TaskDropDelegate: DropDelegate {
         // Handle regular task drop
         SoundManager.playTaskDropped()
         if let draggedItem = DragState.shared.draggedTask {
-            draggedItem.updatedAt = Date()
+            _ = TaskDragMutation.commit(
+                draggedItem,
+                to: DragState.shared.targetIntervalType ?? item.intervalType,
+                index: DragState.shared.targetIndex ?? 0,
+                context: context
+            )
         }
         _ = PersistenceSafety.save(context)
         SupabaseSyncManager.shared.push()

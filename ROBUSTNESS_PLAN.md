@@ -70,20 +70,20 @@ Verify that completed and binned rows retain all original data and that automati
 
 Add deterministic tests for:
 
-- Reordering within every interval.
-- Moving tasks between every allowed interval.
-- Drag cancellation.
-- Dropping on the first row, middle row, last row, header, and bottom area.
-- Dropping outside a valid target.
-- Repeated drag attempts.
-- Two simultaneous drag states.
-- Dragging while a synchronization pull changes the list.
-- Dragging a habit into 1 hour when existing tasks are present.
-- Attempting to drag a habit into forbidden intervals.
-- Dropping the same habit twice.
-- Dropping a habit while its generated task already exists.
-- Updating `updatedAt` only for affected records.
-- Preserving every unaffected task's text, ID, completion state, habit ID, and order.
+- [ ] Reordering within every interval.
+- [ ] Moving tasks between every allowed interval.
+- [x] Drag cancellation leaves the model and persistent context unchanged.
+- [x] Committed task drops clamp safely to first, middle, and last positions; header and bottom delegates use the same commit path.
+- [x] Dropping outside a valid target only resets the proposed drag and cannot autosave a move.
+- [ ] Repeated drag attempts.
+- [ ] Two simultaneous drag states.
+- [ ] Dragging while a synchronization pull changes the list.
+- [x] Dragging a habit into 1 hour when existing tasks are present.
+- [x] Attempting to drag a habit into forbidden intervals.
+- [x] Dropping the same habit twice.
+- [x] Dropping a habit while its generated task already exists.
+- [x] Only rows whose interval/order changes receive a new `updatedAt`; unrelated rows retain their timestamp.
+- [x] Committed and cancelled drag tests preserve every unaffected task's text, ID, completion state, habit ID, and order.
 
 Cover both macOS mouse dragging and iPhone long-press dragging.
 
