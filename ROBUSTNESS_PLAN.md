@@ -117,26 +117,26 @@ Relevant file:
 
 Expand the fake Supabase coverage for:
 
-- Offline creation, editing, completion, deletion, restoration, and reordering.
-- Network loss before a request, during a request, after server acceptance, and during response decoding.
-- HTTP 401, 403, 408, 409, 429, 500, and malformed response bodies.
-- Token refresh failure during a push.
-- Partial batch success.
-- Duplicate server rows.
-- Missing columns.
-- Missing or malformed timestamps.
-- More than 500 rows and more than 1,000 rows.
-- Empty pages and incomplete pages.
-- Server deletion while a local edit is pending.
-- Local deletion while an old remote snapshot is in flight.
-- Concurrent edits to the same record on two devices.
-- Concurrent edits to different records.
-- Conflicting reorders from two devices.
-- Habit completion racing against linked task completion.
-- Synchronization recovery after several failed attempts.
-- Backoff recovery without permanently stranding pending changes.
-- Save failure while merging remote records.
-- Pull failure after part of a remote response has been processed.
+- [ ] Offline creation, editing, completion, deletion, restoration, and reordering.
+- [x] Network failures before/during requests and ambiguous failures after acceptance leave rows dirty; malformed response decoding aborts the snapshot.
+- [x] HTTP 401, 403, 408, 409, 429, and 500 plus malformed bodies preserve local pending rows.
+- [x] Token refresh rejection during push cannot mark the row synchronized.
+- [x] Partial batch success marks only the accepted 200-row chunk and safely retries the remainder.
+- [ ] Duplicate server rows.
+- [x] Missing columns degrade safely without clearing locally known habit links.
+- [x] Missing or malformed timestamps retain/republish local data.
+- [x] Pagination is verified with 1,001 rows across three 500-row pages.
+- [ ] Empty pages and incomplete pages.
+- [x] A server deletion cannot prune a pending local edit.
+- [x] A tombstone prevents an old in-flight remote snapshot from resurrecting a local deletion.
+- [x] Concurrent same-record edits converge by timestamp without stale overwrite.
+- [x] Concurrent different-record edits converge without record loss.
+- [ ] Conflicting reorders from two devices.
+- [ ] Habit completion racing against linked task completion.
+- [ ] Synchronization recovery after several failed attempts.
+- [x] Exponential backoff resets after success and does not clear pending changes.
+- [ ] Save failure while merging remote records.
+- [x] A page/response failure returns no snapshot, so no partially retrieved response is merged.
 
 Verify that newer local edits are never overwritten by stale device state and that deletes never resurrect records.
 

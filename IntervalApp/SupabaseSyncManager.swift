@@ -3,6 +3,28 @@ import SwiftUI
 import SwiftData
 import Combine
 
+@MainActor
+protocol HTTPDataTransport {
+    func data(for request: URLRequest) async throws -> (Data, URLResponse)
+}
+
+struct URLSessionTransport: HTTPDataTransport {
+    let session: URLSession
+
+    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        try await session.data(for: request)
+    }
+
+    static func production() -> URLSessionTransport {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 20
+        config.timeoutIntervalForResource = 60
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.urlCache = nil
+        return URLSessionTransport(session: URLSession(configuration: config))
+    }
+}
+
 // MARK: - Notifications
 
 extension Notification.Name {
@@ -199,6 +221,7 @@ class SupabaseSyncManager: ObservableObject {
     private var backoff = SyncBackoff()
     /// Off for test instances, which must not write to the real defaults.
     private var persistsLedger = true
+    private var persistsSessionTokens = true
     
     /// Databases created before the habit link feature have no `habit_id` column. The column
     /// is dropped from the payload if the server rejects it, so an older schema degrades to
@@ -216,16 +239,10 @@ class SupabaseSyncManager: ObservableObject {
     /// data — on a fresh install those same rows are the user's real recycle bin.
     private var legacyBinPurgeArmed = false
     
-    private lazy var session: URLSession = {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 20
-        config.timeoutIntervalForResource = 60
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        config.urlCache = nil
-        return URLSession(configuration: config)
-    }()
+    private let transport: HTTPDataTransport
     
-    private init(loadStoredSession: Bool = true) {
+    private init(loadStoredSession: Bool = true, transport: HTTPDataTransport? = nil) {
+        self.transport = transport ?? URLSessionTransport.production()
         let defaults = UserDefaults.standard
         if loadStoredSession {
             let accessMigration = SessionTokenMigration.select(
@@ -257,6 +274,7 @@ class SupabaseSyncManager: ObservableObject {
     }
 
     private func persistSecureToken(_ token: String?, account: String) {
+        guard persistsSessionTokens else { return }
         if let token {
             if !KeychainManager.shared.saveSessionToken(token, account: account) {
                 lastError = "Secure session storage failed. Please sign in again."
@@ -291,7 +309,7 @@ class SupabaseSyncManager: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["email": email, "password": password])
         
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await transport.data(for: request)
             if let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode >= 400 {
                 let err = try? JSONDecoder().decode(AuthErrorResponse.self, from: data)
                 let msg = err?.displayMessage ?? "Registration failed (\(statusCode))"
@@ -326,7 +344,7 @@ class SupabaseSyncManager: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["email": email, "password": password])
         
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await transport.data(for: request)
             if let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode >= 400 {
                 if let err = try? JSONDecoder().decode(AuthErrorResponse.self, from: data) {
                     authError = err.displayMessage
@@ -364,7 +382,7 @@ class SupabaseSyncManager: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["email": trimmedEmail])
         
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await transport.data(for: request)
             if let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode >= 400 {
                 if let err = try? JSONDecoder().decode(AuthErrorResponse.self, from: data) {
                     return (false, err.displayMessage)
@@ -458,7 +476,7 @@ class SupabaseSyncManager: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["password": newPassword])
         
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await transport.data(for: request)
             if let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode >= 400 {
                 let body = String(data: data, encoding: .utf8) ?? ""
                 if let errObj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -635,7 +653,7 @@ class SupabaseSyncManager: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["refresh_token": currentRefreshToken])
         
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await transport.data(for: request)
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
             
             if statusCode >= 400 {
@@ -679,7 +697,7 @@ class SupabaseSyncManager: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["data": data])
         
-        if let (respData, response) = try? await session.data(for: request),
+        if let (respData, response) = try? await transport.data(for: request),
            let http = response as? HTTPURLResponse {
             if http.statusCode != 200 {
                 let errStr = String(data: respData, encoding: .utf8) ?? ""
@@ -698,7 +716,7 @@ class SupabaseSyncManager: ObservableObject {
         request.setValue(supabaseKey, forHTTPHeaderField: "apikey")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
-        guard let (data, response) = try? await session.data(for: request),
+        guard let (data, response) = try? await transport.data(for: request),
               let http = response as? HTTPURLResponse, http.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let userMeta = json["user_metadata"] as? [String: Any] else {
@@ -1654,7 +1672,7 @@ class SupabaseSyncManager: ObservableObject {
         
         let sentAt = Date()
         do {
-            let (data, response) = try await session.data(for: req)
+            let (data, response) = try await transport.data(for: req)
             updateServerClock(from: response, sentAt: sentAt)
             
             if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 401, allowRetry {
@@ -1837,14 +1855,27 @@ class SupabaseSyncManager: ObservableObject {
 /// store. Nothing here performs any networking, and none of it is compiled into a release
 /// build.
 extension SupabaseSyncManager {
-    static func makeForTesting(context: ModelContext, uid: String = "test-user") -> SupabaseSyncManager {
-        let manager = SupabaseSyncManager(loadStoredSession: false)
+    static func makeForTesting(context: ModelContext,
+                               uid: String = "test-user",
+                               transport: HTTPDataTransport? = nil) -> SupabaseSyncManager {
+        let manager = SupabaseSyncManager(loadStoredSession: false, transport: transport)
         manager.persistsLedger = false
+        manager.persistsSessionTokens = false
         manager.ledger = TombstoneLedger()
         manager.modelContext = context
         manager.userId = uid
-        manager.isAuthenticated = false
+        manager.accessToken = "test-access-token"
+        manager.refreshToken = "test-refresh-token"
+        manager.accessTokenExpiry = Date.distantFuture
+        manager.isAuthenticated = transport != nil
         return manager
+    }
+
+    func testingPush() async -> Bool { await pushToSupabase() }
+
+    func testingFetchTasks() async -> [SupabaseTaskDTO]? {
+        guard let uid = userId else { return nil }
+        return await fetchAll(table: SyncTable.tasks, uid: uid)
     }
     
     var testingClockOffset: TimeInterval {
