@@ -13,6 +13,7 @@ struct TaskRowView: View {
     @Binding var focusedTaskId: String?
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
     
     @State private var text: String = ""
     @State private var isHovering: Bool = false
@@ -126,7 +127,9 @@ struct TaskRowView: View {
             }
         }
         .id(isNew ? "NEW_\(listTitle)" : task.id)
-        #if os(macOS)
+        // SwiftUI uses the same drag interaction on macOS and iPhone. On
+        // iPhone this starts after a long press; the drop delegates below
+        // preserve the same ordering rules as the Mac implementation.
         .onDrag {
             if !isNew && !text.isEmpty && task.text != text {
                 task.text = text
@@ -157,7 +160,6 @@ struct TaskRowView: View {
             )
         }
         .onDrop(of: [UTType.data, UTType.plainText, UTType.text], delegate: TaskDropDelegate(item: task, sectionFontSize: fontSize, context: modelContext))
-        #endif
     }
     
     // MARK: - Normal Row Content with Dash & Checkmark Transition
@@ -217,7 +219,7 @@ struct TaskRowView: View {
             }
             
             if localCompleted {
-                Text(task.text)
+                Text(LinkTaskText.displayText(for: task.text))
                     .font(.system(size: fontSize, weight: .light))
                     .foregroundColor(.secondary)
                     .strikethrough(true)
@@ -225,6 +227,10 @@ struct TaskRowView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                     .onTapGesture {
+                        if let url = LinkTaskText.parts(in: task.text)?.url ?? LinkTaskText.validURL(task.text) {
+                            openURL(url)
+                            return
+                        }
                         withAnimation(.easeInOut(duration: 0.2)) {
                             isExpanded.toggle()
                         }
@@ -357,13 +363,26 @@ struct TaskRowView: View {
                         let displayText = rawText.isEmpty ? (isNew ? "Add task...".localized : "") : rawText
                         let isPlaceholder = isNew && rawText.isEmpty
                         
-                        Text(displayText)
+                        Text(LinkTaskText.displayText(for: displayText))
                             .font(.system(size: fontSize, weight: .light))
-                            .foregroundColor(isPlaceholder ? .secondary.opacity(0.5) : .primary)
+                            .foregroundColor(isPlaceholder ? .secondary.opacity(0.5) : (LinkTaskText.parts(in: displayText) == nil ? .primary : .accentColor))
+                            .underline(LinkTaskText.parts(in: displayText) != nil)
                             .lineLimit(isExpanded ? nil : 1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
+                            .simultaneousGesture(
+                                TapGesture(count: 2).onEnded {
+                                    if LinkTaskText.parts(in: displayText) != nil {
+                                        focusedTaskId = myId
+                                        isExpanded = true
+                                    }
+                                }
+                            )
                             .onTapGesture {
+                                if let url = LinkTaskText.parts(in: displayText)?.url ?? LinkTaskText.validURL(displayText) {
+                                    openURL(url)
+                                    return
+                                }
                                 if isNew {
                                     focusedTaskId = myId
                                 } else {
@@ -421,6 +440,7 @@ struct TaskRowView: View {
                     task.updatedAt = Date()
                     try? modelContext.save()
                     SupabaseSyncManager.shared.push()
+                    resolveLinkTitleIfNeeded(for: task, submittedText: trimmed)
                 }
             }
         }
@@ -453,8 +473,10 @@ struct TaskRowView: View {
                     try? modelContext.save()
                     SupabaseSyncManager.shared.push()
                     text = ""
+                    resolveLinkTitleIfNeeded(for: newTask, submittedText: trimmed)
                 }
             }
+            return
         } else {
             if trimmed.isEmpty {
                 // Silent bin – clearing an empty row is housekeeping, not a deliberate deletion
@@ -464,6 +486,28 @@ struct TaskRowView: View {
                 SupabaseSyncManager.shared.push()
             } else if task.text != trimmed {
                 task.text = trimmed
+                task.updatedAt = Date()
+                try? modelContext.save()
+                SupabaseSyncManager.shared.push()
+            }
+        }
+        if !trimmed.isEmpty {
+            resolveLinkTitleIfNeeded(for: task, submittedText: trimmed)
+        }
+    }
+
+    private func resolveLinkTitleIfNeeded(for task: TaskItem, submittedText: String) {
+        let trimmed = submittedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = LinkTaskText.validURL(trimmed),
+              url.absoluteString == trimmed,
+              LinkTaskText.parts(in: trimmed) == nil else { return }
+
+        Task {
+            guard let title = await LinkTaskText.fetchTitle(for: url) else { return }
+            await MainActor.run {
+                // Do not overwrite a newer edit while the page title is loading.
+                guard task.text == trimmed else { return }
+                task.text = LinkTaskText.storedText(title: title, url: url)
                 task.updatedAt = Date()
                 try? modelContext.save()
                 SupabaseSyncManager.shared.push()
@@ -662,12 +706,9 @@ struct TaskDropDelegate: DropDelegate {
     }
     
     func dropExited(info: DropInfo) {
-        if HabitDragState.shared.draggedHabit != nil {
-            withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
-                HabitDragState.shared.targetIndex = nil
-                HabitDragState.shared.isTargetingHour = false
-            }
-        }
+        // Do not clear the shared drag state here. SwiftUI calls dropExited on the
+        // row being left before it calls dropEntered on the row being entered;
+        // clearing it in between makes the first drop attempt appear to do nothing.
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {
@@ -695,7 +736,7 @@ struct TaskDropDelegate: DropDelegate {
                     }
                 }
             }
-            return DropProposal(operation: .move)
+            return DropProposal(operation: .copy)
         }
         
         return DropProposal(operation: .move)

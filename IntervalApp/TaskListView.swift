@@ -233,12 +233,8 @@ struct TaskListHeaderDropDelegate: DropDelegate {
     }
     
     func dropExited(info: DropInfo) {
-        if HabitDragState.shared.draggedHabit != nil {
-            withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
-                HabitDragState.shared.targetIndex = nil
-                HabitDragState.shared.isTargetingHour = false
-            }
-        }
+        // Keep the drag alive while moving between the header, rows, and bottom
+        // zone. The old delegate exits before the next delegate enters.
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {
@@ -332,12 +328,8 @@ struct TaskListBottomDropDelegate: DropDelegate {
     }
     
     func dropExited(info: DropInfo) {
-        if HabitDragState.shared.draggedHabit != nil {
-            withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
-                HabitDragState.shared.targetIndex = nil
-                HabitDragState.shared.isTargetingHour = false
-            }
-        }
+        // Keep the drag alive while moving between the header, rows, and bottom
+        // zone. The old delegate exits before the next delegate enters.
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {

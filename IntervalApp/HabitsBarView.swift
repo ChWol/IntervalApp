@@ -548,14 +548,46 @@ struct HabitChipView: View {
 @MainActor
 class HabitDragState: ObservableObject {
     static let shared = HabitDragState()
-    @Published var draggedHabit: HabitItem?
+    @Published var draggedHabit: HabitItem? {
+        didSet {
+            if draggedHabit != nil {
+                startMonitoring()
+            } else {
+                stopMonitoring()
+            }
+        }
+    }
     @Published var targetIndex: Int?
     @Published var isTargetingHour: Bool = false
+    #if os(macOS)
+    private var monitor: Any?
+    #endif
     
     func reset() {
         draggedHabit = nil
         targetIndex = nil
         isTargetingHour = false
+    }
+
+    private func startMonitoring() {
+        #if os(macOS)
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
+            DispatchQueue.main.async {
+                self?.reset()
+            }
+            return event
+        }
+        #endif
+    }
+
+    private func stopMonitoring() {
+        #if os(macOS)
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
+        }
+        #endif
     }
 }
 
