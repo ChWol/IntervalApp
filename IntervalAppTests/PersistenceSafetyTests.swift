@@ -60,4 +60,23 @@ final class PersistenceSafetyTests: XCTestCase {
 
         XCTAssertEqual(events, ["save"])
     }
+
+    func testStorageFullFailureIsRecoverableAndReportedWithoutDiscardingPendingWork() {
+        let diskFull = NSError(
+            domain: NSCocoaErrorDomain,
+            code: NSFileWriteOutOfSpaceError,
+            userInfo: [NSLocalizedDescriptionKey: "The disk is full"]
+        )
+        var report = ""
+
+        let saved = PersistenceSafety.attempt(
+            operation: "Saving task",
+            save: { throw diskFull },
+            report: { report = $0 }
+        )
+
+        XCTAssertFalse(saved)
+        XCTAssertTrue(report.contains("still pending locally"))
+        XCTAssertTrue(report.localizedCaseInsensitiveContains("disk is full"))
+    }
 }

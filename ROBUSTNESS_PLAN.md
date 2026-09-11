@@ -32,11 +32,11 @@ Local section status: complete. The account-isolation invariant remains an exter
 
 Add deterministic tests that simulate:
 
-- [ ] App termination during creation, editing, completion, deletion, restore, and drag-and-drop.
-- [ ] A crash immediately before and immediately after `modelContext.save()`.
+- [x] Real on-disk reopen tests simulate termination after creation, editing, completion, soft-deletion, restore, and committed drag-and-drop.
+- [x] Termination immediately before save retains the last committed version; every tested post-save lifecycle state survives a new container.
 - [x] Save failures are reported while pending changes remain available for retry.
 - [x] A corrupted or unreadable SwiftData store enters a blocked recovery screen using an in-memory container; the original store remains untouched and the empty fallback cannot sync over remote data.
-- [ ] Device storage becoming full.
+- [x] Storage-full save errors follow the recoverable failure path, report the condition, and retain pending context work for retry.
 - [x] App backgrounding flushes active task, habit, list-title, and scratchpad drafts, retries pending storage changes, and schedules sync only after the local save succeeds.
 - [x] Relaunch after committed create, completion, soft-delete, restore, and mixed-record operations is covered with a real on-disk store reopen test.
 - [ ] Schema migration from older versions, including stores containing habits, links, deleted items, and incomplete tasks.

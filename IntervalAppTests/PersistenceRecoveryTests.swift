@@ -132,4 +132,96 @@ final class PersistenceRecoveryTests: XCTestCase {
             XCTAssertFalse(task.completed)
         }
     }
+
+    func testTerminationBeforeSaveKeepsLastCommittedVersion() throws {
+        let location = try temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: location.directory) }
+
+        do {
+            let container = try makeContainer(at: location.store)
+            let context = ModelContext(container)
+            context.autosaveEnabled = false
+            let task = TaskItem(text: "Committed", intervalType: "1 Day", order: 0)
+            task.id = "stable"
+            context.insert(task)
+            try context.save()
+        }
+
+        do {
+            let container = try makeContainer(at: location.store)
+            let context = ModelContext(container)
+            context.autosaveEnabled = false
+            let task = try XCTUnwrap(context.fetch(FetchDescriptor<TaskItem>()).first)
+            task.text = "Uncommitted edit"
+            task.completed = true
+            task.deletedAt = TestTime.now
+            // Simulate termination immediately before save by dropping this context.
+        }
+
+        do {
+            let container = try makeContainer(at: location.store)
+            let context = ModelContext(container)
+            let task = try XCTUnwrap(context.fetch(FetchDescriptor<TaskItem>()).first)
+            XCTAssertEqual(task.text, "Committed")
+            XCTAssertFalse(task.completed)
+            XCTAssertNil(task.deletedAt)
+        }
+    }
+
+    func testEachCommittedLifecycleStepSurvivesImmediateTermination() throws {
+        let location = try temporaryStoreURL()
+        defer { try? FileManager.default.removeItem(at: location.directory) }
+
+        do {
+            let container = try makeContainer(at: location.store)
+            let context = ModelContext(container)
+            let task = TaskItem(text: "Created", intervalType: "1 Day", order: 0)
+            task.id = "lifecycle"
+            context.insert(task)
+            try context.save()
+        }
+        do {
+            let container = try makeContainer(at: location.store)
+            let context = ModelContext(container)
+            let task = try XCTUnwrap(context.fetch(FetchDescriptor<TaskItem>()).first)
+            task.text = "Edited"
+            task.completed = true
+            task.completedAt = TestTime.now
+            task.updatedAt = TestTime.now
+            try context.save()
+        }
+        do {
+            let container = try makeContainer(at: location.store)
+            let context = ModelContext(container)
+            let task = try XCTUnwrap(context.fetch(FetchDescriptor<TaskItem>()).first)
+            XCTAssertEqual(task.text, "Edited")
+            XCTAssertTrue(task.completed)
+            TaskHousekeeping.moveToBin(task, in: context, now: TestTime.offset(10))
+        }
+        do {
+            let container = try makeContainer(at: location.store)
+            let context = ModelContext(container)
+            let task = try XCTUnwrap(context.fetch(FetchDescriptor<TaskItem>()).first)
+            XCTAssertEqual(task.deletedAt, TestTime.offset(10))
+            TaskHousekeeping.restore(task, in: context, now: TestTime.offset(20))
+        }
+        do {
+            let container = try makeContainer(at: location.store)
+            let context = ModelContext(container)
+            let task = try XCTUnwrap(context.fetch(FetchDescriptor<TaskItem>()).first)
+            XCTAssertEqual(task.text, "Edited")
+            XCTAssertFalse(task.completed)
+            XCTAssertNil(task.deletedAt)
+            XCTAssertTrue(TaskDragMutation.commit(task, to: "1 Hour", index: 0, context: context, now: TestTime.offset(30)))
+            try context.save()
+        }
+        do {
+            let container = try makeContainer(at: location.store)
+            let context = ModelContext(container)
+            let task = try XCTUnwrap(context.fetch(FetchDescriptor<TaskItem>()).first)
+            XCTAssertEqual(task.id, "lifecycle")
+            XCTAssertEqual(task.text, "Edited")
+            XCTAssertEqual(task.intervalType, "1 Hour")
+        }
+    }
 }
