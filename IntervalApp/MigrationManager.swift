@@ -410,7 +410,7 @@ class MigrationManager: ObservableObject {
             }
         }
         
-        try? context.save()
+        _ = PersistenceSafety.save(context)
         SupabaseSyncManager.shared.push()
         
         let completedMigration = currentMigration
@@ -484,7 +484,7 @@ class MigrationManager: ObservableObject {
         }
         
         if didModify {
-            try? context.save()
+            _ = PersistenceSafety.save(context)
             SupabaseSyncManager.shared.push()
         }
     }
@@ -500,7 +500,7 @@ class MigrationManager: ObservableObject {
             didClean = true
         }
         if didClean {
-            try? context.save()
+            _ = PersistenceSafety.save(context)
             SupabaseSyncManager.shared.push()
         }
     }

@@ -145,7 +145,7 @@ public struct WatchTaskRow: View {
             }
         }
 
-        try? modelContext.save()
+        _ = PersistenceSafety.save(modelContext)
         SupabaseSyncManager.shared.push()
     }
 }
@@ -272,7 +272,7 @@ public struct WatchHabitRow: View {
             }
         }
 
-        try? modelContext.save()
+        _ = PersistenceSafety.save(modelContext)
         SupabaseSyncManager.shared.push()
     }
 }

@@ -40,7 +40,7 @@ enum TaskHousekeeping {
         SoundManager.playTaskDeleted()
         task.deletedAt = now
         task.updatedAt = now
-        try? context.save()
+        _ = PersistenceSafety.save(context)
         (sync ?? SupabaseSyncManager.shared).push()
     }
     
@@ -59,7 +59,7 @@ enum TaskHousekeeping {
            let habits = try? context.fetch(FetchDescriptor<HabitItem>()) {
             HabitTaskLink.applyTaskCompletionToHabit(task, habits: habits, now: now)
         }
-        try? context.save()
+        _ = PersistenceSafety.save(context)
         (sync ?? SupabaseSyncManager.shared).push()
     }
     
@@ -75,7 +75,7 @@ enum TaskHousekeeping {
         for task in tasks {
             context.delete(task)
         }
-        try? context.save()
+        _ = PersistenceSafety.save(context)
     }
 }
 

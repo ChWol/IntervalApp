@@ -24,6 +24,21 @@ final class DataLossPreventionTests: XCTestCase {
     }
     
     // MARK: - 1. Migration Non-Selected Tasks Must NOT Be Deleted
+
+    func testAuthenticatedLogoutCannotFinalizeAfterFailedSync() {
+        XCTAssertFalse(
+            SignOutSafetyPolicy.canFinalize(isAuthenticated: true, syncSucceeded: false),
+            "CRITICAL: failed sync must keep the authenticated session and local recovery state"
+        )
+    }
+
+    func testAuthenticatedLogoutCanFinalizeAfterSuccessfulSync() {
+        XCTAssertTrue(SignOutSafetyPolicy.canFinalize(isAuthenticated: true, syncSucceeded: true))
+    }
+
+    func testUnauthenticatedLocalResetDoesNotRequireRemoteSync() {
+        XCTAssertTrue(SignOutSafetyPolicy.canFinalize(isAuthenticated: false, syncSucceeded: false))
+    }
     
     func testDayToHourMigrationPreservesUnselectedTasksInSourceInterval() throws {
         let selected = store.addTask("Selected for Hour", interval: "1 Day", order: 0, id: "task-1")

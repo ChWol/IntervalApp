@@ -471,7 +471,7 @@ class SupabaseSyncManager: ObservableObject {
         
         // 2. Save any in-flight context state to disk
         if let ctx = modelContext {
-            try? ctx.save()
+            _ = PersistenceSafety.save(ctx)
         }
         
         // 3. Flush any pending unsynced changes to Supabase before purging local data
@@ -481,15 +481,21 @@ class SupabaseSyncManager: ObservableObject {
             _ = await flushTombstones()
         }
         
-        // 4. Safely wipe local store and clear authentication state
-        // Only purge local data if push succeeded or user is not authenticated.
-        // If push failed, local data is preserved so the user doesn't lose unsynced work.
-        if pushSucceeded || !isAuthenticated {
-            if let ctx = modelContext {
-                purgeLocalStore(context: ctx)
-            } else {
-                pendingLocalPurge = true
-            }
+        // 4. Do not finish logout if any pending data failed to reach the server.
+        // Retaining the session also retains the tombstone ledger and gives the
+        // user a safe path to retry instead of losing the preserved rows at login.
+        guard SignOutSafetyPolicy.canFinalize(
+            isAuthenticated: isAuthenticated,
+            syncSucceeded: pushSucceeded
+        ) else {
+            lastError = "Couldn't sign out because some changes are not synced yet. Please try again when connected."
+            return
+        }
+
+        if let ctx = modelContext {
+            purgeLocalStore(context: ctx)
+        } else {
+            pendingLocalPurge = true
         }
         accessToken = nil
         refreshToken = nil
@@ -853,6 +859,9 @@ class SupabaseSyncManager: ObservableObject {
                         item.syncedAt = stamps[index]
                     }
                 }
+            } else {
+                succeeded = false
+                break
             }
         }
         
@@ -867,6 +876,9 @@ class SupabaseSyncManager: ObservableObject {
                         item.syncedAt = stamps[index]
                     }
                 }
+            } else {
+                succeeded = false
+                break
             }
         }
         

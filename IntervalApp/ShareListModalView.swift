@@ -428,7 +428,7 @@ struct ShareListModalView: View {
                         }
                     }
                     modelContext.delete(list)
-                    try? modelContext.save()
+                    _ = PersistenceSafety.save(modelContext)
                     closeModal()
                 } else {
                     self.errorMessage = "Failed to leave list".localized

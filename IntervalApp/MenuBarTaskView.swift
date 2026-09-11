@@ -158,7 +158,7 @@ struct MenuBarTaskView: View {
                 SoundManager.playUndo()
             }
             task.updatedAt = Date()
-            try? modelContext.save()
+            _ = PersistenceSafety.save(modelContext)
             SupabaseSyncManager.shared.push()
         }
     }
@@ -173,7 +173,7 @@ struct MenuBarTaskView: View {
             let maxOrder = (sorted.last?.order ?? -1) + 1
             let newTask = TaskItem(text: trimmed, intervalType: "1 Hour", order: maxOrder)
             modelContext.insert(newTask)
-            try? modelContext.save()
+            _ = PersistenceSafety.save(modelContext)
             SupabaseSyncManager.shared.push()
             newTaskText = ""
         }

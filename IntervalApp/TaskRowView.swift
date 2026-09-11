@@ -185,7 +185,7 @@ struct TaskRowView: View {
                                let habits = try? modelContext.fetch(FetchDescriptor<HabitItem>()) {
                                 HabitTaskLink.applyTaskCompletionToHabit(task, habits: habits, now: now)
                             }
-                            try? modelContext.save()
+                            _ = PersistenceSafety.save(modelContext)
                             SupabaseSyncManager.shared.push()
                         }
                     }
@@ -267,7 +267,7 @@ struct TaskRowView: View {
                                             let nextTask = TaskItem(text: "", intervalType: listTitle, order: newTask.order + 1)
                                             modelContext.insert(nextTask)
                                             
-                                            try? modelContext.save()
+                                            _ = PersistenceSafety.save(modelContext)
                                             SupabaseSyncManager.shared.push()
                                             
                                             text = ""
@@ -282,7 +282,7 @@ struct TaskRowView: View {
                                         // Silent bin – empty row submission must NOT play delete sound
                                         task.deletedAt = Date()
                                         task.updatedAt = Date()
-                                        try? modelContext.save()
+                                        _ = PersistenceSafety.save(modelContext)
                                         SupabaseSyncManager.shared.push()
                                     } else {
                                         task.text = trimmed
@@ -310,7 +310,7 @@ struct TaskRowView: View {
                                                 t.updatedAt = now
                                             }
                                             
-                                            try? modelContext.save()
+                                            _ = PersistenceSafety.save(modelContext)
                                             SupabaseSyncManager.shared.push()
                                             
                                             DispatchQueue.main.async {
@@ -332,7 +332,7 @@ struct TaskRowView: View {
                                     // Silent bin – empty row deletion by backspace/delete must NOT play delete sound
                                     task.deletedAt = Date()
                                     task.updatedAt = Date()
-                                    try? modelContext.save()
+                                    _ = PersistenceSafety.save(modelContext)
                                     SupabaseSyncManager.shared.push()
                                 }
                             },
@@ -438,7 +438,7 @@ struct TaskRowView: View {
                 if !trimmed.isEmpty {
                     task.text = trimmed
                     task.updatedAt = Date()
-                    try? modelContext.save()
+                    _ = PersistenceSafety.save(modelContext)
                     SupabaseSyncManager.shared.push()
                     resolveLinkTitleIfNeeded(for: task, submittedText: trimmed)
                 }
@@ -455,7 +455,7 @@ struct TaskRowView: View {
             if !isNew && newText != task.text {
                 task.text = newText
                 task.updatedAt = Date()
-                try? modelContext.save()
+                _ = PersistenceSafety.save(modelContext)
                 SupabaseSyncManager.shared.pushDebounced()
             }
         }
@@ -470,7 +470,7 @@ struct TaskRowView: View {
                     let sorted = all.filter { $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
                     let newTask = TaskItem(text: trimmed, intervalType: listTitle, order: (sorted.last?.order ?? -1) + 1)
                     modelContext.insert(newTask)
-                    try? modelContext.save()
+                    _ = PersistenceSafety.save(modelContext)
                     SupabaseSyncManager.shared.push()
                     text = ""
                     resolveLinkTitleIfNeeded(for: newTask, submittedText: trimmed)
@@ -482,12 +482,12 @@ struct TaskRowView: View {
                 // Silent bin – clearing an empty row is housekeeping, not a deliberate deletion
                 task.deletedAt = Date()
                 task.updatedAt = Date()
-                try? modelContext.save()
+                _ = PersistenceSafety.save(modelContext)
                 SupabaseSyncManager.shared.push()
             } else if task.text != trimmed {
                 task.text = trimmed
                 task.updatedAt = Date()
-                try? modelContext.save()
+                _ = PersistenceSafety.save(modelContext)
                 SupabaseSyncManager.shared.push()
             }
         }
@@ -509,7 +509,7 @@ struct TaskRowView: View {
                 guard task.text == trimmed else { return }
                 task.text = LinkTaskText.storedText(title: title, url: url)
                 task.updatedAt = Date()
-                try? modelContext.save()
+                _ = PersistenceSafety.save(modelContext)
                 SupabaseSyncManager.shared.push()
             }
         }
@@ -544,7 +544,7 @@ struct TaskRowView: View {
             let trailingNewTask = TaskItem(text: "", intervalType: listTitle, order: nextOrder)
             modelContext.insert(trailingNewTask)
             
-            try? modelContext.save()
+            _ = PersistenceSafety.save(modelContext)
             SupabaseSyncManager.shared.push()
             
             text = ""
@@ -575,7 +575,7 @@ struct TaskRowView: View {
                 nextOrder += 1
             }
             
-            try? modelContext.save()
+            _ = PersistenceSafety.save(modelContext)
             SupabaseSyncManager.shared.push()
             
             if let lastId = lastCreatedTask?.id {
@@ -774,7 +774,7 @@ struct TaskDropDelegate: DropDelegate {
         if let draggedItem = DragState.shared.draggedTask {
             draggedItem.updatedAt = Date()
         }
-        try? context.save()
+        _ = PersistenceSafety.save(context)
         SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
             DragState.shared.reset()

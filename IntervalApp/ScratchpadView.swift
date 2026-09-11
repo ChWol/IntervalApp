@@ -525,7 +525,7 @@ struct ScratchpadView: View {
         let maxOrder = (activeLists.map { $0.order }.max() ?? -1) + 1
         let newList = ScratchpadList(title: trimmed, order: maxOrder, ownerId: SupabaseSyncManager.shared.userId, ownerEmail: SupabaseSyncManager.shared.userEmail)
         modelContext.insert(newList)
-        try? modelContext.save()
+        _ = PersistenceSafety.save(modelContext)
         SupabaseSyncManager.shared.push()
         withAnimation {
             isCreatingList = false
@@ -538,7 +538,7 @@ struct ScratchpadView: View {
         if !trimmed.isEmpty {
             list.title = trimmed
             list.updatedAt = Date()
-            try? modelContext.save()
+            _ = PersistenceSafety.save(modelContext)
             SupabaseSyncManager.shared.push()
         }
         editingListTitleId = nil
@@ -551,7 +551,7 @@ struct ScratchpadView: View {
             item.deletedAt = Date()
             item.updatedAt = Date()
         }
-        try? modelContext.save()
+        _ = PersistenceSafety.save(modelContext)
         SupabaseSyncManager.shared.push()
         if selectedListId == list.id {
             selectedListId = activeLists.first(where: { $0.id != list.id })?.id
@@ -563,7 +563,7 @@ struct ScratchpadView: View {
         let maxOrder = (openItems.map { $0.order }.max() ?? -1) + 1
         let newItem = ScratchpadItem(listId: currentList.id, text: "", order: maxOrder)
         modelContext.insert(newItem)
-        try? modelContext.save()
+        _ = PersistenceSafety.save(modelContext)
         SupabaseSyncManager.shared.push()
         DispatchQueue.main.async {
             focusedTaskId = newItem.id
@@ -577,7 +577,7 @@ struct ScratchpadView: View {
                 item.deletedAt = now
                 item.updatedAt = now
             }
-            try? modelContext.save()
+            _ = PersistenceSafety.save(modelContext)
             SupabaseSyncManager.shared.push()
         }
     }
@@ -793,7 +793,7 @@ struct ScratchpadItemRowView: View {
             if !isNew && newText != item.text {
                 item.text = newText
                 item.updatedAt = Date()
-                try? modelContext.save()
+                _ = PersistenceSafety.save(modelContext)
                 SupabaseSyncManager.shared.pushDebounced()
             }
         }
@@ -997,7 +997,7 @@ struct ScratchpadItemRowView: View {
             scratchItem.deletedAt = now
             scratchItem.updatedAt = now
         }
-        try? modelContext.save()
+        _ = PersistenceSafety.save(modelContext)
         SupabaseSyncManager.shared.push()
         selectedItemIds.removeAll()
     }
@@ -1022,7 +1022,7 @@ struct ScratchpadItemRowView: View {
             scratchItem.updatedAt = now
             maxOrder += 1
         }
-        try? modelContext.save()
+        _ = PersistenceSafety.save(modelContext)
         SupabaseSyncManager.shared.push()
         selectedItemIds.removeAll()
     }
@@ -1041,7 +1041,7 @@ struct ScratchpadItemRowView: View {
             item.completed.toggle()
             item.completedAt = item.completed ? Date() : nil
             item.updatedAt = Date()
-            try? modelContext.save()
+            _ = PersistenceSafety.save(modelContext)
             SupabaseSyncManager.shared.push()
         }
     }
@@ -1055,7 +1055,7 @@ struct ScratchpadItemRowView: View {
                     let sorted = all.filter { $0.listId == listId && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
                     let newItem = ScratchpadItem(listId: listId, text: trimmed, order: (sorted.last?.order ?? -1) + 1)
                     modelContext.insert(newItem)
-                    try? modelContext.save()
+                    _ = PersistenceSafety.save(modelContext)
                     SupabaseSyncManager.shared.push()
                     text = ""
                 }
@@ -1066,7 +1066,7 @@ struct ScratchpadItemRowView: View {
             } else if item.text != trimmed {
                 item.text = trimmed
                 item.updatedAt = Date()
-                try? modelContext.save()
+                _ = PersistenceSafety.save(modelContext)
                 SupabaseSyncManager.shared.push()
             }
         }
@@ -1092,7 +1092,7 @@ struct ScratchpadItemRowView: View {
             it.deletedAt = now
             it.updatedAt = now
         }
-        try? modelContext.save()
+        _ = PersistenceSafety.save(modelContext)
         SupabaseSyncManager.shared.push()
         selectedItemIds.removeAll()
     }
@@ -1109,7 +1109,7 @@ struct ScratchpadItemRowView: View {
 
                     let nextItem = ScratchpadItem(listId: listId, text: "", order: newItem.order + 1)
                     modelContext.insert(nextItem)
-                    try? modelContext.save()
+                    _ = PersistenceSafety.save(modelContext)
                     SupabaseSyncManager.shared.push()
                     text = ""
                     DispatchQueue.main.async {
@@ -1145,7 +1145,7 @@ struct ScratchpadItemRowView: View {
                         it.order = i
                         it.updatedAt = now
                     }
-                    try? modelContext.save()
+                    _ = PersistenceSafety.save(modelContext)
                     SupabaseSyncManager.shared.push()
                     DispatchQueue.main.async {
                         focusedTaskId = newItem.id
@@ -1184,7 +1184,7 @@ struct ScratchpadItemRowView: View {
             let trailingNewItem = ScratchpadItem(listId: listId, text: "", order: nextOrder)
             modelContext.insert(trailingNewItem)
 
-            try? modelContext.save()
+            _ = PersistenceSafety.save(modelContext)
             SupabaseSyncManager.shared.push()
 
             text = ""
@@ -1215,7 +1215,7 @@ struct ScratchpadItemRowView: View {
                 nextOrder += 1
             }
 
-            try? modelContext.save()
+            _ = PersistenceSafety.save(modelContext)
             SupabaseSyncManager.shared.push()
 
             if let lastId = lastCreatedItem?.id {
@@ -1299,7 +1299,7 @@ struct ScratchpadItemDropDelegate: DropDelegate {
         if let draggedItem = ScratchpadDragState.shared.draggedItem {
             draggedItem.updatedAt = Date()
         }
-        try? context.save()
+        _ = PersistenceSafety.save(context)
         SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
             ScratchpadDragState.shared.draggedItem = nil
@@ -1341,7 +1341,7 @@ struct ScratchpadListDropDelegate: DropDelegate {
         if let draggedList = ScratchpadDragState.shared.draggedList {
             draggedList.updatedAt = Date()
         }
-        try? context.save()
+        _ = PersistenceSafety.save(context)
         SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
             ScratchpadDragState.shared.draggedList = nil

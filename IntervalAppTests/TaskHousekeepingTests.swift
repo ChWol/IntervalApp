@@ -36,6 +36,33 @@ final class TaskHousekeepingTests: XCTestCase {
         XCTAssertEqual(task.deletedAt, now)
         XCTAssertEqual(task.updatedAt, now)
     }
+
+    func testCompletionAndSoftDeletePreserveTaskIdentityAndContent() throws {
+        let task = store.addTask("A thought worth keeping", interval: "1 Month", order: 7, habitId: "habit-1", id: "task-1")
+
+        HabitTaskLink.setTaskCompleted(true, on: task, now: now)
+        TaskHousekeeping.moveToBin(task, in: store.context, now: now)
+
+        let persisted = try XCTUnwrap(store.tasks().first { $0.id == "task-1" })
+        XCTAssertEqual(persisted.text, "A thought worth keeping")
+        XCTAssertEqual(persisted.intervalType, "1 Month")
+        XCTAssertEqual(persisted.order, 7)
+        XCTAssertEqual(persisted.habitId, "habit-1")
+        XCTAssertTrue(persisted.completed)
+        XCTAssertEqual(persisted.completedAt, now)
+        XCTAssertEqual(persisted.deletedAt, now)
+    }
+
+    func testRetentionBoundaryDoesNotExpireTaskEarly() {
+        let atBoundary = store.addTask(
+            "Still retained",
+            completed: true,
+            id: "boundary",
+            completedAt: now.addingTimeInterval(-TestTime.days(30))
+        )
+
+        XCTAssertFalse(TaskHousekeeping.expired(from: [atBoundary], now: now).contains { $0.id == atBoundary.id })
+    }
     
     func testRestoreClearsBinAndCompletionAndUnticksLinkedHabit() throws {
         let habit = store.addHabit("Meditate", streak: 4, lastCompletedDate: now, id: "h1")

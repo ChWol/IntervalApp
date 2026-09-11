@@ -131,7 +131,7 @@ struct TaskListView: View {
             let maxOrder = (sorted.last?.order ?? -1) + 1
             let newTask = TaskItem(text: "", intervalType: title, order: maxOrder)
             modelContext.insert(newTask)
-            try? modelContext.save()
+            _ = PersistenceSafety.save(modelContext)
             SupabaseSyncManager.shared.push()
             DispatchQueue.main.async {
                 focusedTaskId = newTask.id
@@ -176,7 +176,7 @@ func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listT
         t.order = i
     }
     
-    try? context.save()
+    _ = PersistenceSafety.save(context)
     SupabaseSyncManager.shared.push()
 }
 
@@ -274,7 +274,7 @@ struct TaskListHeaderDropDelegate: DropDelegate {
         if let draggedItem = DragState.shared.draggedTask {
             draggedItem.updatedAt = Date()
         }
-        try? context.save()
+        _ = PersistenceSafety.save(context)
         SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
             DragState.shared.reset()
@@ -372,7 +372,7 @@ struct TaskListBottomDropDelegate: DropDelegate {
         if let draggedItem = DragState.shared.draggedTask {
             draggedItem.updatedAt = Date()
         }
-        try? context.save()
+        _ = PersistenceSafety.save(context)
         SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
             DragState.shared.reset()

@@ -544,7 +544,7 @@ public final class ImportManager: Sendable {
             }
         }
         
-        try? context.save()
+        _ = PersistenceSafety.save(context)
         SoundManager.playTransitionChime()
         SupabaseSyncManager.shared.push()
     }

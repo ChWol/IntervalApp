@@ -1,5 +1,14 @@
 import Foundation
 
+/// A signed-in session may only be torn down after all pending data reached the
+/// server. Keeping the session alive on failure preserves both local rows and
+/// the tombstone ledger needed to finish deletes safely on the next retry.
+enum SignOutSafetyPolicy {
+    static func canFinalize(isAuthenticated: Bool, syncSucceeded: Bool) -> Bool {
+        !isAuthenticated || syncSucceeded
+    }
+}
+
 // The decision-making parts of syncing, kept free of networking and of SwiftData so that
 // every rule can be exercised directly by the unit tests.
 

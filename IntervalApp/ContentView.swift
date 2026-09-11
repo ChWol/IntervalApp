@@ -56,7 +56,6 @@ struct ContentView: View {
                         .onAppear {
                             syncManager.start(context: modelContext)
                             migrationManager.startMonitoring(context: modelContext)
-                            cleanupOldTasks()
                         }
                         .onChange(of: syncManager.isAuthenticated) { _, authenticated in
                             if authenticated {
@@ -96,6 +95,10 @@ struct ContentView: View {
             withAnimation(.easeInOut(duration: 0.2)) {
                 showUpdatePasswordModal = true
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .persistenceSaveFailed)) { notification in
+            syncManager.lastError = notification.userInfo?["message"] as? String
+                ?? "Saving changes failed. Your changes are still pending locally."
         }
     }
     
@@ -437,7 +440,7 @@ struct ContentView: View {
                             modelContext.insert(newTask)
                             maxOrder += 1
                         }
-                        try? modelContext.save()
+                        _ = PersistenceSafety.save(modelContext)
                         SupabaseSyncManager.shared.push()
                         migrationManager.currentMigration = nil
                     },
@@ -706,10 +709,6 @@ struct ContentView: View {
     
     private func clearDeletedTasks() {
         TaskHousekeeping.deletePermanently(TaskHousekeeping.binned(from: allTasks), in: modelContext)
-    }
-    
-    private func cleanupOldTasks() {
-        TaskHousekeeping.deletePermanently(TaskHousekeeping.expired(from: allTasks), in: modelContext)
     }
     
     private func handleFocusNavigation(from currentId: String, direction: String) {

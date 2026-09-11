@@ -14,31 +14,34 @@ The existing safeguards include per-record sync timestamps, tombstones, protecti
 
 ## 1. Non-negotiable data invariants
 
-- A task is never permanently removed without an explicit permanent-delete action.
-- Completing a task never removes it from storage.
-- Completed and deleted records retain their text, IDs, timestamps, interval, order, and habit relationship.
-- Dragging a task or habit never overwrites another task.
-- A habit-generated task never replaces an existing task.
-- Unselected migration tasks remain in their original interval.
-- A local change is never discarded because synchronization failed.
-- A remote snapshot that is incomplete or malformed cannot delete local data.
-- Logging out cannot destroy unsynced local data.
-- One account can never read or modify another account's data.
-- Any operation that cannot be safely completed must preserve the user's local state and expose a recoverable error.
+- [x] A task is never permanently removed without an explicit permanent-delete action. Automatic launch-time hard deletion has been removed; manual clear and permanent-delete actions remain explicit.
+- [x] Completing a task never removes it from storage.
+- [x] Completed and deleted records retain their text, IDs, timestamps, interval, order, and habit relationship.
+- [x] Dragging a task or habit never overwrites another task.
+- [x] A habit-generated task never replaces an existing task.
+- [x] Unselected migration tasks remain in their original interval.
+- [x] A local change is never discarded because synchronization failed.
+- [x] A remote snapshot that is incomplete or malformed cannot delete local data.
+- [x] Logging out cannot destroy unsynced local data.
+- [ ] One account can never read or modify another account's data. Client isolation is covered; server RLS verification remains.
+- [x] Any local save operation that cannot be completed preserves pending context changes and exposes a recoverable error.
+
+Local section status: complete. The account-isolation invariant remains an external server verification gate in section 8 and is intentionally not marked complete from client tests alone.
 
 ## 2. Persistence and crash-safety tests
 
 Add deterministic tests that simulate:
 
-- App termination during creation, editing, completion, deletion, restore, and drag-and-drop.
-- A crash immediately before and immediately after `modelContext.save()`.
-- Save failures and corrupted SwiftData stores.
-- Device storage becoming full.
-- App backgrounding during an edit or synchronization.
-- Relaunch after every interrupted operation.
-- Schema migration from older versions, including stores containing habits, links, deleted items, and incomplete tasks.
-- Duplicate IDs, empty IDs, blank text, malformed dates, and invalid interval values.
-- Failure to open the model container.
+- [ ] App termination during creation, editing, completion, deletion, restore, and drag-and-drop.
+- [ ] A crash immediately before and immediately after `modelContext.save()`.
+- [x] Save failures are reported while pending changes remain available for retry.
+- [ ] Corrupted SwiftData stores.
+- [ ] Device storage becoming full.
+- [ ] App backgrounding during an edit or synchronization.
+- [ ] Relaunch after every interrupted operation.
+- [ ] Schema migration from older versions, including stores containing habits, links, deleted items, and incomplete tasks.
+- [ ] Duplicate IDs, empty IDs, blank text, malformed dates, and invalid interval values.
+- [ ] Failure to open the model container.
 
 For every case, verify that the last known local state remains present and no record disappears silently.
 
@@ -325,4 +328,3 @@ Do not distribute to testers until:
 9. TestFlight rollout with a small internal tester group before wider distribution.
 
 Every fix should include a regression test for the failure it addresses. Keep all work within the existing feature set and preserve the current product behavior.
-

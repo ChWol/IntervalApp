@@ -396,7 +396,7 @@ struct HabitsBarView: View {
         let maxOrder = (habits.map { $0.order }.max() ?? -1) + 1
         let newHabit = HabitItem(text: trimmed, frequency: selectedFrequency, order: maxOrder)
         modelContext.insert(newHabit)
-        try? modelContext.save()
+        _ = PersistenceSafety.save(modelContext)
         SupabaseSyncManager.shared.push()
         withAnimation {
             isAdding = false
@@ -499,7 +499,7 @@ struct HabitChipView: View {
     private func togglePostpone() {
         withAnimation(.easeInOut(duration: 0.2)) {
             habit.togglePostponeForToday()
-            try? modelContext.save()
+            _ = PersistenceSafety.save(modelContext)
             SupabaseSyncManager.shared.push()
         }
     }
@@ -522,7 +522,7 @@ struct HabitChipView: View {
             if let tasks = try? modelContext.fetch(FetchDescriptor<TaskItem>()) {
                 HabitTaskLink.applyHabitCompletionToTasks(habit, tasks: tasks, now: now)
             }
-            try? modelContext.save()
+            _ = PersistenceSafety.save(modelContext)
             SupabaseSyncManager.shared.push()
         }
     }
@@ -537,7 +537,7 @@ struct HabitChipView: View {
             if let tasks = try? modelContext.fetch(FetchDescriptor<TaskItem>()) {
                 _ = HabitTaskLink.binLinkedHourTasks(for: habit, tasks: tasks, now: now)
             }
-            try? modelContext.save()
+            _ = PersistenceSafety.save(modelContext)
             SupabaseSyncManager.shared.push()
         }
     }
@@ -630,7 +630,7 @@ struct HabitDropDelegate: DropDelegate {
         if let draggedItem = HabitDragState.shared.draggedHabit {
             draggedItem.updatedAt = Date()
         }
-        try? context.save()
+        _ = PersistenceSafety.save(context)
         SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
             HabitDragState.shared.draggedHabit = nil
