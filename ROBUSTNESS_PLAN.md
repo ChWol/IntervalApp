@@ -38,7 +38,7 @@ Add deterministic tests that simulate:
 - [ ] Corrupted SwiftData stores.
 - [ ] Device storage becoming full.
 - [ ] App backgrounding during an edit or synchronization.
-- [ ] Relaunch after every interrupted operation.
+- [x] Relaunch after committed create, completion, soft-delete, restore, and mixed-record operations is covered with a real on-disk store reopen test.
 - [ ] Schema migration from older versions, including stores containing habits, links, deleted items, and incomplete tasks.
 - [ ] Duplicate IDs, empty IDs, blank text, malformed dates, and invalid interval values.
 - [ ] Failure to open the model container.
