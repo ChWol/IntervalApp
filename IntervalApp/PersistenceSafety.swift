@@ -3,6 +3,7 @@ import SwiftData
 
 extension Notification.Name {
     static let persistenceSaveFailed = Notification.Name("persistenceSaveFailed")
+    static let flushPendingEdits = Notification.Name("flushPendingEdits")
 }
 
 /// One save path for user-authored data. A failed save leaves the context's
@@ -32,6 +33,17 @@ enum PersistenceSafety {
         } catch {
             report("\(operation) failed. Your changes are still pending locally. \(error.localizedDescription)")
             return false
+        }
+    }
+
+    /// A background transition must never advertise changes for upload unless
+    /// the final local save succeeded. Failed saves remain pending for retry.
+    static func prepareForBackground(
+        save: () -> Bool,
+        scheduleSync: () -> Void
+    ) {
+        if save() {
+            scheduleSync()
         }
     }
 }

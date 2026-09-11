@@ -406,6 +406,15 @@ struct ScratchpadView: View {
 
             Spacer(minLength: 20)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .flushPendingEdits)) { _ in
+            if let id = editingListTitleId,
+               let list = activeLists.first(where: { $0.id == id }) {
+                finishEditingListTitle(list)
+            }
+            if isCreatingList {
+                createList()
+            }
+        }
         .frame(maxWidth: .infinity, minHeight: 600, alignment: .topLeading)
         .contentShape(Rectangle())
         .onTapGesture {
@@ -808,6 +817,11 @@ struct ScratchpadItemRowView: View {
                         isExpanded = false
                     }
                 }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .flushPendingEdits)) { _ in
+            if focusedTaskId == myId {
+                saveItem()
             }
         }
         .onChange(of: showTransferPopover) { _, isShowing in

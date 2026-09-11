@@ -32,4 +32,32 @@ final class PersistenceSafetyTests: XCTestCase {
         XCTAssertTrue(reports[0].contains("still pending locally"))
         XCTAssertTrue(reports[0].contains("disk unavailable"))
     }
+
+    func testBackgroundTransitionSchedulesSyncAfterSuccessfulSave() {
+        var events: [String] = []
+
+        PersistenceSafety.prepareForBackground(
+            save: {
+                events.append("save")
+                return true
+            },
+            scheduleSync: { events.append("sync") }
+        )
+
+        XCTAssertEqual(events, ["save", "sync"])
+    }
+
+    func testBackgroundTransitionDoesNotSyncAfterFailedSave() {
+        var events: [String] = []
+
+        PersistenceSafety.prepareForBackground(
+            save: {
+                events.append("save")
+                return false
+            },
+            scheduleSync: { events.append("sync") }
+        )
+
+        XCTAssertEqual(events, ["save"])
+    }
 }

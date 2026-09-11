@@ -37,7 +37,7 @@ Add deterministic tests that simulate:
 - [x] Save failures are reported while pending changes remain available for retry.
 - [ ] Corrupted SwiftData stores.
 - [ ] Device storage becoming full.
-- [ ] App backgrounding during an edit or synchronization.
+- [x] App backgrounding flushes active task, habit, list-title, and scratchpad drafts, retries pending storage changes, and schedules sync only after the local save succeeds.
 - [x] Relaunch after committed create, completion, soft-delete, restore, and mixed-record operations is covered with a real on-disk store reopen test.
 - [ ] Schema migration from older versions, including stores containing habits, links, deleted items, and incomplete tasks.
 - [ ] Duplicate IDs, empty IDs, blank text, malformed dates, and invalid interval values.

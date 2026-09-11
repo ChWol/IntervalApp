@@ -71,6 +71,18 @@ struct ContentView: View {
                                     await syncManager.triggerManualSync()
                                     migrationManager.checkMigrations()
                                 }
+                            } else {
+                                // Commit view-local drafts before iOS/macOS can suspend or
+                                // terminate the process. Receivers run synchronously; saving
+                                // on the next run-loop turn includes their model changes.
+                                NotificationCenter.default.post(name: .flushPendingEdits, object: nil)
+                                focusedTaskId = nil
+                                DispatchQueue.main.async {
+                                    PersistenceSafety.prepareForBackground(
+                                        save: { PersistenceSafety.save(modelContext, operation: "Saving before backgrounding") },
+                                        scheduleSync: { syncManager.push() }
+                                    )
+                                }
                             }
                         }
                 } else {

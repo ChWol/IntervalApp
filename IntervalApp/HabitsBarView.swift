@@ -384,6 +384,11 @@ struct HabitsBarView: View {
                 .frame(width: 0, height: 0)
                 .opacity(0)
         )
+        .onReceive(NotificationCenter.default.publisher(for: .flushPendingEdits)) { _ in
+            if isAdding {
+                createHabit()
+            }
+        }
     }
     
     private func createHabit() {

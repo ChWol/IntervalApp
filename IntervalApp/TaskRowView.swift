@@ -126,6 +126,12 @@ struct TaskRowView: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .flushPendingEdits)) { _ in
+            let myId = isNew ? "NEW_\(listTitle)" : task.id
+            if focusedTaskId == myId {
+                saveTask()
+            }
+        }
         .id(isNew ? "NEW_\(listTitle)" : task.id)
         // SwiftUI uses the same drag interaction on macOS and iPhone. On
         // iPhone this starts after a long press; the drop delegates below
