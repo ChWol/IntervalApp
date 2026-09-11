@@ -895,6 +895,7 @@ class SupabaseSyncManager: ObservableObject {
     /// Local housekeeping performed before every push: duplicate ids are collapsed, abandoned
     /// blank rows are removed, and blank editing placeholders are held back from the server.
     private func pushableTasks(context: ModelContext) -> [TaskItem] {
+        _ = DataIntegrityRepair.repair(context)
         let byId = deduplicatedTasks(context: context)
         var pushable: [TaskItem] = []
         
@@ -1119,7 +1120,7 @@ class SupabaseSyncManager: ObservableObject {
                 case .adoptRemote(let stamp):
                     assign(text, to: existing, \.text)
                     assign(dto.completed ?? existing.completed, to: existing, \.completed)
-                    assign(dto.interval_type ?? existing.intervalType, to: existing, \.intervalType)
+                    assign(DataIntegrityRepair.safeInterval(dto.interval_type), to: existing, \.intervalType)
                     assign(dto.order ?? existing.order, to: existing, \.order)
                     assign(SyncTimestamp.parse(dto.created_at) ?? existing.createdAt, to: existing, \.createdAt)
                     assign(SyncTimestamp.parse(dto.deleted_at), to: existing, \.deletedAt)
@@ -1150,7 +1151,7 @@ class SupabaseSyncManager: ObservableObject {
                     continue
                 }
                 
-                let task = TaskItem(text: text, intervalType: dto.interval_type ?? "1 Day", order: dto.order ?? 0)
+                let task = TaskItem(text: text, intervalType: DataIntegrityRepair.safeInterval(dto.interval_type), order: dto.order ?? 0)
                 task.id = dto.id
                 task.completed = dto.completed ?? false
                 task.createdAt = SyncTimestamp.parse(dto.created_at) ?? Date()

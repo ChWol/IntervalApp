@@ -40,7 +40,7 @@ Add deterministic tests that simulate:
 - [x] App backgrounding flushes active task, habit, list-title, and scratchpad drafts, retries pending storage changes, and schedules sync only after the local save succeeds.
 - [x] Relaunch after committed create, completion, soft-delete, restore, and mixed-record operations is covered with a real on-disk store reopen test.
 - [ ] Schema migration from older versions, including stores containing habits, links, deleted items, and incomplete tasks.
-- [ ] Duplicate IDs, empty IDs, blank text, malformed dates, and invalid interval values.
+- [x] Duplicate IDs are deterministically collapsed by newest update; empty IDs and unambiguous relationships are repaired; blank drafts are preserved locally; malformed remote dates trigger republishing; invalid intervals are restored to a visible day bucket.
 - [ ] Failure to open the model container.
 
 For every case, verify that the last known local state remains present and no record disappears silently.

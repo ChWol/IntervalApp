@@ -54,6 +54,9 @@ struct ContentView: View {
                 if syncManager.isAuthenticated {
                     mainAppView
                         .onAppear {
+                            if DataIntegrityRepair.repair(modelContext) {
+                                _ = PersistenceSafety.save(modelContext, operation: "Repairing local data")
+                            }
                             syncManager.start(context: modelContext)
                             migrationManager.startMonitoring(context: modelContext)
                         }
