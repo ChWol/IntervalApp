@@ -48,6 +48,11 @@ struct IntervalApp: App {
             #else
             ContentView()
                 .handlesExternalEvents(preferring: Set(arrayLiteral: "main"), allowing: Set(arrayLiteral: "*"))
+                #if os(iOS)
+                .task {
+                    await IntervalLiveActivityManager.shared.refresh(context: Self.sharedModelContainer.mainContext)
+                }
+                #endif
                 .onAppear {
                     #if os(macOS)
                     MenuBarManager.shared.setup(container: Self.sharedModelContainer)

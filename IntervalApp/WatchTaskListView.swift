@@ -256,8 +256,14 @@ public struct WatchHabitRow: View {
         #endif
 
         let targetCompleted = !habit.isCompletedCurrentPeriod
+        let now = Date()
         withAnimation(.easeInOut(duration: 0.15)) {
-            HabitTaskLink.setHabitCompleted(targetCompleted, on: habit)
+            HabitTaskLink.setHabitCompleted(targetCompleted, on: habit, now: now)
+            // Completing a linked habit on the watch must update its generated
+            // 1-hour task as well, just as completing that task does elsewhere.
+            if let tasks = try? modelContext.fetch(FetchDescriptor<TaskItem>()) {
+                HabitTaskLink.applyHabitCompletionToTasks(habit, tasks: tasks, now: now)
+            }
             
             if targetCompleted {
                 SoundManager.playHabitCompleted()

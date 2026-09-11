@@ -5,6 +5,8 @@ import UserNotifications
 #if os(macOS)
 import AppKit
 import ServiceManagement
+#elseif os(iOS)
+import UIKit
 #endif
 
 // MARK: - Pointing Hand Cursor Extension
@@ -248,6 +250,10 @@ struct SettingsView: View {
     @State private var isPaypalHovered: Bool = false
     @State private var showImportModal: Bool = false
     @State private var exportSuccess: Bool = false
+    #if os(iOS)
+    @State private var isExporting: Bool = false
+    @State private var exportData: Data?
+    #endif
     
     var onClose: () -> Void
 
@@ -486,6 +492,26 @@ struct SettingsView: View {
                                     .font(.system(size: 12, weight: .light))
                                     .foregroundColor(exportSuccess ? .green : (isExportHovered ? .primary : .secondary))
                             }
+                            .padding(.vertical, 2)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .pointingHandCursor()
+                        .onHover { isExportHovered = $0 }
+                        #else
+                        Button(action: {
+                            if let data = ExportManager.shared.generateBackupData(context: modelContext) {
+                                exportData = data
+                                isExporting = true
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 11, weight: .light))
+                                Text("Export Data (JSON Backup)".localized)
+                                    .font(.system(size: 12, weight: .light))
+                            }
+                            .foregroundColor(isExportHovered ? .primary : .secondary)
                             .padding(.vertical, 2)
                             .contentShape(Rectangle())
                         }
@@ -733,6 +759,13 @@ struct SettingsView: View {
             .shadow(radius: 20)
             .frame(maxWidth: 500)
             .padding(20)
+            #if os(iOS)
+            .sheet(isPresented: $isExporting) {
+                if let exportData {
+                    IntervalShareSheet(items: [exportData])
+                }
+            }
+            #endif
             #if os(macOS)
             .onExitCommand {
                 withAnimation(.easeInOut(duration: 0.15)) {
@@ -762,5 +795,17 @@ struct SettingsView: View {
             .foregroundColor(.secondary.opacity(0.7))
     }
 }
+
+#if os(iOS)
+private struct IntervalShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+#endif
 
 #endif

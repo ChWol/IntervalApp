@@ -9,7 +9,17 @@
 /* Begin PBXFileReference section */
 		9DD7135D3023B35100990576 /* IntervalApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = IntervalApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000002 /* IntervalAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IntervalAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB0000000000000000000001 /* IntervalWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntervalWidget.swift; sourceTree = "<group>"; };
+		BB0000000000000000000002 /* IntervalActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntervalActivityAttributes.swift; sourceTree = "<group>"; };
+		BB0000000000000000000003 /* IntervalWidget.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = IntervalWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXBuildFile section */
+		BB0000000000000000000011 /* IntervalWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000001 /* IntervalWidget.swift */; };
+		BB0000000000000000000012 /* IntervalActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000002 /* IntervalActivityAttributes.swift */; };
+		BB0000000000000000000013 /* IntervalWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000003 /* IntervalWidget.appex */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BB0000000000000000000014 /* IntervalWidget target dependency */ = {isa = PBXTargetDependency; platformFilters = (ios, ); target = BB0000000000000000000051 /* IntervalWidget */; };
+/* End PBXBuildFile section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		9DD7136A3023B35200990576 /* Exceptions for "IntervalApp" folder in "IntervalApp" target */ = {
@@ -48,6 +58,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		BB0000000000000000000021 /* Widget Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9DD7135A3023B35100990576 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -70,6 +87,7 @@
 			children = (
 				9DD7135F3023B35100990576 /* IntervalApp */,
 				AA0000000000000000000003 /* IntervalAppTests */,
+				BB0000000000000000000031 /* IntervalWidget */,
 				9DD7135E3023B35100990576 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -79,11 +97,35 @@
 			children = (
 				9DD7135D3023B35100990576 /* IntervalApp.app */,
 				AA0000000000000000000002 /* IntervalAppTests.xctest */,
+				BB0000000000000000000003 /* IntervalWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
+		BB0000000000000000000031 /* IntervalWidget */ = {
+			isa = PBXGroup;
+			children = (
+				BB0000000000000000000001 /* IntervalWidget.swift */,
+				BB0000000000000000000002 /* IntervalActivityAttributes.swift */,
+			);
+			path = IntervalWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		BB0000000000000000000041 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				BB0000000000000000000013 /* IntervalWidget.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXNativeTarget section */
 		9DD7135C3023B35100990576 /* IntervalApp */ = {
@@ -93,10 +135,12 @@
 				9DD713593023B35100990576 /* Sources */,
 				9DD7135A3023B35100990576 /* Frameworks */,
 				9DD7135B3023B35100990576 /* Resources */,
+				BB0000000000000000000041 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				BB0000000000000000000014 /* IntervalWidget target dependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				9DD7135F3023B35100990576 /* IntervalApp */,
@@ -107,6 +151,21 @@
 			productName = IntervalApp;
 			productReference = 9DD7135D3023B35100990576 /* IntervalApp.app */;
 			productType = "com.apple.product-type.application";
+		};
+		BB0000000000000000000051 /* IntervalWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB0000000000000000000061 /* Build configuration list for PBXNativeTarget "IntervalWidget" */;
+			buildPhases = (
+				BB0000000000000000000052 /* Sources */,
+				BB0000000000000000000021 /* Widget Frameworks */,
+				BB0000000000000000000053 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = IntervalWidget;
+			productName = IntervalWidget;
+			productReference = BB0000000000000000000003 /* IntervalWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		AA0000000000000000000001 /* IntervalAppTests */ = {
 			isa = PBXNativeTarget;
@@ -147,6 +206,9 @@
 					AA0000000000000000000001 = {
 						CreatedOnToolsVersion = 26.6;
 					};
+					BB0000000000000000000051 = {
+						CreatedOnToolsVersion = 26.6;
+					};
 				};
 			};
 			buildConfigurationList = 9DD713583023B35100990576 /* Build configuration list for PBXProject "IntervalApp" */;
@@ -165,11 +227,18 @@
 			targets = (
 				9DD7135C3023B35100990576 /* IntervalApp */,
 				AA0000000000000000000001 /* IntervalAppTests */,
+				BB0000000000000000000051 /* IntervalWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		BB0000000000000000000053 /* Widget Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9DD7135B3023B35100990576 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -187,10 +256,20 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		BB0000000000000000000052 /* Widget Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB0000000000000000000011 /* IntervalWidget.swift in Sources */,
+				BB0000000000000000000012 /* IntervalActivityAttributes.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9DD713593023B35100990576 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BB0000000000000000000012 /* IntervalActivityAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -478,6 +557,41 @@
 			};
 			name = Release;
 		};
+		BB0000000000000000000062 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = KUD273S78M;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				PRODUCT_BUNDLE_IDENTIFIER = chw.IntervalApp.IntervalWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		BB0000000000000000000063 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = KUD273S78M;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				PRODUCT_BUNDLE_IDENTIFIER = chw.IntervalApp.IntervalWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -504,6 +618,15 @@
 			buildConfigurations = (
 				AA0000000000000000000008 /* Debug */,
 				AA0000000000000000000009 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BB0000000000000000000061 /* Build configuration list for PBXNativeTarget "IntervalWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB0000000000000000000062 /* Debug */,
+				BB0000000000000000000063 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
