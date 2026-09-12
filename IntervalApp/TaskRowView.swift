@@ -165,6 +165,16 @@ struct TaskRowView: View {
             )
         }
         .onDrop(of: [UTType.data, UTType.plainText, UTType.text], delegate: TaskDropDelegate(item: task, sectionFontSize: fontSize, context: modelContext))
+        .contextMenu {
+            if !isNew, let onDeepFocus {
+                Button {
+                    focusedTaskId = nil
+                    onDeepFocus(task)
+                } label: {
+                    Label("Deep Focus", systemImage: "scope")
+                }
+            }
+        }
     }
     
     // MARK: - Normal Row Content with Dash & Checkmark Transition
