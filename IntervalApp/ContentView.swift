@@ -176,10 +176,10 @@ struct ContentView: View {
 
                 ZStack {
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color.primary.opacity(0.12), lineWidth: 1)
-                        .frame(maxWidth: .infinity, minHeight: 150)
-                        .scaleEffect(deepFocusBreathing ? 1.08 : 0.92)
-                        .opacity(deepFocusBreathing ? 0.35 : 0.7)
+                        .stroke(Color.primary.opacity(deepFocusBreathing ? 0.26 : 0.12), lineWidth: 1)
+                        .padding(-10)
+                        .scaleEffect(deepFocusBreathing ? 1.035 : 0.965)
+                        .opacity(deepFocusBreathing ? 0.72 : 0.42)
                     deepFocusTaskCard(task)
                 }
             }
@@ -189,7 +189,7 @@ struct ContentView: View {
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
         .onAppear {
             deepFocusBreathing = false
-            withAnimation(.easeInOut(duration: 3).repeatForever(autoreverses: true)) {
+            withAnimation(.easeInOut(duration: 4.8).repeatForever(autoreverses: true)) {
                 deepFocusBreathing = true
             }
         }
@@ -199,48 +199,14 @@ struct ContentView: View {
     }
 
     private func deepFocusTaskCard(_ task: TaskItem) -> some View {
-        HStack(alignment: .top, spacing: 16) {
-            Button { completeDeepFocusTask(task) } label: {
-                Image(systemName: "circle")
-                    .font(.system(size: 26, weight: .ultraLight))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 34, height: 34)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .pointingHandCursor()
-            .accessibilityLabel("Complete task")
-
-            Text(LinkTaskText.displayText(for: task.text))
-                .font(.system(size: 26, weight: .light, design: .rounded))
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 28)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.25), radius: 24, y: 10)
-    }
-
-    private func completeDeepFocusTask(_ task: TaskItem) {
-        let now = Date()
-        HabitTaskLink.setTaskCompleted(true, on: task, now: now)
-        if task.habitId != nil,
-           let habits = try? modelContext.fetch(FetchDescriptor<HabitItem>()) {
-            HabitTaskLink.applyTaskCompletionToHabit(task, habits: habits, now: now)
-        }
-        _ = PersistenceSafety.save(modelContext, operation: "Completing focused task")
-        syncManager.push()
-        closeDeepFocus()
+        Text(LinkTaskText.displayText(for: task.text))
+            .font(.system(size: 26, weight: .light, design: .rounded))
+            .foregroundStyle(.primary)
+            .fixedSize(horizontal: false, vertical: true)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: 560, alignment: .center)
+            .padding(.horizontal, 28)
+            .padding(.vertical, 24)
     }
 
     private func closeDeepFocus() {
@@ -497,6 +463,16 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut("r", modifiers: .command)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+
+                // Register Escape at the window level as well as on the overlay. This
+                // remains available when a task row or text field still owns focus.
+                Button(action: { if deepFocusTaskId != nil { closeDeepFocus() } }) {
+                    EmptyView()
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.escape, modifiers: [])
                 .opacity(0)
                 .frame(width: 0, height: 0)
                 

@@ -169,7 +169,7 @@ public struct WatchHabitsListView: View {
             VStack(alignment: .leading, spacing: 6) {
                 // Header
                 HStack {
-                    Text("GEWOHNHEITEN".localized)
+                    Text("HABITS".localized)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.secondary)
                     Spacer()

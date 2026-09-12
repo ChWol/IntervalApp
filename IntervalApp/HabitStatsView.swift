@@ -4,6 +4,7 @@ import SwiftData
 
 struct HabitStatsView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject private var locManager = LocalizationManager.shared
     @Query(sort: \HabitItem.order) private var habits: [HabitItem]
     @State private var selectedHabitId: String?
 
@@ -128,7 +129,7 @@ struct HabitStatsView: View {
         let leading = calendar.component(.weekday, from: first) - 1
 
         return VStack(alignment: .leading, spacing: 7) {
-            Text(calendar.monthSymbols[month - 1].uppercased())
+            Text(monthName(for: month))
                 .font(.system(size: 9, weight: .medium)).tracking(1.2).foregroundStyle(.secondary)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 7), spacing: 4) {
                 ForEach(0..<leading, id: \.self) { _ in Color.clear.frame(height: 13) }
@@ -152,7 +153,10 @@ struct HabitStatsView: View {
         }.count
     }
 
-    private var yearHeader: String { String(year) + " " + "RHYTHM".localized }
+    private func monthName(for month: Int) -> String {
+        let date = calendar.date(from: DateComponents(year: year, month: month, day: 1)) ?? Date()
+        return date.formatted(.dateTime.month(.wide).locale(locManager.currentLanguage.locale)).uppercased()
+    }
 
     private func completionDates(for habit: HabitItem) -> [Date] {
         var dates = habit.completionDates
@@ -171,7 +175,7 @@ struct HabitStatsView: View {
               weekday >= 1, weekday <= calendar.weekdaySymbols.count else {
             return "Weekly".localized
         }
-        return "Weekly · \(calendar.weekdaySymbols[weekday - 1].localized)"
+        return "\("Weekly".localized) · \(calendar.weekdaySymbols[weekday - 1].localized)"
     }
 }
 #endif
