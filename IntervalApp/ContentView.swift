@@ -186,15 +186,7 @@ struct ContentView: View {
                     .help("Close Deep Focus")
                 }
 
-                ZStack {
-                    Capsule(style: .continuous)
-                        .stroke(Color.primary.opacity(deepFocusBreathing ? 0.26 : 0.12), lineWidth: 1)
-                        .frame(maxWidth: 420, minHeight: 156, maxHeight: 156)
-                        .scaleEffect(deepFocusBreathing ? 1.035 : 0.965)
-                        .opacity(deepFocusBreathing ? 0.72 : 0.42)
-                    deepFocusTaskCard(task)
-                }
-                .frame(maxWidth: .infinity, minHeight: 180)
+                deepFocusTaskCard(task)
             }
             .padding(24)
             .frame(maxWidth: 620)
@@ -217,9 +209,16 @@ struct ContentView: View {
             .foregroundStyle(.primary)
             .fixedSize(horizontal: false, vertical: true)
             .multilineTextAlignment(.center)
-            .frame(maxWidth: 390, alignment: .center)
-            .padding(.horizontal, 22)
-            .padding(.vertical, 18)
+            // The outline follows the text's intrinsic width, with a consistent
+            // breathing room around it instead of a fixed-width panel.
+            .padding(.horizontal, 38)
+            .padding(.vertical, 28)
+            .background {
+                Capsule(style: .continuous)
+                    .stroke(Color.primary.opacity(deepFocusBreathing ? 0.26 : 0.12), lineWidth: 1)
+                    .scaleEffect(deepFocusBreathing ? 1.035 : 0.965)
+                    .opacity(deepFocusBreathing ? 0.72 : 0.42)
+            }
     }
 
     private func closeDeepFocus() {

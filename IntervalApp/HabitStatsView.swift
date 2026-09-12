@@ -126,22 +126,30 @@ struct HabitStatsView: View {
     private func monthView(month: Int, dates: [Date]) -> some View {
         let first = calendar.date(from: DateComponents(year: year, month: month, day: 1)) ?? Date()
         let dayCount = calendar.range(of: .day, in: .month, for: first)?.count ?? 30
-        let leading = calendar.component(.weekday, from: first) - 1
+        let weekday = calendar.component(.weekday, from: first)
+        let leading = (weekday - calendar.firstWeekday + 7) % 7
 
         return VStack(alignment: .leading, spacing: 7) {
             Text(monthName(for: month))
                 .font(.system(size: 9, weight: .medium)).tracking(1.2).foregroundStyle(.secondary)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 7), spacing: 4) {
-                ForEach(0..<leading, id: \.self) { _ in Color.clear.frame(height: 13) }
-                ForEach(1...dayCount, id: \.self) { day in
+                // Use one index space for placeholders and real days. Two
+                // ForEach blocks with overlapping IDs caused SwiftUI to reuse
+                // cells and render phantom empty rows in some months.
+                ForEach(0..<(leading + dayCount), id: \.self) { index in
+                    if index < leading {
+                        Color.clear.frame(height: 13)
+                    } else {
+                        let day = index - leading + 1
                     let date = calendar.date(byAdding: .day, value: day - 1, to: first) ?? first
                     let completed = dates.contains {
                         calendar.isDate(HabitItem.intervalDayDate(for: $0), inSameDayAs: HabitItem.intervalDayDate(for: date))
                     }
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(completed ? Color.primary.opacity(0.76) : Color.primary.opacity(0.07))
+                        .fill(completed ? Color.primary.opacity(0.76) : Color.primary.opacity(0.11))
                         .frame(height: 13)
                         .accessibilityLabel(completed ? "Completed \(date.formatted(date: .abbreviated, time: .omitted))" : date.formatted(date: .abbreviated, time: .omitted))
+                    }
                 }
             }
         }
