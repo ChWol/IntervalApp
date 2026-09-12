@@ -11,7 +11,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func application(_ application: NSApplication, open urls: [URL]) {
         if let url = urls.first {
-            SupabaseSyncManager.shared.handleIncomingURL(url)
+            if !SpotlightIndexer.shared.handleOpenURL(url) {
+                SupabaseSyncManager.shared.handleIncomingURL(url)
+            }
         }
     }
 }
@@ -54,6 +56,11 @@ struct IntervalApp: App {
                     await IntervalLiveActivityManager.shared.refresh(context: Self.sharedModelContainer.mainContext)
                 }
                 #endif
+                .task {
+                    #if os(iOS) || os(macOS)
+                    SpotlightIndexer.shared.schedule(context: Self.sharedModelContainer.mainContext)
+                    #endif
+                }
                 .onAppear {
                     #if os(macOS)
                     MenuBarManager.shared.setup(container: Self.sharedModelContainer)

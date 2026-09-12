@@ -91,6 +91,7 @@ struct SupabaseHabitDTO: Decodable {
     let frequency: String?
     let streak: Int?
     let last_completed_date: String?
+    let completion_history: String?
     let order: Int?
     let deleted_at: String?
     let user_id: String?
@@ -233,6 +234,10 @@ class SupabaseSyncManager: ObservableObject {
     /// is dropped from the payload if the server rejects it, so an older schema degrades to
     /// device-local habit links instead of breaking every task push.
     private var tasksSupportHabitId = true
+    /// Databases created before habit history was introduced do not have this
+    /// column.  Keep syncing the rest of the habit row when that schema is
+    /// encountered and transparently start sending history after migration.
+    private var habitsSupportCompletionHistory = true
     
     /// Rows missing from the previous server snapshot. A row must be absent twice in a row
     /// before it is deleted locally, so a single incomplete snapshot cannot destroy data.
@@ -1092,7 +1097,7 @@ class SupabaseSyncManager: ObservableObject {
     }
     
     private func habitPayload(_ habit: HabitItem, uid: String) -> [String: Any] {
-        [
+        var payload: [String: Any] = [
             "id": habit.id,
             "text": habit.text,
             "frequency": habit.frequency,
@@ -1103,6 +1108,10 @@ class SupabaseSyncManager: ObservableObject {
             "user_id": uid,
             "updated_at": SyncTimestamp.format(clock.toServer(habit.updatedAt))
         ]
+        if habitsSupportCompletionHistory {
+            payload["completion_history"] = habit.completionHistoryJSON
+        }
+        return payload
     }
     
     private func scratchpadListPayload(_ list: ScratchpadList, uid: String) -> [String: Any] {
@@ -1322,6 +1331,7 @@ class SupabaseSyncManager: ObservableObject {
                     assign(dto.frequency ?? existing.frequency, to: existing, \.frequency)
                     assign(dto.streak ?? existing.streak, to: existing, \.streak)
                     assign(SyncTimestamp.parse(dto.last_completed_date), to: existing, \.lastCompletedDate)
+                    assign(dto.completion_history ?? existing.completionHistoryJSON, to: existing, \.completionHistoryJSON)
                     assign(dto.order ?? existing.order, to: existing, \.order)
                     assign(SyncTimestamp.parse(dto.deleted_at), to: existing, \.deletedAt)
                     assign(stamp, to: existing, \.updatedAt)
@@ -1344,6 +1354,7 @@ class SupabaseSyncManager: ObservableObject {
                 habit.id = dto.id
                 habit.streak = dto.streak ?? 0
                 habit.lastCompletedDate = SyncTimestamp.parse(dto.last_completed_date)
+                habit.completionHistoryJSON = dto.completion_history ?? "[]"
                 habit.deletedAt = SyncTimestamp.parse(dto.deleted_at)
                 habit.updatedAt = remoteStamp ?? Date()
                 habit.syncedAt = remoteStamp
@@ -1665,6 +1676,13 @@ class SupabaseSyncManager: ObservableObject {
                 let stripped = payload.map { row in row.filter { $0.key != "habit_id" } }
                 return await upsert(table: table, payload: stripped)
             }
+            if table == SyncTable.habits, habitsSupportCompletionHistory,
+               Self.mentionsMissingCompletionHistoryColumn(body) {
+                print("[Supabase] habits.completion_history is missing; habit statistics remain device-local. Add supabase/add_habit_completion_history.sql to sync history.")
+                habitsSupportCompletionHistory = false
+                let stripped = payload.map { row in row.filter { $0.key != "completion_history" } }
+                return await upsert(table: table, payload: stripped)
+            }
         }
         
         return validate(response: response, data: data, action: "Upsert \(table)")
@@ -1674,6 +1692,15 @@ class SupabaseSyncManager: ObservableObject {
     static func mentionsMissingHabitIdColumn(_ body: String) -> Bool {
         let lowered = body.lowercased()
         guard lowered.contains("habit_id") else { return false }
+        return lowered.contains("pgrst204")
+            || lowered.contains("42703")
+            || lowered.contains("could not find")
+            || lowered.contains("does not exist")
+    }
+
+    static func mentionsMissingCompletionHistoryColumn(_ body: String) -> Bool {
+        let lowered = body.lowercased()
+        guard lowered.contains("completion_history") else { return false }
         return lowered.contains("pgrst204")
             || lowered.contains("42703")
             || lowered.contains("could not find")
@@ -2016,6 +2043,11 @@ extension SupabaseSyncManager {
     var testingSupportsHabitIdColumn: Bool {
         get { tasksSupportHabitId }
         set { tasksSupportHabitId = newValue }
+    }
+
+    var testingSupportsHabitCompletionHistoryColumn: Bool {
+        get { habitsSupportCompletionHistory }
+        set { habitsSupportCompletionHistory = newValue }
     }
     
     var testingUserId: String? { userId }

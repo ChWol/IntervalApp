@@ -8,6 +8,7 @@ struct TaskListView: View {
     let fontSize: CGFloat
     let tasks: [TaskItem]
     @Binding var focusedTaskId: String?
+    var onDeepFocus: ((TaskItem) -> Void)? = nil
     
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
@@ -69,7 +70,7 @@ struct TaskListView: View {
                     habitInsertionPlaceholder
                 }
                 
-                TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title, focusedTaskId: $focusedTaskId)
+                TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title, onDeepFocus: onDeepFocus, focusedTaskId: $focusedTaskId)
             }
             
             if shouldShowHabitPlaceholder && (habitDragState.targetIndex == tasks.count || (tasks.isEmpty && habitDragState.isTargetingHour)) {

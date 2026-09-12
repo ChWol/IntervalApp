@@ -234,6 +234,7 @@ struct SpotlightSearchView: View {
                 .frame(maxWidth: .infinity)
             } else if results.isEmpty {
                 VStack(spacing: 8) {
+                    quickAddRow
                     Text("No results found".localized)
                         .font(.system(size: 13, weight: .light))
                         .foregroundColor(.secondary.opacity(0.8))
@@ -241,7 +242,10 @@ struct SpotlightSearchView: View {
                 }
                 .frame(maxWidth: .infinity)
             } else {
-                ScrollViewReader { proxy in
+                VStack(spacing: 0) {
+                    quickAddRow
+                    Divider().opacity(0.2)
+                    ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 2) {
                             ForEach(Array(results.enumerated()), id: \.element.id) { index, item in
@@ -264,6 +268,7 @@ struct SpotlightSearchView: View {
                             }
                         }
                     }
+                }
                 }
             }
         }
@@ -328,6 +333,46 @@ struct SpotlightSearchView: View {
                 .fill(isSelected ? Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08) : Color.clear)
         )
         .contentShape(Rectangle())
+    }
+
+    private var quickAddRow: some View {
+        Button(action: addTaskFromQuery) {
+            HStack(spacing: 10) {
+                Image(systemName: "plus.circle")
+                    .font(.system(size: 14, weight: .light))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Add to 1 Hour")
+                        .font(.system(size: 13, weight: .medium))
+                    Text(query.trimmingCharacters(in: .whitespacesAndNewlines))
+                        .font(.system(size: 11, weight: .light))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Text("↵")
+                    .font(.system(size: 12, weight: .light, design: .monospaced))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundColor(.primary)
+    }
+
+    private func addTaskFromQuery() {
+        let title = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        let descriptor = FetchDescriptor<TaskItem>()
+        let current = (try? modelContext.fetch(descriptor)) ?? []
+        let order = current
+            .filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
+            .map(\.order).max().map { $0 + 1 } ?? 0
+        modelContext.insert(TaskItem(text: title, intervalType: HabitTaskLink.hourInterval, order: order))
+        _ = PersistenceSafety.save(modelContext, operation: "Adding Spotlight task")
+        SupabaseSyncManager.shared.push()
+        closeSearch()
     }
     
     private func commitSelection() {

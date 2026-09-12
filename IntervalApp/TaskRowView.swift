@@ -9,6 +9,7 @@ struct TaskRowView: View {
     let fontSize: CGFloat
     let isNew: Bool
     let listTitle: String
+    var onDeepFocus: ((TaskItem) -> Void)? = nil
     
     @Binding var focusedTaskId: String?
     @Environment(\.modelContext) private var modelContext
@@ -406,6 +407,21 @@ struct TaskRowView: View {
             }
             
             if !isNew {
+                if let onDeepFocus {
+                    Button {
+                        focusedTaskId = nil
+                        onDeepFocus(task)
+                    } label: {
+                        Image(systemName: "scope")
+                            .font(.system(size: max(fontSize * 0.45, 11), weight: .light))
+                            .foregroundColor(.secondary.opacity(0.7))
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(isHovering || focusedTaskId == task.id ? 1 : 0)
+                    .help("Deep Focus")
+                }
                 Button(action: {
                     withAnimation {
                         TaskHousekeeping.moveToBin(task, in: modelContext)

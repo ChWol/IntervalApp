@@ -28,6 +28,9 @@ enum PersistenceSafety {
             }
         }
         #endif
+        #if os(iOS) || os(macOS)
+        if didSave { SpotlightIndexer.shared.schedule(context: context) }
+        #endif
         return didSave
     }
 

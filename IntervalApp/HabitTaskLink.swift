@@ -62,10 +62,19 @@ enum HabitTaskLink {
             guard !habit.isCompleted(at: now) else { return false }
             habit.streak += 1
             habit.lastCompletedDate = now
+            habit.setCompletionDates(habit.completionDates + [now])
         } else {
             guard habit.isCompleted(at: now) else { return false }
             habit.streak = max(0, habit.streak - 1)
             habit.lastCompletedDate = nil
+            let day = HabitItem.intervalDayDate(for: now)
+            let remaining = habit.completionDates.filter {
+                !Calendar.current.isDate(HabitItem.intervalDayDate(for: $0), inSameDayAs: day)
+            }
+            habit.setCompletionDates(remaining)
+            // Keep the model's legacy lastCompletedDate field aligned with the
+            // newest historical completion when an older completion remains.
+            habit.lastCompletedDate = remaining.max()
         }
         habit.updatedAt = now
         return true

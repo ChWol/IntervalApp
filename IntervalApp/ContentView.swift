@@ -24,6 +24,8 @@ struct ContentView: View {
     @State private var showAllCompleted = false
     @State private var showAllDeleted = false
     @State private var focusedTaskId: String?
+    @State private var deepFocusTaskId: String?
+    @State private var deepFocusBreathing = false
     @State private var currentViewMode: ViewMode = .intervals
     @State private var isSearchPresented = false
     @State private var scratchpadSelectedListId: String? = nil
@@ -38,6 +40,7 @@ struct ContentView: View {
     enum ViewMode {
         case intervals
         case scratchpad
+        case habitStats
         case settings
     }
     
@@ -54,6 +57,8 @@ struct ContentView: View {
             Group {
                 if syncManager.isAuthenticated {
                     mainAppView
+                        .blur(radius: deepFocusTaskId == nil ? 0 : 8)
+                        .allowsHitTesting(deepFocusTaskId == nil)
                         .onAppear {
                             if DataIntegrityRepair.repair(modelContext) {
                                 _ = PersistenceSafety.save(modelContext, operation: "Repairing local data")
@@ -103,9 +108,33 @@ struct ContentView: View {
                 UpdatePasswordModalView(isPresented: $showUpdatePasswordModal)
                     .zIndex(200)
             }
+
+            if let deepFocusTaskId,
+               let task = allTasks.first(where: { $0.id == deepFocusTaskId && $0.deletedAt == nil && !$0.completed }) {
+                deepFocusOverlay(task: task)
+                    .zIndex(180)
+            }
         }
         .onOpenURL { url in
-            syncManager.handleIncomingURL(url)
+            if !SpotlightIndexer.shared.handleOpenURL(url) {
+                syncManager.handleIncomingURL(url)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .spotlightOpenItem)) { notification in
+            guard let kind = notification.userInfo?["kind"] as? String,
+                  let id = notification.userInfo?["id"] as? String else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                if kind == "task" {
+                    currentViewMode = .intervals
+                    focusedTaskId = id
+                } else if kind == "list" || kind == "scratch" {
+                    currentViewMode = .scratchpad
+                    scratchpadSelectedListId = kind == "list" ? id : nil
+                    focusedTaskId = kind == "scratch" ? id : nil
+                } else {
+                    currentViewMode = .intervals
+                }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .promptPasswordUpdate)) { _ in
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -119,6 +148,77 @@ struct ContentView: View {
     }
     
     // MARK: - Main App View
+
+    private func deepFocusOverlay(task: TaskItem) -> some View {
+        ZStack {
+            Color.black.opacity(colorScheme == .dark ? 0.62 : 0.48)
+                .ignoresSafeArea()
+                .onTapGesture { closeDeepFocus() }
+
+            VStack(spacing: 20) {
+                HStack {
+                    Text("DEEP FOCUS")
+                        .font(.system(size: 10, weight: .light))
+                        .tracking(2)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button(action: closeDeepFocus) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .light))
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("Close Deep Focus")
+                }
+
+                ZStack {
+                    Circle()
+                        .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                        .frame(width: 170, height: 170)
+                        .scaleEffect(deepFocusBreathing ? 1.08 : 0.92)
+                        .opacity(deepFocusBreathing ? 0.35 : 0.7)
+                    Circle()
+                        .fill(Color.primary.opacity(0.035))
+                        .frame(width: 126, height: 126)
+                    VStack(spacing: 8) {
+                        Image(systemName: "circle.dotted")
+                            .font(.system(size: 18, weight: .ultraLight))
+                            .foregroundStyle(.secondary)
+                        Text("one thing at a time")
+                            .font(.system(size: 11, weight: .light))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                TaskRowView(task: task, fontSize: 28, isNew: false, listTitle: task.intervalType, focusedTaskId: .constant(nil))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 18)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+                    )
+                    .shadow(color: .black.opacity(0.25), radius: 24, y: 10)
+            }
+            .padding(24)
+            .frame(maxWidth: 620)
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+        .onAppear {
+            deepFocusBreathing = false
+            withAnimation(.easeInOut(duration: 3).repeatForever(autoreverses: true)) {
+                deepFocusBreathing = true
+            }
+        }
+    }
+
+    private func closeDeepFocus() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            deepFocusTaskId = nil
+            deepFocusBreathing = false
+        }
+    }
     
     @ViewBuilder
     private var mainAppView: some View {
@@ -132,6 +232,8 @@ struct ContentView: View {
                     }
                 })
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            } else if currentViewMode == .habitStats {
+                HabitStatsView()
             } else {
                 GeometryReader { geo in
                     ScrollViewReader { scrollProxy in
@@ -153,7 +255,10 @@ struct ContentView: View {
                                             title: interval.0,
                                             fontSize: interval.1,
                                             tasks: allTasks.filter { $0.intervalType == interval.0 && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order },
-                                            focusedTaskId: $focusedTaskId
+                                            focusedTaskId: $focusedTaskId,
+                                            onDeepFocus: { task in
+                                                withAnimation(.easeInOut(duration: 0.25)) { deepFocusTaskId = task.id }
+                                            }
                                         )
                                     }
                                 
@@ -261,6 +366,29 @@ struct ContentView: View {
                     .pointingHandCursor()
                     .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "scratchpad" : nil } }
                     .help("Switch to Scratchpad Lists".localized)
+
+                    // Habit statistics lives beside the two primary views.
+                    Button(action: {
+                        focusedTaskId = nil
+                        #if os(iOS)
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        #endif
+                        withAnimation(.easeInOut(duration: 0.2)) { currentViewMode = .habitStats }
+                    }) {
+                        let isHovered = hoveredTopButton == "habitStats"
+                        Image(systemName: "chart.bar.xaxis")
+                            .font(.system(size: 11, weight: .light))
+                            .foregroundColor(currentViewMode == .habitStats ? .primary : (isHovered ? .primary : .secondary))
+                            .frame(width: 28, height: 28)
+                            .background(
+                                Circle().fill(Color.primary.opacity(currentViewMode == .habitStats ? 0.12 : (isHovered ? 0.08 : 0.04)))
+                            )
+                            .scaleEffect(isHovered ? 1.08 : 1.0)
+                    }
+                    .buttonStyle(.plain)
+                    .pointingHandCursor()
+                    .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "habitStats" : nil } }
+                    .help("Habit Statistics".localized)
                     
                     // Settings Button
                     Button(action: {
@@ -318,37 +446,6 @@ struct ContentView: View {
                     .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "search" : nil } }
                     .help("Search (⌘F)".localized)
                     
-                    // Refresh / Sync Button
-                    Button(action: {
-                        focusedTaskId = nil
-                        #if os(iOS)
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                        #endif
-                        Task { await syncManager.triggerManualSync() }
-                    }) {
-                        let isHovered = hoveredTopButton == "sync"
-                        ZStack {
-                            if syncManager.isSyncing {
-                                ProgressView()
-                                    .controlSize(.small)
-                            } else {
-                                Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 11, weight: .light))
-                                    .foregroundColor(isHovered ? .primary : .secondary)
-                            }
-                        }
-                        .frame(width: 28, height: 28)
-                        .background(
-                            Circle()
-                                .fill(Color.primary.opacity(isHovered ? 0.08 : 0.04))
-                        )
-                        .scaleEffect(isHovered ? 1.08 : 1.0)
-                    }
-                    .buttonStyle(.plain)
-                    .pointingHandCursor()
-                    .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "sync" : nil } }
-                    .keyboardShortcut("r", modifiers: .command)
-                    .help("Manual Sync (⌘R)".localized)
                 }
                 
                 // Hidden shortcut triggers for search (⌘F and ⌘K)
@@ -361,6 +458,15 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut("f", modifiers: .command)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+
+                // Cmd-R remains a quiet desktop command; iPhone uses pull-to-refresh.
+                Button(action: { Task { await syncManager.triggerManualSync() } }) {
+                    EmptyView()
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut("r", modifiers: .command)
                 .opacity(0)
                 .frame(width: 0, height: 0)
                 

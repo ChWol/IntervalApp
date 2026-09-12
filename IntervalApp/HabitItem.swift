@@ -8,6 +8,9 @@ final class HabitItem {
     var frequency: String = "Daily"
     var streak: Int = 0
     var lastCompletedDate: Date? = nil
+    /// Day-level completion history used for the habit statistics view. Kept as
+    /// JSON so older SwiftData stores can migrate without a destructive schema change.
+    var completionHistoryJSON: String = "[]"
     var order: Int = 0
     var deletedAt: Date? = nil
     var updatedAt: Date = Date()
@@ -21,11 +24,31 @@ final class HabitItem {
         self.text = text
         self.frequency = frequency
         self.streak = 0
+        self.completionHistoryJSON = "[]"
         self.order = order
         self.deletedAt = nil
         self.updatedAt = Date()
         self.syncedAt = nil
         self.postponedDate = nil
+    }
+
+    var completionDates: [Date] {
+        guard let data = completionHistoryJSON.data(using: .utf8),
+              let dates = try? JSONDecoder().decode([Date].self, from: data) else { return [] }
+        return dates
+    }
+
+    func setCompletionDates(_ dates: [Date]) {
+        var byDay: [Date: Date] = [:]
+        let calendar = Calendar.current
+        for date in dates {
+            let dayKey = calendar.startOfDay(for: Self.intervalDayDate(for: date))
+            byDay[dayKey] = date
+        }
+        let unique = byDay.values.sorted()
+        guard let data = try? JSONEncoder().encode(unique),
+              let json = String(data: data, encoding: .utf8) else { return }
+        completionHistoryJSON = json
     }
     
     /// Whether the habit is currently postponed/snoozed for a given date.

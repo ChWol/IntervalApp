@@ -128,6 +128,26 @@ final class HabitTaskLinkTests: XCTestCase {
         XCTAssertEqual(habit.streak, 2)
     }
 
+    func testCompletionHistoryIsDayUniqueAndSurvivesUntickingCurrentDay() {
+        let habit = store.addHabit("Meditate", id: "h-history")
+        let yesterday = now.addingTimeInterval(-86_400)
+
+        XCTAssertTrue(HabitTaskLink.setHabitCompleted(true, on: habit, now: yesterday))
+        XCTAssertTrue(HabitTaskLink.setHabitCompleted(true, on: habit, now: now))
+        XCTAssertEqual(habit.completionDates.count, 2)
+
+        // Repeating the same completion period must not create a duplicate dot
+        // in the statistics calendar.
+        XCTAssertFalse(HabitTaskLink.setHabitCompleted(true, on: habit, now: now))
+        XCTAssertEqual(habit.completionDates.count, 2)
+
+        XCTAssertTrue(HabitTaskLink.setHabitCompleted(false, on: habit, now: now))
+        XCTAssertEqual(habit.completionDates.count, 1)
+        XCTAssertEqual(habit.lastCompletedDate?.timeIntervalSince1970 ?? 0,
+                       yesterday.timeIntervalSince1970,
+                       accuracy: 0.01)
+    }
+
     func testCompletionRaceUsesNewestLinkedTaskWithoutDoubleCountingStreak() throws {
         let habit = store.addHabit("Meditate", streak: 2, id: "h1", updatedAt: now)
         let task = store.addTask("Meditate", interval: HabitTaskLink.hourInterval,

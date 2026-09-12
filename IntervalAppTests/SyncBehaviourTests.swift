@@ -495,6 +495,18 @@ final class SyncBehaviourTests: XCTestCase {
         ))
         XCTAssertFalse(SupabaseSyncManager.mentionsMissingHabitIdColumn(""))
     }
+
+    func testMissingHabitHistoryColumnIsRecognisedFromTheServerError() {
+        XCTAssertTrue(SupabaseSyncManager.mentionsMissingCompletionHistoryColumn(
+            #"{"code":"PGRST204","message":"Could not find the 'completion_history' column of 'habits' in the schema cache"}"#
+        ))
+        XCTAssertTrue(SupabaseSyncManager.mentionsMissingCompletionHistoryColumn(
+            #"{"code":"42703","message":"column \"completion_history\" of relation \"habits\" does not exist"}"#
+        ))
+        XCTAssertFalse(SupabaseSyncManager.mentionsMissingCompletionHistoryColumn(
+            #"{"code":"23505","message":"duplicate key value violates unique constraint"}"#
+        ))
+    }
     
     // MARK: - Habits table
     
@@ -513,6 +525,17 @@ final class SyncBehaviourTests: XCTestCase {
                        t0.timeIntervalSince1970,
                        accuracy: 0.01,
                        "The completion date decides the streak, so it has to survive the round trip")
+    }
+
+    func testHabitCompletionHistoryTravelsWithTheHabit() throws {
+        let habit = deviceA.createHabit("Read", at: t0)
+        habit.setCompletionDates([t0.addingTimeInterval(-86_400), t0])
+        deviceA.push(to: server, at: t0)
+
+        try deviceB.pull(from: server)
+
+        let copy = try deviceB.habit(id: habit.id)
+        XCTAssertEqual(copy?.completionDates.count, 2)
     }
     
     // MARK: - Payload shape
