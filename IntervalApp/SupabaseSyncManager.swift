@@ -238,6 +238,10 @@ class SupabaseSyncManager: ObservableObject {
     /// column.  Keep syncing the rest of the habit row when that schema is
     /// encountered and transparently start sending history after migration.
     private var habitsSupportCompletionHistory = true
+    /// A lightweight one-time backfill lets a client that previously talked to
+    /// an old schema publish its local history immediately after the SQL
+    /// migration, even when the habit's other fields are already synced.
+    private var habitHistoryBackfillNeeded = true
     
     /// Rows missing from the previous server snapshot. A row must be absent twice in a row
     /// before it is deleted locally, so a single incomplete snapshot cannot destroy data.
@@ -957,7 +961,7 @@ class SupabaseSyncManager: ObservableObject {
         
         // Habits
         let habits = pushableHabits(context: context)
-        for chunk in habits.filter({ needsPush($0) }).chunked(into: upsertBatchSize) {
+        for chunk in habits.filter({ needsPush($0) || (habitHistoryBackfillNeeded && $0.completionHistoryJSON != "[]") }).chunked(into: upsertBatchSize) {
             let stamps = chunk.map { $0.updatedAt }
             let payload = chunk.map { habitPayload($0, uid: uid) }
             guard await upsert(table: SyncTable.habits, payload: payload) else {
@@ -969,6 +973,7 @@ class SupabaseSyncManager: ObservableObject {
                     habit.syncedAt = stamps[index]
                 }
             }
+            habitHistoryBackfillNeeded = false
         }
         
         // Scratchpad Lists
