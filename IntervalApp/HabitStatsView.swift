@@ -109,7 +109,7 @@ struct HabitStatsView: View {
     private func yearCalendar(for habit: HabitItem) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text(verbatim: yearHeader).font(.system(size: 10, weight: .light)).tracking(1.8).foregroundStyle(.secondary)
+                Text(verbatim: String(year)).font(.system(size: 10, weight: .light)).tracking(1.8).foregroundStyle(.secondary)
                 Spacer()
                 HStack(spacing: 5) {
                     Circle().fill(Color.primary.opacity(0.12)).frame(width: 8, height: 8)
