@@ -144,7 +144,12 @@ private struct FailableRow<T: Decodable>: Decodable {
 
 @MainActor
 class SupabaseSyncManager: ObservableObject {
-    static let shared = SupabaseSyncManager()
+    /// XCTest loads the app module in a separate process. Do not let that process
+    /// read the user's real session keychain item just because a view references
+    /// the shared manager during test discovery.
+    static let shared = SupabaseSyncManager(
+        loadStoredSession: ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
+    )
     
     private let supabaseURL = "https://mrqgudqemlgdxnrqxqtk.supabase.co"
     private let supabaseKey = "sb_publishable_KV6DvqpKbl6wmMZvcwPczw_ID2hOShH"
