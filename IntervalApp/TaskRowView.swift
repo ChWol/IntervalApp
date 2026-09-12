@@ -20,6 +20,7 @@ struct TaskRowView: View {
     @State private var isHovering: Bool = false
     @State private var isXHovered: Bool = false
     @State private var isCheckmarkHovering: Bool = false
+    @State private var isDeepFocusHovered: Bool = false
     @State private var localCompleted: Bool = false
     @State private var isExpanded: Bool = false
     @State private var swipeOffset: CGFloat = 0
@@ -171,7 +172,7 @@ struct TaskRowView: View {
                     focusedTaskId = nil
                     onDeepFocus(task)
                 } label: {
-                    Label("Deep Focus", systemImage: "scope")
+                    Label("Deep Focus", systemImage: "viewfinder")
                 }
             }
         }
@@ -422,14 +423,18 @@ struct TaskRowView: View {
                         focusedTaskId = nil
                         onDeepFocus(task)
                     } label: {
-                        Image(systemName: "scope")
+                        Image(systemName: "viewfinder")
                             .font(.system(size: max(fontSize * 0.45, 11), weight: .light))
-                            .foregroundColor(.secondary.opacity(0.7))
-                            .frame(width: 24, height: 24)
+                            .foregroundColor(isDeepFocusHovered ? .primary : .secondary.opacity(0.7))
+                            .frame(width: 26, height: 26)
+                            .background(Circle().fill(Color.primary.opacity(isDeepFocusHovered ? 0.1 : 0.04)))
+                            .scaleEffect(isDeepFocusHovered ? 1.08 : 1)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .opacity(isHovering || focusedTaskId == task.id ? 1 : 0)
+                    .onHover { isDeepFocusHovered = $0 }
+                    .pointingHandCursor()
                     .help("Deep Focus")
                 }
                 Button(action: {

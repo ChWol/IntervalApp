@@ -229,6 +229,7 @@ struct SettingsView: View {
     @ObservedObject private var notificationManager = NotificationManager.shared
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("showHabits") private var showHabits: Bool = true
+    @AppStorage("liveActivitiesEnabled") private var liveActivitiesEnabled: Bool = true
     @AppStorage("soundEffectsEnabled") private var soundEffectsEnabled: Bool = true
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = false
     @AppStorage("dayStartHour") private var dayStartHour: Int = 6
@@ -351,6 +352,20 @@ struct SettingsView: View {
 
                         MinimalistToggle(isOn: $showHabits, label: "Show Habits Bar".localized)
                         MinimalistToggle(isOn: $soundEffectsEnabled, label: "Sound Effects".localized)
+                        #if os(iOS)
+                        MinimalistToggle(
+                            isOn: Binding(
+                                get: { liveActivitiesEnabled },
+                                set: { enabled in
+                                    liveActivitiesEnabled = enabled
+                                    if !enabled {
+                                        Task { await IntervalLiveActivityManager.shared.refresh(context: modelContext) }
+                                    }
+                                }
+                            ),
+                            label: "Dynamic Island & Live Activities".localized
+                        )
+                        #endif
                         
                         // Notifications Toggle & Permission handler
                         VStack(alignment: .leading, spacing: 6) {

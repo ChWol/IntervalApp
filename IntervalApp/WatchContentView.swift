@@ -14,9 +14,9 @@ public enum WatchTab: String, CaseIterable, Identifiable {
 
     public var displayName: String {
         switch self {
-        case .hour: return "1 STUNDE".localized
-        case .day: return "1 TAG".localized
-        case .habits: return "GEWOHNHEITEN".localized
+        case .hour: return "1 HOUR".localized
+        case .day: return "1 DAY".localized
+        case .habits: return "HABITS".localized
         }
     }
 
@@ -31,6 +31,7 @@ public enum WatchTab: String, CaseIterable, Identifiable {
 
 public struct WatchContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @StateObject private var syncManager = SupabaseSyncManager.shared
     @State private var selectedTab: WatchTab = .hour
     @State private var now: Date = Date()
     
@@ -72,9 +73,9 @@ public struct WatchContentView: View {
                 // Active View Content
                 switch selectedTab {
                 case .hour:
-                    WatchTaskListView(intervalType: "1 Hour", headerTitle: "1 STUNDE".localized, remainingText: timeRemainingInHour(from: now))
+                    WatchTaskListView(intervalType: "1 Hour", headerTitle: "1 HOUR".localized, remainingText: timeRemainingInHour(from: now))
                 case .day:
-                    WatchTaskListView(intervalType: "1 Day", headerTitle: "1 TAG".localized, remainingText: timeRemainingInDay(from: now))
+                    WatchTaskListView(intervalType: "1 Day", headerTitle: "1 DAY".localized, remainingText: timeRemainingInDay(from: now))
                 case .habits:
                     WatchHabitsListView()
                 }
@@ -82,6 +83,10 @@ public struct WatchContentView: View {
             .background(Color.black.ignoresSafeArea())
             .onReceive(timer) { newDate in
                 now = newDate
+            }
+            .onAppear {
+                syncManager.start(context: modelContext)
+                Task { await syncManager.triggerManualSync() }
             }
         }
     }

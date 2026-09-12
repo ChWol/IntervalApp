@@ -67,7 +67,7 @@ struct IntervalWidgetView: View {
             ProgressView(value: progress).tint(.black.opacity(0.75))
         }
         .foregroundStyle(.black)
-        .padding(12)
+        .padding(8)
     }
 
     private var mediumLayout: some View {
@@ -103,7 +103,7 @@ struct IntervalWidgetView: View {
             Spacer(minLength: 0)
         }
         .foregroundStyle(.black)
-        .padding(14)
+        .padding(10)
     }
 }
 

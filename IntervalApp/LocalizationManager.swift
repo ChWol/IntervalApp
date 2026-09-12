@@ -1666,6 +1666,59 @@ class LocalizationManager: ObservableObject {
             .japanese: "Interval バックアップ",
             .korean: "Interval 백업"
         ],
+        "HABIT RHYTHMS": [
+            .english: "HABIT RHYTHMS", .german: "GEWOHNHEITSRHYTHMEN", .french: "RYTHMES D'HABITUDES",
+            .spanish: "RITMOS DE HÁBITOS", .portuguese: "RITMOS DE HÁBITOS", .italian: "RITMI DELLE ABITUDINI",
+            .arabic: "إيقاعات العادات", .chinese: "习惯节奏", .japanese: "習慣のリズム", .korean: "습관 리듬"
+        ],
+        "A quiet look back at what you kept showing up for.": [
+            .english: "A quiet look back at what you kept showing up for.", .german: "Ein ruhiger Rückblick auf das, wofür du drangeblieben bist.",
+            .french: "Un regard calme sur ce que vous avez continué à faire.", .spanish: "Una mirada tranquila a aquello a lo que seguiste dedicándote.",
+            .portuguese: "Um olhar tranquilo para aquilo a que continuaste a voltar.", .italian: "Uno sguardo sereno su ciò a cui hai continuato a dedicarti.",
+            .arabic: "نظرة هادئة إلى ما واصلت الالتزام به.", .chinese: "静静回望你一直坚持的事情。", .japanese: "続けてきたことを静かに振り返ります。", .korean: "꾸준히 이어 온 일을 조용히 돌아봅니다."
+        ],
+        "No active habits yet.": [
+            .english: "No active habits yet.", .german: "Noch keine aktiven Gewohnheiten.", .french: "Aucune habitude active.",
+            .spanish: "Aún no hay hábitos activos.", .portuguese: "Ainda não há hábitos ativos.", .italian: "Nessuna abitudine attiva.",
+            .arabic: "لا توجد عادات نشطة بعد.", .chinese: "还没有活跃的习惯。", .japanese: "アクティブな習慣はまだありません。", .korean: "활성 습관이 아직 없습니다."
+        ],
+        "CURRENT STREAK": [
+            .english: "CURRENT STREAK", .german: "AKTUELLE SERIE", .french: "SÉRIE ACTUELLE", .spanish: "RACHA ACTUAL",
+            .portuguese: "SEQUÊNCIA ATUAL", .italian: "SERIE ATTUALE", .arabic: "السلسلة الحالية", .chinese: "当前连续", .japanese: "現在の連続", .korean: "현재 연속"
+        ],
+        "THIS YEAR": [
+            .english: "THIS YEAR", .german: "DIESES JAHR", .french: "CETTE ANNÉE", .spanish: "ESTE AÑO",
+            .portuguese: "ESTE ANO", .italian: "QUEST'ANNO", .arabic: "هذا العام", .chinese: "今年", .japanese: "今年", .korean: "올해"
+        ],
+        "RHYTHM": [
+            .english: "RHYTHM", .german: "RHYTHMUS", .french: "RYTHME", .spanish: "RITMO",
+            .portuguese: "RITMO", .italian: "RITMO", .arabic: "الإيقاع", .chinese: "节奏", .japanese: "リズム", .korean: "리듬"
+        ],
+        "Daily": [
+            .english: "Daily", .german: "Täglich", .french: "Quotidien", .spanish: "Diario", .portuguese: "Diário", .italian: "Giornaliero",
+            .arabic: "يومي", .chinese: "每天", .japanese: "毎日", .korean: "매일"
+        ],
+        "Weekly": [
+            .english: "Weekly", .german: "Wöchentlich", .french: "Hebdomadaire", .spanish: "Semanal", .portuguese: "Semanal", .italian: "Settimanale",
+            .arabic: "أسبوعي", .chinese: "每周", .japanese: "毎週", .korean: "매주"
+        ],
+        "complete": [
+            .english: "complete", .german: "erledigt", .french: "terminé", .spanish: "completado", .portuguese: "concluído", .italian: "completato",
+            .arabic: "مكتمل", .chinese: "已完成", .japanese: "完了", .korean: "완료"
+        ],
+        "Dynamic Island & Live Activities": [
+            .english: "Dynamic Island & Live Activities", .german: "Dynamic Island & Live-Aktivitäten", .french: "Dynamic Island et activités en direct",
+            .spanish: "Dynamic Island y actividades en directo", .portuguese: "Dynamic Island e atividades ao vivo", .italian: "Dynamic Island e attività live",
+            .arabic: "الجزيرة الديناميكية والأنشطة المباشرة", .chinese: "灵动岛与实时活动", .japanese: "Dynamic Islandとライブアクティビティ", .korean: "다이내믹 아일랜드 및 실시간 활동"
+        ],
+        "No Tasks": [
+            .english: "No Tasks", .german: "Keine Aufgaben", .french: "Aucune tâche", .spanish: "Sin tareas", .portuguese: "Sem tarefas", .italian: "Nessuna attività",
+            .arabic: "لا مهام", .chinese: "没有任务", .japanese: "タスクなし", .korean: "작업 없음"
+        ],
+        "No Habits": [
+            .english: "No Habits", .german: "Keine Gewohnheiten", .french: "Aucune habitude", .spanish: "Sin hábitos", .portuguese: "Sem hábitos", .italian: "Nessuna abitudine",
+            .arabic: "لا عادات", .chinese: "没有习惯", .japanese: "習慣なし", .korean: "습관 없음"
+        ],
         "SELECT TIME": [
             .english: "SELECT TIME",
             .german: "UHRZEIT WÄHLEN",

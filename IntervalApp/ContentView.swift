@@ -170,36 +170,18 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
+                    .pointingHandCursor()
                     .help("Close Deep Focus")
                 }
 
                 ZStack {
-                    Circle()
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
                         .stroke(Color.primary.opacity(0.12), lineWidth: 1)
-                        .frame(width: 170, height: 170)
+                        .frame(maxWidth: .infinity, minHeight: 150)
                         .scaleEffect(deepFocusBreathing ? 1.08 : 0.92)
                         .opacity(deepFocusBreathing ? 0.35 : 0.7)
-                    Circle()
-                        .fill(Color.primary.opacity(0.035))
-                        .frame(width: 126, height: 126)
-                    VStack(spacing: 8) {
-                        Image(systemName: "circle.dotted")
-                            .font(.system(size: 18, weight: .ultraLight))
-                            .foregroundStyle(.secondary)
-                        Text("one thing at a time")
-                            .font(.system(size: 11, weight: .light))
-                            .foregroundStyle(.secondary)
-                    }
+                    deepFocusTaskCard(task)
                 }
-
-                TaskRowView(task: task, fontSize: 28, isNew: false, listTitle: task.intervalType, focusedTaskId: .constant(nil))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 18)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
-                    )
-                    .shadow(color: .black.opacity(0.25), radius: 24, y: 10)
             }
             .padding(24)
             .frame(maxWidth: 620)
@@ -211,6 +193,54 @@ struct ContentView: View {
                 deepFocusBreathing = true
             }
         }
+        #if os(macOS)
+        .onExitCommand { closeDeepFocus() }
+        #endif
+    }
+
+    private func deepFocusTaskCard(_ task: TaskItem) -> some View {
+        HStack(alignment: .top, spacing: 16) {
+            Button { completeDeepFocusTask(task) } label: {
+                Image(systemName: "circle")
+                    .font(.system(size: 26, weight: .ultraLight))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 34, height: 34)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .accessibilityLabel("Complete task")
+
+            Text(LinkTaskText.displayText(for: task.text))
+                .font(.system(size: 26, weight: .light, design: .rounded))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 28)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.25), radius: 24, y: 10)
+    }
+
+    private func completeDeepFocusTask(_ task: TaskItem) {
+        let now = Date()
+        HabitTaskLink.setTaskCompleted(true, on: task, now: now)
+        if task.habitId != nil,
+           let habits = try? modelContext.fetch(FetchDescriptor<HabitItem>()) {
+            HabitTaskLink.applyTaskCompletionToHabit(task, habits: habits, now: now)
+        }
+        _ = PersistenceSafety.save(modelContext, operation: "Completing focused task")
+        syncManager.push()
+        closeDeepFocus()
     }
 
     private func closeDeepFocus() {

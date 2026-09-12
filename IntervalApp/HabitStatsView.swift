@@ -22,17 +22,17 @@ struct HabitStatsView: View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("HABIT RHYTHMS")
+                    Text("HABIT RHYTHMS".localized)
                         .font(.system(size: 10, weight: .light))
                         .tracking(2)
                         .foregroundStyle(.secondary)
-                    Text("A quiet look back at what you kept showing up for.")
+                    Text("A quiet look back at what you kept showing up for.".localized)
                         .font(.system(size: 14, weight: .light))
                         .foregroundStyle(.secondary)
                 }
 
                 if activeHabits.isEmpty {
-                    Text("No active habits yet.")
+                    Text("No active habits yet.".localized)
                         .font(.system(size: 16, weight: .light))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -83,11 +83,11 @@ struct HabitStatsView: View {
 
     private func summary(for habit: HabitItem) -> some View {
         HStack(spacing: 0) {
-            stat(value: "\(habit.streak)", label: "CURRENT STREAK")
+            stat(value: "\(habit.streak)", label: "CURRENT STREAK".localized)
             Divider().frame(height: 34).opacity(0.35)
-            stat(value: "\(completionsThisYear(for: habit))", label: "THIS YEAR")
+            stat(value: "\(completionsThisYear(for: habit))", label: "THIS YEAR".localized)
             Divider().frame(height: 34).opacity(0.35)
-            stat(value: habit.frequency.replacingOccurrences(of: "Weekly:", with: "Weekly "), label: "RHYTHM")
+            stat(value: rhythmDescription(for: habit), label: "RHYTHM".localized)
         }
         .padding(.vertical, 17)
         .frame(maxWidth: .infinity)
@@ -108,16 +108,16 @@ struct HabitStatsView: View {
     private func yearCalendar(for habit: HabitItem) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("\(year) RHYTHM").font(.system(size: 10, weight: .light)).tracking(1.8).foregroundStyle(.secondary)
+                Text(verbatim: yearHeader).font(.system(size: 10, weight: .light)).tracking(1.8).foregroundStyle(.secondary)
                 Spacer()
                 HStack(spacing: 5) {
                     Circle().fill(Color.primary.opacity(0.12)).frame(width: 8, height: 8)
-                    Text("complete").font(.system(size: 9, weight: .light)).foregroundStyle(.secondary)
+                    Text("complete".localized).font(.system(size: 9, weight: .light)).foregroundStyle(.secondary)
                 }
             }
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 18)], spacing: 20) {
-                ForEach(1...12, id: \.self) { month in monthView(month: month, dates: habit.completionDates) }
+                ForEach(1...12, id: \.self) { month in monthView(month: month, dates: completionDates(for: habit)) }
             }
         }
     }
@@ -147,9 +147,31 @@ struct HabitStatsView: View {
     }
 
     private func completionsThisYear(for habit: HabitItem) -> Int {
-        habit.completionDates.filter {
+        completionDates(for: habit).filter {
             calendar.component(.year, from: HabitItem.intervalDayDate(for: $0)) == year
         }.count
+    }
+
+    private var yearHeader: String { String(year) + " " + "RHYTHM".localized }
+
+    private func completionDates(for habit: HabitItem) -> [Date] {
+        var dates = habit.completionDates
+        // Older stores only had lastCompletedDate. Include it so existing
+        // habits immediately show a meaningful count after upgrading.
+        if let legacy = habit.lastCompletedDate,
+           !dates.contains(where: { calendar.isDate(HabitItem.intervalDayDate(for: $0), inSameDayAs: HabitItem.intervalDayDate(for: legacy)) }) {
+            dates.append(legacy)
+        }
+        return dates
+    }
+
+    private func rhythmDescription(for habit: HabitItem) -> String {
+        guard habit.isWeekly else { return "Daily".localized }
+        guard let weekday = habit.targetWeekday,
+              weekday >= 1, weekday <= calendar.weekdaySymbols.count else {
+            return "Weekly".localized
+        }
+        return "Weekly · \(calendar.weekdaySymbols[weekday - 1].localized)"
     }
 }
 #endif

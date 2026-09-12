@@ -9,6 +9,13 @@ final class IntervalLiveActivityManager {
     private init() {}
 
     func refresh(context: ModelContext) async {
+        let enabled = UserDefaults.standard.object(forKey: "liveActivitiesEnabled") as? Bool ?? true
+        guard enabled else {
+            for activity in Activity<IntervalFocusActivityAttributes>.activities {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
+            return
+        }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         let descriptor = FetchDescriptor<TaskItem>(
             predicate: #Predicate { task in
