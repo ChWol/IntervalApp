@@ -141,9 +141,7 @@ struct TaskRowView: View {
                 task.text = text
                 task.updatedAt = Date()
             }
-            dragState.draggedTask = task
-            dragState.targetIntervalType = listTitle
-            dragState.targetFontSize = fontSize
+            dragState.begin(task, interval: listTitle, fontSize: fontSize)
             return NSItemProvider(item: task.id as NSString, typeIdentifier: UTType.data.identifier)
         } preview: {
             let activeFontSize = dragState.targetFontSize
@@ -614,6 +612,14 @@ class DragState: ObservableObject {
     @Published var targetFontSize: CGFloat = 20.0
     
     private var monitor: Any?
+
+    func begin(_ task: TaskItem, interval: String, fontSize: CGFloat) {
+        HabitDragState.shared.reset()
+        draggedTask = task
+        targetIntervalType = interval
+        targetIndex = nil
+        targetFontSize = fontSize
+    }
     
     func reset() {
         draggedTask = nil
@@ -677,10 +683,8 @@ struct TaskDropDelegate: DropDelegate {
                 if !alreadyInHour {
                     let sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
                     let itemIdx = sorted.firstIndex(where: { $0.id == item.id }) ?? 0
-                    withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
-                        HabitDragState.shared.targetIndex = itemIdx
-                        HabitDragState.shared.isTargetingHour = true
-                    }
+                    HabitDragState.shared.targetIndex = itemIdx
+                    HabitDragState.shared.isTargetingHour = true
                 }
             }
             return
@@ -725,10 +729,8 @@ struct TaskDropDelegate: DropDelegate {
                 let isBottomHalf = info.location.y > (sectionFontSize * 1.5 / 2.0)
                 let candidateIdx = isBottomHalf ? itemIdx + 1 : itemIdx
                 if HabitDragState.shared.targetIndex != candidateIdx {
-                    withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
-                        HabitDragState.shared.targetIndex = candidateIdx
-                        HabitDragState.shared.isTargetingHour = true
-                    }
+                    HabitDragState.shared.targetIndex = candidateIdx
+                    HabitDragState.shared.isTargetingHour = true
                 }
             }
             return DropProposal(operation: .copy)

@@ -212,6 +212,7 @@ class SupabaseSyncManager: ObservableObject {
     private var isPulling = false
     private var pendingPushRequested = false
     private var pendingPullRequested = false
+    private var testingPersistenceSave: ((ModelContext) -> Bool)?
     
     private var refreshTask: Task<Bool, Never>?
     private var pendingLocalPurge = false
@@ -232,6 +233,8 @@ class SupabaseSyncManager: ObservableObject {
     /// before it is deleted locally, so a single incomplete snapshot cannot destroy data.
     private var missingTaskIds = Set<String>()
     private var missingHabitIds = Set<String>()
+    private var missingScratchpadListIds = Set<String>()
+    private var missingScratchpadItemIds = Set<String>()
     
     /// Builds before per-row sync tracking hard-deleted rows locally without recording a
     /// tombstone, leaving orphaned soft-deleted rows on the server. They are cleared out once,
@@ -318,8 +321,8 @@ class SupabaseSyncManager: ObservableObject {
             }
             
             if let authResp = try? JSONDecoder().decode(AuthResponse.self, from: data), !authResp.access_token.isEmpty {
-                handleAuthSuccess(authResp, email: email)
-                return SignUpResult(success: true, requiresConfirmation: false, error: nil)
+                let accepted = handleAuthSuccess(authResp, email: email)
+                return SignUpResult(success: accepted, requiresConfirmation: false, error: accepted ? nil : authError)
             } else {
                 return SignUpResult(success: true, requiresConfirmation: true, error: nil)
             }
@@ -355,7 +358,7 @@ class SupabaseSyncManager: ObservableObject {
             }
             
             let authResp = try JSONDecoder().decode(AuthResponse.self, from: data)
-            handleAuthSuccess(authResp, email: email)
+            _ = handleAuthSuccess(authResp, email: email)
         } catch {
             authError = "Network error: \(error.localizedDescription)"
         }
@@ -556,11 +559,17 @@ class SupabaseSyncManager: ObservableObject {
             return
         }
 
-        finalizeLocalSignOut()
+        guard finalizeLocalSignOut() else {
+            lastError = "Couldn't sign out because the local cache could not be safely cleared. Please try again."
+            return
+        }
     }
 
-    private func finalizeLocalSignOut() {
-        if let ctx = modelContext { purgeLocalStore(context: ctx) }
+    @discardableResult
+    private func finalizeLocalSignOut() -> Bool {
+        if let ctx = modelContext {
+            guard purgeLocalStore(context: ctx) else { return false }
+        }
         else { pendingLocalPurge = true }
         accessToken = nil
         refreshToken = nil
@@ -574,6 +583,8 @@ class SupabaseSyncManager: ObservableObject {
         refreshTask = nil
         missingTaskIds.removeAll()
         missingHabitIds.removeAll()
+        missingScratchpadListIds.removeAll()
+        missingScratchpadItemIds.removeAll()
         ledger.removeAll()
         persistLedger()
         UserDefaults.standard.removeObject(forKey: StoreKey.userEmail)
@@ -581,6 +592,7 @@ class SupabaseSyncManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: StoreKey.refreshToken)
         UserDefaults.standard.removeObject(forKey: StoreKey.userId)
         UserDefaults.standard.removeObject(forKey: StoreKey.tokenExpiry)
+        return true
     }
     
     @discardableResult
@@ -602,22 +614,43 @@ class SupabaseSyncManager: ObservableObject {
             return false
         }
 
-        finalizeLocalSignOut()
+        guard finalizeLocalSignOut() else {
+            lastError = "The account was deleted, but the local cache could not be cleared. Please restart the app and try signing out again."
+            return false
+        }
         return true
     }
 
     
-    private func handleAuthSuccess(_ response: AuthResponse, email: String) {
-        // Signing in must wipe any previously cached account data to ensure privacy
-        if let ctx = modelContext {
-            purgeLocalStore(context: ctx)
-        } else {
-            pendingLocalPurge = true
+    @discardableResult
+    private func handleAuthSuccess(_ response: AuthResponse, email: String) -> Bool {
+        let transition = SessionIdentityPolicy.transition(
+            isAuthenticated: isAuthenticated,
+            currentUserId: userId,
+            incomingUserId: response.user.id
+        )
+        guard transition != .rejectAccountSwitch else {
+            authError = "Please finish signing out of the current account before signing into another one."
+            return false
+        }
+
+        // A genuinely fresh login starts from an empty account-specific cache.
+        // Reauthentication for the same account must retain pending local edits.
+        if transition == .freshLogin {
+            if let ctx = modelContext {
+                guard purgeLocalStore(context: ctx) else {
+                    authError = "Couldn't prepare the local cache for this account. Your existing data was preserved."
+                    return false
+                }
+            }
+            else { pendingLocalPurge = true }
         }
         ledger.removeAll()
         persistLedger()
         missingTaskIds.removeAll()
         missingHabitIds.removeAll()
+        missingScratchpadListIds.removeAll()
+        missingScratchpadItemIds.removeAll()
         
         applyTokens(response)
         userId = response.user.id
@@ -625,12 +658,13 @@ class SupabaseSyncManager: ObservableObject {
         UserDefaults.standard.set(email, forKey: StoreKey.userEmail)
         isAuthenticated = true
         
-        if let ctx = modelContext {
+        if transition == .freshLogin, let ctx = modelContext {
             startSync(context: ctx)
             Task { @MainActor in
                 _ = await self.runSyncCycle(force: true)
             }
         }
+        return true
     }
     
     private func applyTokens(_ response: AuthResponse) {
@@ -700,10 +734,11 @@ class SupabaseSyncManager: ObservableObject {
     
     // MARK: - User Metadata (Cross-Device Migration Markers)
     
-    func updateUserMetadata(_ data: [String: String]) async {
-        guard isAuthenticated, let url = URL(string: "\(supabaseURL)/auth/v1/user") else { return }
+    @discardableResult
+    func updateUserMetadata(_ data: [String: String]) async -> Bool {
+        guard isAuthenticated, let url = URL(string: "\(supabaseURL)/auth/v1/user") else { return false }
         await ensureFreshToken()
-        guard let token = accessToken else { return }
+        guard let token = accessToken else { return false }
         
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
@@ -712,13 +747,14 @@ class SupabaseSyncManager: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["data": data])
         
-        if let (respData, response) = try? await transport.data(for: request),
-           let http = response as? HTTPURLResponse {
-            if http.statusCode != 200 {
-                let errStr = String(data: respData, encoding: .utf8) ?? ""
-                print("[Sync] Failed to update user metadata (HTTP \(http.statusCode)): \(errStr)")
-            }
+        guard let (respData, response) = try? await transport.data(for: request),
+              let http = response as? HTTPURLResponse else { return false }
+        guard http.statusCode == 200 else {
+            let errStr = String(data: respData, encoding: .utf8) ?? ""
+            print("[Sync] Failed to update user metadata (HTTP \(http.statusCode)): \(errStr)")
+            return false
         }
+        return true
     }
     
     func fetchUserMetadata() async -> [String: String]? {
@@ -753,7 +789,7 @@ class SupabaseSyncManager: ObservableObject {
         self.modelContext = context
         
         if pendingLocalPurge {
-            purgeLocalStore(context: context)
+            guard purgeLocalStore(context: context) else { return }
             pendingLocalPurge = false
         }
         
@@ -789,11 +825,12 @@ class SupabaseSyncManager: ObservableObject {
         NotificationCenter.default.publisher(for: inactiveNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                Task { @MainActor in _ = await self?.pushToSupabase() }
+                Task { @MainActor in _ = await self?.runSyncCycle(force: true) }
             }
             .store(in: &cancellables)
         
-        // Background poll — always push before pull to prevent overwriting local edits.
+        // Reconcile first: a blind push can overwrite a newer edit from another device
+        // before conflict resolution has compared their timestamps.
         Timer.publish(every: pollInterval, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
@@ -808,23 +845,25 @@ class SupabaseSyncManager: ObservableObject {
         }
     }
     
-    /// Push then pull. Scheduled cycles respect the retry backoff; user- and edit-triggered
-    /// cycles are always attempted.
+    /// Pull then push. Merge preserves genuinely newer unpublished local edits and queues
+    /// them for upload, while stale cached rows first adopt the newer server version.
     @discardableResult
     private func runSyncCycle(force: Bool) async -> Bool {
         guard isAuthenticated else { return false }
         if !force && !backoff.allowsAttempt() { return false }
         
-        let pushed = await pushToSupabase()
         let pulled = await pullFromSupabase()
+        guard pulled else { return false }
+        await MigrationManager.shared.publishPendingMarkers()
+        let pushed = await pushToSupabase()
         return pushed && pulled
     }
     
-    /// Instant push call (fire and forget)
+    /// Immediately reconcile and publish (fire and forget).
     func push() {
         guard isAuthenticated else { return }
         debounceTimer?.cancel()
-        Task { @MainActor in _ = await pushToSupabase() }
+        Task { @MainActor in _ = await runSyncCycle(force: true) }
     }
     
     /// Debounced push for rapid typing (pushes shortly after the last keystroke)
@@ -834,7 +873,7 @@ class SupabaseSyncManager: ObservableObject {
         debounceTimer = Just(())
             .delay(for: .seconds(debounceDelay), scheduler: RunLoop.main)
             .sink { [weak self] _ in
-                Task { @MainActor in _ = await self?.pushToSupabase() }
+                Task { @MainActor in _ = await self?.runSyncCycle(force: true) }
             }
     }
     
@@ -881,7 +920,10 @@ class SupabaseSyncManager: ObservableObject {
         }
         
         await ensureFreshToken()
-        persist(context)
+        guard persist(context) else {
+            backoff.recordFailure()
+            return false
+        }
         
         var succeeded = await flushTombstones()
         
@@ -953,7 +995,7 @@ class SupabaseSyncManager: ObservableObject {
             }
         }
         
-        persist(context)
+        if !persist(context) { succeeded = false }
         
         if succeeded {
             noteSyncSuccess()
@@ -1121,29 +1163,25 @@ class SupabaseSyncManager: ObservableObject {
         // Both snapshots must be complete before anything is merged: a partial snapshot must
         // never be mistaken for rows having been deleted elsewhere.
         guard let remoteTasks: [SupabaseTaskDTO] = await fetchAll(table: SyncTable.tasks, uid: uid),
-              let remoteHabits: [SupabaseHabitDTO] = await fetchAll(table: SyncTable.habits, uid: uid) else {
+              let remoteHabits: [SupabaseHabitDTO] = await fetchAll(table: SyncTable.habits, uid: uid),
+              let remoteScratchpadLists: [SupabaseScratchpadListDTO] = await fetchAll(table: SyncTable.scratchpadLists, uid: uid, filterByUserId: false),
+              let remoteScratchpadItems: [SupabaseScratchpadItemDTO] = await fetchAll(table: SyncTable.scratchpadItems, uid: uid, filterByUserId: false) else {
             backoff.recordFailure()
             return false
         }
         
-        var needsFollowupPush = mergeRemoteTasks(remoteTasks, context: context, uid: uid)
-        if mergeRemoteHabits(remoteHabits, context: context, uid: uid) {
-            needsFollowupPush = true
-        }
+        _ = mergeRemoteTasks(remoteTasks, context: context, uid: uid)
+        _ = mergeRemoteHabits(remoteHabits, context: context, uid: uid)
+        let localTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        let localHabits = (try? context.fetch(FetchDescriptor<HabitItem>())) ?? []
+        _ = HabitTaskLink.reconcileCompletion(tasks: localTasks, habits: localHabits)
+        _ = mergeRemoteScratchpadLists(remoteScratchpadLists, context: context, uid: uid)
+        _ = mergeRemoteScratchpadItems(remoteScratchpadItems, context: context, uid: uid)
         
-        if let remoteScratchpadLists: [SupabaseScratchpadListDTO] = await fetchAll(table: SyncTable.scratchpadLists, uid: uid, filterByUserId: false) {
-            if mergeRemoteScratchpadLists(remoteScratchpadLists, context: context, uid: uid) {
-                needsFollowupPush = true
-            }
+        guard persist(context) else {
+            backoff.recordFailure()
+            return false
         }
-        
-        if let remoteScratchpadItems: [SupabaseScratchpadItemDTO] = await fetchAll(table: SyncTable.scratchpadItems, uid: uid, filterByUserId: false) {
-            if mergeRemoteScratchpadItems(remoteScratchpadItems, context: context, uid: uid) {
-                needsFollowupPush = true
-            }
-        }
-        
-        persist(context)
         completeLegacyBinPurge()
         noteSyncSuccess()
         
@@ -1153,9 +1191,7 @@ class SupabaseSyncManager: ObservableObject {
         
         NotificationCenter.default.post(name: .syncPullDidComplete, object: nil)
         
-        if needsFollowupPush {
-            push()
-        }
+        // The enclosing sync cycle publishes any local winner after this merge returns.
         return true
     }
     
@@ -1328,8 +1364,10 @@ class SupabaseSyncManager: ObservableObject {
         var needsFollowupPush = false
         guard let all = try? context.fetch(FetchDescriptor<ScratchpadList>()) else { return false }
         var localById = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var remoteIds = Set<String>()
         
         for dto in dtos {
+            remoteIds.insert(dto.id)
             let title = (dto.title ?? "").trimmingCharacters(in: .whitespaces)
             let remoteStamp = SyncTimestamp.parse(dto.updated_at).map { clock.toLocal($0) }
             
@@ -1363,6 +1401,26 @@ class SupabaseSyncManager: ObservableObject {
                 if remoteStamp == nil { needsFollowupPush = true }
             }
         }
+
+        // Once a complete RLS-filtered snapshot no longer contains a shared list,
+        // access has been revoked. Remove its cached content immediately so a former
+        // collaborator cannot continue reading it offline.
+        let revokedListIds = Set(localById.compactMap { id, list in
+            !remoteIds.contains(id) && list.ownerId != nil && list.ownerId != uid ? id : nil
+        })
+        if !revokedListIds.isEmpty {
+            for item in (try? context.fetch(FetchDescriptor<ScratchpadItem>())) ?? [] where revokedListIds.contains(item.listId) {
+                context.delete(item)
+            }
+            for id in revokedListIds {
+                if let list = localById.removeValue(forKey: id) { context.delete(list) }
+            }
+        }
+        missingScratchpadListIds = pruneVanished(
+            localById.filter { !remoteIds.contains($0.key) && !needsPush($0.value) },
+            previouslyMissing: missingScratchpadListIds,
+            context: context
+        )
         return needsFollowupPush
     }
     
@@ -1370,8 +1428,10 @@ class SupabaseSyncManager: ObservableObject {
         var needsFollowupPush = false
         guard let all = try? context.fetch(FetchDescriptor<ScratchpadItem>()) else { return false }
         var localById = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var remoteIds = Set<String>()
         
         for dto in dtos {
+            remoteIds.insert(dto.id)
             let text = (dto.text ?? "").trimmingCharacters(in: .whitespaces)
             let remoteStamp = SyncTimestamp.parse(dto.updated_at).map { clock.toLocal($0) }
             
@@ -1406,6 +1466,11 @@ class SupabaseSyncManager: ObservableObject {
                 if remoteStamp == nil { needsFollowupPush = true }
             }
         }
+        missingScratchpadItemIds = pruneVanished(
+            localById.filter { !remoteIds.contains($0.key) && !needsPush($0.value) },
+            previouslyMissing: missingScratchpadItemIds,
+            context: context
+        )
         return needsFollowupPush
     }
     
@@ -1464,22 +1529,43 @@ class SupabaseSyncManager: ObservableObject {
         return byId
     }
     
-    func purgeLocalStore(context: ModelContext) {
-        for task in (try? context.fetch(FetchDescriptor<TaskItem>())) ?? [] { context.delete(task) }
-        for habit in (try? context.fetch(FetchDescriptor<HabitItem>())) ?? [] { context.delete(habit) }
-        for item in (try? context.fetch(FetchDescriptor<ScratchpadItem>())) ?? [] { context.delete(item) }
-        for list in (try? context.fetch(FetchDescriptor<ScratchpadList>())) ?? [] { context.delete(list) }
-        persist(context)
-    }
-    
-    private func persist(_ context: ModelContext) {
-        guard context.hasChanges else { return }
-        do {
-            try context.save()
-        } catch {
-            print("[Supabase] Local save error: \(error)")
-            lastError = "Local save error: \(error.localizedDescription)"
+    @discardableResult
+    func purgeLocalStore(context: ModelContext) -> Bool {
+        // Establish a committed recovery point before staging destructive deletes.
+        // If either save fails, no half-purged cache may remain visible in memory.
+        guard persist(context) else { return false }
+        guard let tasks = try? context.fetch(FetchDescriptor<TaskItem>()),
+              let habits = try? context.fetch(FetchDescriptor<HabitItem>()),
+              let items = try? context.fetch(FetchDescriptor<ScratchpadItem>()),
+              let lists = try? context.fetch(FetchDescriptor<ScratchpadList>()) else {
+            lastError = "Local data could not be read, so it was not cleared."
+            return false
         }
+        for task in tasks { context.delete(task) }
+        for habit in habits { context.delete(habit) }
+        for item in items { context.delete(item) }
+        for list in lists { context.delete(list) }
+        guard persist(context) else {
+            context.rollback()
+            // SwiftData can leave rolled-back deletions detached from the context.
+            // Re-register the same objects so the recovery copy remains visible and
+            // pending for a later save even when storage is temporarily unavailable.
+            for task in tasks { context.insert(task) }
+            for habit in habits { context.insert(habit) }
+            for list in lists { context.insert(list) }
+            for item in items { context.insert(item) }
+            return false
+        }
+        return true
+    }
+
+    @discardableResult
+    private func persist(_ context: ModelContext) -> Bool {
+        guard context.hasChanges else { return true }
+        let succeeded = testingPersistenceSave?(context)
+            ?? PersistenceSafety.save(context, operation: "Saving synchronized data")
+        if !succeeded { lastError = "Local save failed. Changes remain pending for retry." }
+        return succeeded
     }
     
     private func needsPush(_ task: TaskItem) -> Bool {
@@ -1642,8 +1728,11 @@ class SupabaseSyncManager: ObservableObject {
             }
             
             let decoded = rows.compactMap { $0.value }
-            if decoded.count < rows.count {
-                print("[Supabase] Skipped \(rows.count - decoded.count) unreadable \(table) row(s)")
+            guard decoded.count == rows.count else {
+                let unreadableCount = rows.count - decoded.count
+                print("[Supabase] Rejected incomplete \(table) snapshot with \(unreadableCount) unreadable row(s)")
+                lastError = "Incomplete \(table) snapshot: \(unreadableCount) unreadable row(s)"
+                return nil
             }
             results.append(contentsOf: decoded)
             
@@ -1651,7 +1740,8 @@ class SupabaseSyncManager: ObservableObject {
             if rows.count < pageSize { return results }
             offset += pageSize
         }
-        return results
+        lastError = "Incomplete \(table) snapshot: pagination limit reached"
+        return nil
     }
     
     private func validate(response: URLResponse, data: Data, action: String) -> Bool {
@@ -1894,10 +1984,18 @@ extension SupabaseSyncManager {
     }
 
     func testingDeleteAccount() async -> Bool { await deleteAccount() }
+    func testingPurgeLocalStore() -> Bool {
+        guard let context = modelContext else { return false }
+        return purgeLocalStore(context: context)
+    }
     var testingIsAuthenticated: Bool { isAuthenticated }
     func testingSetSyncActivity(pushing: Bool, pulling: Bool) {
         isPushing = pushing
         isPulling = pulling
+    }
+    @discardableResult
+    func testingApplyAuthResponse(_ response: AuthResponse, email: String) -> Bool {
+        handleAuthSuccess(response, email: email)
     }
     
     var testingClockOffset: TimeInterval {
@@ -1923,8 +2021,18 @@ extension SupabaseSyncManager {
         guard let context = modelContext, let uid = userId else { return false }
         var needsFollowup = mergeRemoteTasks(tasks, context: context, uid: uid)
         if mergeRemoteHabits(habits, context: context, uid: uid) { needsFollowup = true }
-        persist(context)
-        return needsFollowup
+        let localTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        let localHabits = (try? context.fetch(FetchDescriptor<HabitItem>())) ?? []
+        if HabitTaskLink.reconcileCompletion(tasks: localTasks, habits: localHabits) { needsFollowup = true }
+        return persist(context) ? needsFollowup : false
+    }
+
+    @discardableResult
+    func testingMergeScratchpads(lists: [SupabaseScratchpadListDTO], items: [SupabaseScratchpadItemDTO]) -> Bool {
+        guard let context = modelContext, let uid = userId else { return false }
+        var needsFollowup = mergeRemoteScratchpadLists(lists, context: context, uid: uid)
+        if mergeRemoteScratchpadItems(items, context: context, uid: uid) { needsFollowup = true }
+        return persist(context) ? needsFollowup : false
     }
     
     func testingArmLegacyBinPurge() {
@@ -1965,6 +2073,19 @@ extension SupabaseSyncManager {
     func testingSave() {
         guard let context = modelContext else { return }
         persist(context)
+    }
+
+    func testingFailPersistenceSaves() {
+        testingPersistenceSave = { _ in false }
+    }
+
+    func testingPersistenceSaveResults(_ results: [Bool]) {
+        var remaining = results
+        testingPersistenceSave = { context in
+            let result = remaining.isEmpty ? true : remaining.removeFirst()
+            if result { return PersistenceSafety.save(context, operation: "Testing save") }
+            return false
+        }
     }
 }
 #endif

@@ -14,7 +14,7 @@ begin
     raise exception 'authentication required' using errcode = '42501';
   end if;
 
-  delete from public.scratchpad_members
+  delete from public.scratchpad_list_members
     where owner_id = current_user_id or member_user_id = current_user_id;
   delete from public.scratchpad_items where user_id = current_user_id;
   delete from public.scratchpad_lists where user_id = current_user_id;

@@ -145,7 +145,7 @@ struct HabitsBarView: View {
                             #if !os(watchOS)
                             chip
                                 .onDrag {
-                                    HabitDragState.shared.draggedHabit = habit
+                                    HabitDragState.shared.begin(habit)
                                     return NSItemProvider(item: habit.id as NSString, typeIdentifier: UTType.data.identifier)
                                 } preview: {
                                     Text(habit.text)
@@ -567,11 +567,29 @@ class HabitDragState: ObservableObject {
     #if os(macOS)
     private var monitor: Any?
     #endif
+    private var dragGeneration = 0
+
+    func begin(_ habit: HabitItem) {
+        DragState.shared.reset()
+        dragGeneration += 1
+        draggedHabit = habit
+        targetIndex = nil
+        isTargetingHour = false
+    }
     
     func reset() {
+        dragGeneration += 1
         draggedHabit = nil
         targetIndex = nil
         isTargetingHour = false
+    }
+
+    func resetAfterDropWindow() {
+        let generation = dragGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            guard let self, self.dragGeneration == generation else { return }
+            self.reset()
+        }
     }
 
     private func startMonitoring() {
@@ -579,7 +597,8 @@ class HabitDragState: ObservableObject {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
             DispatchQueue.main.async {
-                self?.reset()
+                // AppKit reports mouse-up before SwiftUI reliably invokes performDrop.
+                self?.resetAfterDropWindow()
             }
             return event
         }
@@ -638,7 +657,7 @@ struct HabitDropDelegate: DropDelegate {
         _ = PersistenceSafety.save(context)
         SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
-            HabitDragState.shared.draggedHabit = nil
+            HabitDragState.shared.reset()
         }
         return true
     }

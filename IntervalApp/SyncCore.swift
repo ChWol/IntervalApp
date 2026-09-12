@@ -1,5 +1,18 @@
 import Foundation
 
+enum SessionIdentityTransition: Equatable {
+    case freshLogin
+    case sameAccount
+    case rejectAccountSwitch
+}
+
+enum SessionIdentityPolicy {
+    static func transition(isAuthenticated: Bool, currentUserId: String?, incomingUserId: String) -> SessionIdentityTransition {
+        guard isAuthenticated, let currentUserId else { return .freshLogin }
+        return currentUserId == incomingUserId ? .sameAccount : .rejectAccountSwitch
+    }
+}
+
 /// A signed-in session may only be torn down after all pending data reached the
 /// server. Keeping the session alive on failure preserves both local rows and
 /// the tombstone ledger needed to finish deletes safely on the next retry.

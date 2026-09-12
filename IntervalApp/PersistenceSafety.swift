@@ -12,7 +12,7 @@ extension Notification.Name {
 @MainActor
 enum PersistenceSafety {
     static func save(_ context: ModelContext, operation: String = "Saving changes") -> Bool {
-        attempt(operation: operation, save: { try context.save() }) { message in
+        let didSave = attempt(operation: operation, save: { try context.save() }) { message in
             print("[Persistence] \(message)")
             NotificationCenter.default.post(
                 name: .persistenceSaveFailed,
@@ -20,6 +20,15 @@ enum PersistenceSafety {
                 userInfo: ["message": message]
             )
         }
+        #if os(iOS)
+        if didSave {
+            WidgetSnapshotStore.write(context: context)
+            Task { @MainActor in
+                await IntervalLiveActivityManager.shared.refresh(context: context)
+            }
+        }
+        #endif
+        return didSave
     }
 
     static func attempt(

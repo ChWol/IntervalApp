@@ -64,18 +64,15 @@ final class TransitionLifecycleAndSelectionTests: XCTestCase {
     
     func testCommitYearGoalsCreatesNewYearTasks() throws {
         let goals = ["Launch Product", "Read 20 Books", "Run a Marathon"]
-        
-        var maxOrder = 0
-        for goal in goals {
-            store.addTask(goal, interval: "1 Year", order: maxOrder)
-            maxOrder += 1
-        }
-        try store.save()
+        manager.currentMigration = Migration(source: "1 Year", dest: "1 Year")
+
+        manager.commitYearGoals(goals)
         
         let yearTasks = try store.tasks().filter { $0.intervalType == "1 Year" }
         XCTAssertEqual(yearTasks.count, 3)
         XCTAssertEqual(yearTasks[0].text, "Launch Product")
         XCTAssertEqual(yearTasks[1].text, "Read 20 Books")
         XCTAssertEqual(yearTasks[2].text, "Run a Marathon")
+        XCTAssertNil(manager.currentMigration)
     }
 }

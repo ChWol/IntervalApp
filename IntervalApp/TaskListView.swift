@@ -98,30 +98,11 @@ struct TaskListView: View {
     }
     
     private var habitInsertionPlaceholder: some View {
-        HStack(alignment: .center, spacing: max(8, fontSize * 0.5)) {
-            Image(systemName: "circle")
-                .font(.system(size: max(fontSize * 0.65, 12), weight: .light))
-                .foregroundColor(.secondary.opacity(0.35))
-            
-            if let habit = habitDragState.draggedHabit {
-                Text(habit.text)
-                    .font(.system(size: fontSize, weight: .light))
-                    .foregroundColor(.secondary.opacity(0.55))
-                    .lineLimit(1)
-            }
-            
-            Spacer()
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, max(fontSize * 0.25, 4))
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color.gray.opacity(colorScheme == .dark ? 0.18 : 0.09))
-        )
-        .transition(.asymmetric(
-            insertion: .opacity.combined(with: .scale(scale: 0.96)),
-            removal: .opacity
-        ))
+        Capsule()
+            .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.75 : 0.55))
+            .frame(height: 3)
+            .padding(.horizontal, 8)
+            .accessibilityLabel("Insert habit here")
     }
     
     private func createNewTaskAtEnd() {
@@ -244,10 +225,8 @@ struct TaskListHeaderDropDelegate: DropDelegate {
                 let allTasks = (try? context.fetch(descriptor)) ?? []
                 let alreadyInHour = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
                 if !alreadyInHour {
-                    withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
-                        HabitDragState.shared.targetIndex = 0
-                        HabitDragState.shared.isTargetingHour = true
-                    }
+                    HabitDragState.shared.targetIndex = 0
+                    HabitDragState.shared.isTargetingHour = true
                 }
             }
             return
@@ -328,10 +307,8 @@ struct TaskListBottomDropDelegate: DropDelegate {
                 let alreadyInHour = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
                 if !alreadyInHour {
                     let activeCount = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.count
-                    withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
-                        HabitDragState.shared.targetIndex = activeCount
-                        HabitDragState.shared.isTargetingHour = true
-                    }
+                    HabitDragState.shared.targetIndex = activeCount
+                    HabitDragState.shared.isTargetingHour = true
                 }
             }
             return

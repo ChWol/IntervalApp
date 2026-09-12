@@ -82,6 +82,32 @@ final class SyncBehaviourTests: XCTestCase {
         try deviceA.pull(from: server)
         XCTAssertEqual(try deviceA.task(id: task.id)?.text, "Edited on B")
     }
+
+    func testForegroundingStaleDeviceCannotUndoNewerCompletion() throws {
+        let task = deviceA.createTask("Pay invoice", at: t0)
+        deviceA.push(to: server, at: t0)
+        try deviceB.pull(from: server)
+
+        // The phone retains an older unpublished edit while the Mac completes the task.
+        guard let stalePhoneCopy = try deviceB.task(id: task.id) else {
+            return XCTFail("Missing phone copy")
+        }
+        deviceB.edit(stalePhoneCopy, text: "Pay invoice today", at: t0.addingTimeInterval(10))
+        task.completed = true
+        task.completedAt = t0.addingTimeInterval(60)
+        task.updatedAt = t0.addingTimeInterval(60)
+        deviceA.push(to: server, at: t0.addingTimeInterval(60))
+
+        // A foreground cycle must reconcile before uploading the phone cache.
+        try deviceB.sync(with: server, at: t0.addingTimeInterval(70))
+
+        let resolvedPhoneCopy = try deviceB.task(id: task.id)
+        XCTAssertTrue(resolvedPhoneCopy?.completed ?? false)
+        XCTAssertEqual(resolvedPhoneCopy?.completedAt, t0.addingTimeInterval(60))
+        XCTAssertEqual(resolvedPhoneCopy?.text, "Pay invoice")
+        XCTAssertEqual(server.value(table: SyncTable.tasks, id: task.id, key: "completed") as? Bool, true)
+        XCTAssertTrue(deviceB.hasNothingToPush)
+    }
     
     /// The other half of that bug: a pull arriving mid-typing used to revert the text.
     func testRemoteSnapshotDoesNotRevertAnUnpublishedEdit() throws {
@@ -135,6 +161,71 @@ final class SyncBehaviourTests: XCTestCase {
         
         XCTAssertEqual(try deviceA.taskTexts(), ["From A", "From B"])
         XCTAssertEqual(try deviceB.taskTexts(), ["From A", "From B"])
+        XCTAssertTrue(deviceA.hasNothingToPush)
+        XCTAssertTrue(deviceB.hasNothingToPush)
+    }
+
+    func testConflictingReordersConvergeToTheLatestCompleteOrdering() throws {
+        for (index, id) in ["a", "b", "c"].enumerated() {
+            deviceA.createTask(id.uppercased(), order: index, at: t0, id: id)
+        }
+        try deviceA.sync(with: server, at: t0)
+        try deviceB.sync(with: server, at: t0)
+
+        for task in try deviceA.tasks() {
+            task.order = ["c": 0, "b": 1, "a": 2][task.id]!
+            task.updatedAt = t0.addingTimeInterval(60)
+        }
+        for task in try deviceB.tasks() {
+            task.order = ["b": 0, "a": 1, "c": 2][task.id]!
+            task.updatedAt = t0.addingTimeInterval(120)
+        }
+
+        deviceA.push(to: server, at: t0.addingTimeInterval(70))
+        deviceB.push(to: server, at: t0.addingTimeInterval(130))
+        try deviceA.sync(with: server, at: t0.addingTimeInterval(140))
+        try deviceB.sync(with: server, at: t0.addingTimeInterval(150))
+
+        let orderA = try deviceA.tasks().sorted { $0.order < $1.order }.map(\.id)
+        let orderB = try deviceB.tasks().sorted { $0.order < $1.order }.map(\.id)
+        XCTAssertEqual(orderA, ["b", "a", "c"])
+        XCTAssertEqual(orderB, orderA)
+        XCTAssertEqual(server.ids(table: SyncTable.tasks), ["a", "b", "c"])
+    }
+
+    func testOfflineLifecycleConvergesAfterReconnectionWithoutRecordLoss() throws {
+        let created = deviceA.createTask("Created offline", order: 0, at: t0, id: "created")
+        let edited = deviceA.createTask("Before edit", order: 1, at: t0, id: "edited")
+        let completed = deviceA.createTask("Completed offline", order: 2, at: t0, id: "completed")
+        let restored = deviceA.createTask("Restored offline", order: 3, at: t0, id: "restored")
+        let deleted = deviceA.createTask("Deleted offline", order: 4, at: t0, id: "deleted")
+
+        deviceA.edit(edited, text: "Edited offline", at: t0.addingTimeInterval(10))
+        completed.completed = true
+        completed.completedAt = t0.addingTimeInterval(20)
+        completed.updatedAt = t0.addingTimeInterval(20)
+        restored.deletedAt = t0.addingTimeInterval(30)
+        restored.updatedAt = t0.addingTimeInterval(30)
+        restored.deletedAt = nil
+        restored.updatedAt = t0.addingTimeInterval(40)
+        created.order = 4
+        created.updatedAt = t0.addingTimeInterval(50)
+        edited.order = 0
+        edited.updatedAt = t0.addingTimeInterval(50)
+        deviceA.hardDelete(deleted)
+
+        XCTAssertEqual(try deviceA.tasks().count, 4)
+        XCTAssertFalse(deviceA.hasNothingToPush)
+
+        try deviceA.sync(with: server, at: t0.addingTimeInterval(60))
+        try deviceB.sync(with: server, at: t0.addingTimeInterval(70))
+
+        XCTAssertEqual(try deviceB.taskTexts(), ["Completed offline", "Created offline", "Edited offline", "Restored offline"])
+        XCTAssertEqual(try deviceB.task(id: "edited")?.order, 0)
+        XCTAssertEqual(try deviceB.task(id: "created")?.order, 4)
+        XCTAssertTrue(try deviceB.task(id: "completed")?.completed ?? false)
+        XCTAssertNil(try deviceB.task(id: "restored")?.deletedAt)
+        XCTAssertNil(try deviceB.task(id: "deleted"))
         XCTAssertTrue(deviceA.hasNothingToPush)
         XCTAssertTrue(deviceB.hasNothingToPush)
     }
@@ -287,6 +378,41 @@ final class SyncBehaviourTests: XCTestCase {
         XCTAssertEqual(pushable.count, 1)
         XCTAssertEqual(pushable.first?.text, "Newer copy")
         XCTAssertEqual(try deviceA.tasks().count, 1)
+    }
+
+    func testDuplicateServerRowsConvergeToNewestVersionRegardlessOfOrder() throws {
+        func row(_ text: String, at date: Date) -> SupabaseTaskDTO {
+            SupabaseTaskDTO(id: "duplicate", text: text, completed: false,
+                            created_at: SyncTimestamp.format(t0), interval_type: "1 Day", order: 0,
+                            deleted_at: nil, completed_at: nil, habit_id: nil,
+                            user_id: deviceA.manager.testingUserId,
+                            updated_at: SyncTimestamp.format(date))
+        }
+        let older = row("Older server copy", at: t0)
+        let newer = row("Newest server copy", at: t0.addingTimeInterval(60))
+
+        deviceA.manager.testingMerge(tasks: [newer, older])
+        XCTAssertEqual(try deviceA.task(id: "duplicate")?.text, "Newest server copy")
+
+        let otherDevice = try SyncDevice()
+        otherDevice.manager.testingMerge(tasks: [older, newer])
+        XCTAssertEqual(try otherDevice.task(id: "duplicate")?.text, "Newest server copy")
+        XCTAssertEqual(try otherDevice.tasks().count, 1)
+    }
+
+    func testSaveFailureDuringRemoteMergeLeavesChangesPendingForRetry() throws {
+        let row = SupabaseTaskDTO(
+            id: "remote", text: "Remote data", completed: false,
+            created_at: SyncTimestamp.format(t0), interval_type: "1 Day", order: 0,
+            deleted_at: nil, completed_at: nil, habit_id: nil,
+            user_id: deviceA.manager.testingUserId, updated_at: SyncTimestamp.format(t0)
+        )
+        deviceA.manager.testingFailPersistenceSaves()
+
+        XCTAssertFalse(deviceA.manager.testingMerge(tasks: [row]))
+        XCTAssertEqual(try deviceA.task(id: "remote")?.text, "Remote data")
+        XCTAssertTrue(deviceA.store.context.hasChanges)
+        XCTAssertNotNil(deviceA.manager.lastError)
     }
     
     func testBlankLocalRowIsHeldBackFromTheServer() throws {

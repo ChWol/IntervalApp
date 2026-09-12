@@ -127,6 +127,32 @@ final class HabitTaskLinkTests: XCTestCase {
                        "Ticking an already-done habit must not bump the streak again")
         XCTAssertEqual(habit.streak, 2)
     }
+
+    func testCompletionRaceUsesNewestLinkedTaskWithoutDoubleCountingStreak() throws {
+        let habit = store.addHabit("Meditate", streak: 2, id: "h1", updatedAt: now)
+        let task = store.addTask("Meditate", interval: HabitTaskLink.hourInterval,
+                                 completed: true, habitId: habit.id, id: "t1",
+                                 updatedAt: now.addingTimeInterval(10), completedAt: now.addingTimeInterval(10))
+
+        XCTAssertTrue(HabitTaskLink.reconcileCompletion(tasks: [task], habits: [habit]))
+        XCTAssertTrue(habit.isCompleted(at: task.updatedAt))
+        XCTAssertEqual(habit.streak, 3)
+        XCTAssertFalse(HabitTaskLink.reconcileCompletion(tasks: [task], habits: [habit]))
+        XCTAssertEqual(habit.streak, 3)
+    }
+
+    func testCompletionRaceUsesNewestHabitForEveryLinkedTask() throws {
+        let habitStamp = now.addingTimeInterval(20)
+        let habit = store.addHabit("Meditate", streak: 1, lastCompletedDate: habitStamp,
+                                   id: "h1", updatedAt: habitStamp)
+        let task = store.addTask("Meditate", interval: HabitTaskLink.hourInterval,
+                                 habitId: habit.id, id: "t1", updatedAt: now)
+
+        XCTAssertTrue(HabitTaskLink.reconcileCompletion(tasks: [task], habits: [habit]))
+        XCTAssertTrue(task.completed)
+        XCTAssertEqual(task.completedAt, habitStamp)
+        XCTAssertEqual(task.updatedAt, habitStamp)
+    }
     
     func testDeletedHabitIsNotUpdatedByItsHourTask() throws {
         let habit = store.addHabit("Meditate", id: "h1", deletedAt: now)

@@ -23,10 +23,10 @@ The existing safeguards include per-record sync timestamps, tombstones, protecti
 - [x] A local change is never discarded because synchronization failed.
 - [x] A remote snapshot that is incomplete or malformed cannot delete local data.
 - [x] Logging out cannot destroy unsynced local data.
-- [ ] One account can never read or modify another account's data. Client isolation is covered; server RLS verification remains.
+- [x] Account isolation is enforced in the client and live server configuration: RLS is enabled, ownership policies use `auth.uid()`, anonymous grants are removed, authenticated grants are least-privilege, and shared-list ownership is immutable. A real two-account exercise remains a release drill.
 - [x] Any local save operation that cannot be completed preserves pending context changes and exposes a recoverable error.
 
-Local section status: complete. The account-isolation invariant remains an external server verification gate in section 8 and is intentionally not marked complete from client tests alone.
+Local safeguards and the live server configuration audit are complete. End-to-end release drills remain in section 13.
 
 ## 2. Persistence and crash-safety tests
 
@@ -39,7 +39,7 @@ Add deterministic tests that simulate:
 - [x] Storage-full save errors follow the recoverable failure path, report the condition, and retain pending context work for retry.
 - [x] App backgrounding flushes active task, habit, list-title, and scratchpad drafts, retries pending storage changes, and schedules sync only after the local save succeeds.
 - [x] Relaunch after committed create, completion, soft-delete, restore, and mixed-record operations is covered with a real on-disk store reopen test.
-- [ ] Schema migration from older versions, including stores containing habits, links, deleted items, and incomplete tasks.
+- [x] Historical schema migration is not applicable to the first tester release because no prior build or user installation exists. `SCHEMA_BASELINE.md` records the current store as the mandatory fixture baseline for every future schema-changing release.
 - [x] Duplicate IDs are deterministically collapsed by newest update; empty IDs and unambiguous relationships are repaired; blank drafts are preserved locally; malformed remote dates trigger republishing; invalid intervals are restored to a visible day bucket.
 - [x] Model-container open failure is handled without exposing an empty working app, with deterministic primary/fallback bootstrap tests.
 
@@ -117,26 +117,28 @@ Relevant file:
 
 Expand the fake Supabase coverage for:
 
-- [ ] Offline creation, editing, completion, deletion, restoration, and reordering.
+- [x] Offline creation, editing, completion, deletion, restoration, and reordering converge after reconnection without record loss.
 - [x] Network failures before/during requests and ambiguous failures after acceptance leave rows dirty; malformed response decoding aborts the snapshot.
 - [x] HTTP 401, 403, 408, 409, 429, and 500 plus malformed bodies preserve local pending rows.
 - [x] Token refresh rejection during push cannot mark the row synchronized.
 - [x] Partial batch success marks only the accepted 200-row chunk and safely retries the remainder.
-- [ ] Duplicate server rows.
+- [x] Duplicate server rows deterministically converge to the newest timestamped version regardless of response order.
 - [x] Missing columns degrade safely without clearing locally known habit links.
 - [x] Missing or malformed timestamps retain/republish local data.
 - [x] Pagination is verified with 1,001 rows across three 500-row pages.
-- [ ] Empty pages and incomplete pages.
+- [x] Empty terminal pages complete pagination safely; any page with unreadable rows and snapshots that hit the pagination safety cap are rejected rather than merged as complete.
 - [x] A server deletion cannot prune a pending local edit.
 - [x] A tombstone prevents an old in-flight remote snapshot from resurrecting a local deletion.
 - [x] Concurrent same-record edits converge by timestamp without stale overwrite.
 - [x] Concurrent different-record edits converge without record loss.
-- [ ] Conflicting reorders from two devices.
-- [ ] Habit completion racing against linked task completion.
-- [ ] Synchronization recovery after several failed attempts.
+- [x] Conflicting reorders from two devices converge to the latest complete ordering without losing rows.
+- [x] Habit completion racing against linked task completion is reconciled by newest timestamp without double-counting streaks.
+- [x] Synchronization recovery after several failed attempts preserves pending rows and marks them synced only after a confirmed retry.
 - [x] Exponential backoff resets after success and does not clear pending changes.
-- [ ] Save failure while merging remote records.
+- [x] Save failures before push or after a remote merge fail the sync cycle, preserve pending context changes, and prevent uncommitted local state from being uploaded.
 - [x] A page/response failure returns no snapshot, so no partially retrieved response is merged.
+- [x] Task, habit, list, and scratchpad snapshots must all complete before a pull is reported successful; optional-table failures cannot produce a false green sync state.
+- [x] A complete RLS-filtered snapshot removes a revoked collaborator's cached shared list and items immediately; owned rows retain the two-snapshot anti-data-loss guard.
 
 Verify that newer local edits are never overwritten by stale device state and that deletes never resurrect records.
 
@@ -159,8 +161,8 @@ Test:
 - [x] Logout while a push is active refuses to purge until it settles.
 - [x] Logout while a pull is active refuses to purge until it settles.
 - Closing the app during logout.
-- Logging back into the same account.
-- Logging into a different account on the same device.
+- [x] Reauthentication into the same account preserves unsynced local rows.
+- [x] A different-account auth response is rejected until the current account safely logs out, preventing destructive or visible cache crossover.
 - Logout, reinstall, and login again.
 - Expired access token with a valid refresh token.
 - Expired access and refresh tokens.
@@ -203,7 +205,16 @@ Verify the Supabase database independently of the client:
 
 Access and refresh tokens now use a dedicated, device-only Keychain service. Existing `UserDefaults` tokens migrate once and are removed only after Keychain confirms the secure copy; other non-secret session metadata remains in preferences. Token revocation and server-side session invalidation still require live-backend verification.
 
+The live audit confirmed RLS on all five user-data tables. Default broad grants were corrected using `supabase/harden_data_api_grants.sql`: `anon` now has no table grants and `authenticated` has only `SELECT`, `INSERT`, `UPDATE`, and `DELETE`. The verified `protect_scratchpad_list_owner` trigger prevents collaborators from changing list ownership. A two-account exercise still validates these controls end to end before wider distribution.
+
+- [x] The consolidated read-only release audit passes all seven checks: five-table RLS, zero anonymous grants, exact authenticated CRUD grants, all ten policies, ownership protection, and the protected account-deletion RPC.
+
 ## 9. Export, import, and recovery
+
+Implementation safeguards now completed:
+
+- [x] Export first saves pending edits and fails closed if any table cannot be read; it cannot silently create an incomplete backup.
+- [x] Import establishes a committed recovery point, rolls back a failed batch, does not start sync on failure, and keeps the import screen open with a recovery message.
 
 Run recovery drills for:
 
@@ -305,17 +316,19 @@ Diagnostics should help support a failed sync without exposing user content.
 
 Do not distribute to testers until:
 
-- The existing testbench passes with zero failures.
-- Persistence, sync, authentication, account-isolation, and drag-safety tests pass.
-- A real two-device offline/online test passes.
-- A failed-logout test confirms that local data remains available.
-- A fresh-install login test passes.
-- A backup restore drill passes.
-- Supabase row-level security is verified with multiple accounts.
-- macOS, iPhone, and Watch installations succeed.
-- A TestFlight update over an existing installation preserves all data.
-- No critical or high-severity issue remains open.
-- An emergency backup and recovery procedure is documented.
+- [x] The existing automated testbench passes with zero failures.
+- [x] Automated persistence, sync, authentication, account-isolation, and drag-safety tests pass.
+- [ ] A real two-device offline/online test passes.
+- [ ] A live failed-logout test confirms that local data remains available.
+- [ ] A fresh-install login test passes.
+- [ ] A backup restore drill passes.
+- [ ] Supabase row-level security is verified with two real accounts.
+- [ ] macOS, iPhone, and Watch installations succeed on release builds.
+- [ ] A TestFlight update over an existing installation preserves all data.
+- [x] The corrected transactional account-deletion RPC is deployed.
+- [ ] Account deletion is smoke-tested with a disposable account only, never the primary account.
+- [ ] No critical or high-severity issue remains open after the live drills.
+- [x] An emergency backup and recovery procedure is documented in `RELEASE_RECOVERY_RUNBOOK.md`.
 
 ## Recommended implementation order
 

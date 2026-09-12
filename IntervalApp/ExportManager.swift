@@ -96,10 +96,13 @@ final class ExportManager {
     
     /// Generates full structured JSON backup data from local SwiftData context
     func generateBackupData(context: ModelContext) -> Data? {
-        let tasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
-        let habits = (try? context.fetch(FetchDescriptor<HabitItem>())) ?? []
-        let lists = (try? context.fetch(FetchDescriptor<ScratchpadList>())) ?? []
-        let items = (try? context.fetch(FetchDescriptor<ScratchpadItem>())) ?? []
+        guard PersistenceSafety.save(context, operation: "Preparing data export") else { return nil }
+        guard let tasks = try? context.fetch(FetchDescriptor<TaskItem>()),
+              let habits = try? context.fetch(FetchDescriptor<HabitItem>()),
+              let lists = try? context.fetch(FetchDescriptor<ScratchpadList>()),
+              let items = try? context.fetch(FetchDescriptor<ScratchpadItem>()) else {
+            return nil
+        }
         
         let taskDTOs = tasks.map { t in
             TaskBackupDTO(

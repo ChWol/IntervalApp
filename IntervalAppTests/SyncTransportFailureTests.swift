@@ -88,6 +88,44 @@ final class SyncTransportFailureTests: XCTestCase {
         XCTAssertEqual(transport.requests.filter { $0.httpMethod == "POST" }.count, 2)
     }
 
+    func testSeveralFailedAttemptsRecoverWithoutClearingPendingChanges() async throws {
+        let store = try TestStore()
+        let task = store.addTask("Eventually delivered", updatedAt: TestTime.now)
+        let transport = ScriptedTransport([
+            .failure(.notConnectedToInternet),
+            .failure(.timedOut),
+            .response(500, Data()),
+            ok
+        ])
+        let manager = SupabaseSyncManager.makeForTesting(context: store.context, transport: transport)
+
+        for _ in 0..<3 {
+            let succeeded = await manager.testingPush()
+            XCTAssertFalse(succeeded)
+            XCTAssertNil(task.syncedAt)
+            XCTAssertEqual(task.text, "Eventually delivered")
+        }
+
+        let recovered = await manager.testingPush()
+        XCTAssertTrue(recovered)
+        XCTAssertEqual(task.syncedAt, task.updatedAt)
+        XCTAssertEqual(try store.tasks().count, 1)
+    }
+
+    func testFailedPreflightSavePreventsUploadAndKeepsTaskPending() async throws {
+        let store = try TestStore()
+        let task = store.addTask("Unsaved locally", updatedAt: TestTime.now)
+        let transport = ScriptedTransport([ok])
+        let manager = SupabaseSyncManager.makeForTesting(context: store.context, transport: transport)
+        manager.testingFailPersistenceSaves()
+
+        let succeeded = await manager.testingPush()
+        XCTAssertFalse(succeeded)
+        XCTAssertTrue(transport.requests.isEmpty, "Uncommitted local state must not be advertised as durable")
+        XCTAssertNil(task.syncedAt)
+        XCTAssertTrue(store.context.hasChanges)
+    }
+
     func testPaginationReadsMoreThanOneThousandRowsWithoutTruncation() async throws {
         func page(_ range: Range<Int>) throws -> Data {
             let rows: [[String: Any]] = range.map {
@@ -108,6 +146,40 @@ final class SyncTransportFailureTests: XCTestCase {
         XCTAssertEqual(transport.requests.count, 3)
         XCTAssertTrue(transport.requests[1].url?.query?.contains("offset=500") == true)
         XCTAssertTrue(transport.requests[2].url?.query?.contains("offset=1000") == true)
+    }
+
+    func testEmptyPageSafelyTerminatesAnExactlyFullPreviousPage() async throws {
+        let fullPage: [[String: Any]] = (0..<500).map {
+            ["id": "task-\($0)", "text": "Task \($0)", "user_id": "test-user", "updated_at": SyncTimestamp.format(TestTime.now)]
+        }
+        let transport = ScriptedTransport([
+            .response(200, try JSONSerialization.data(withJSONObject: fullPage)),
+            .response(200, Data("[]".utf8))
+        ])
+        let store = try TestStore()
+        let manager = SupabaseSyncManager.makeForTesting(context: store.context, transport: transport)
+
+        let rows = await manager.testingFetchTasks()
+
+        XCTAssertEqual(rows?.count, 500)
+        XCTAssertEqual(transport.requests.count, 2)
+        XCTAssertTrue(transport.requests[1].url?.query?.contains("offset=500") == true)
+    }
+
+    func testUnreadableRowRejectsIncompletePageInsteadOfReturningPartialSnapshot() async throws {
+        let page: [Any] = [
+            ["id": "valid", "text": "Keep me", "user_id": "test-user", "updated_at": SyncTimestamp.format(TestTime.now)],
+            "not-a-row"
+        ]
+        let transport = ScriptedTransport([
+            .response(200, try JSONSerialization.data(withJSONObject: page))
+        ])
+        let store = try TestStore()
+        let manager = SupabaseSyncManager.makeForTesting(context: store.context, transport: transport)
+
+        let rows = await manager.testingFetchTasks()
+
+        XCTAssertNil(rows, "A partially decoded page must never be merged as a complete remote snapshot")
     }
 
     func testMalformedResponseAbortsSnapshotInsteadOfReturningEmptyData() async throws {

@@ -10,7 +10,8 @@ struct ContentView: View {
     @Query(sort: \HabitItem.order) private var allHabits: [HabitItem]
     @Query(sort: \ScratchpadList.order) private var allScratchpadLists: [ScratchpadList]
     
-    @StateObject private var migrationManager = MigrationManager()
+    // Sync, notifications, and the visible modal must all observe the same instance.
+    @StateObject private var migrationManager = MigrationManager.shared
     @StateObject private var syncManager = SupabaseSyncManager.shared
     @ObservedObject private var dragState = DragState.shared
     
@@ -448,16 +449,7 @@ struct ContentView: View {
                         )
                     },
                     onCommitGoals: { goals in
-                        let yearTasks = allTasks.filter { $0.intervalType == "1 Year" && !$0.completed && $0.deletedAt == nil }
-                        var maxOrder = (yearTasks.map { $0.order }.max() ?? -1) + 1
-                        for goal in goals {
-                            let newTask = TaskItem(text: goal, intervalType: "1 Year", order: maxOrder)
-                            modelContext.insert(newTask)
-                            maxOrder += 1
-                        }
-                        _ = PersistenceSafety.save(modelContext)
-                        SupabaseSyncManager.shared.push()
-                        migrationManager.currentMigration = nil
+                        migrationManager.commitYearGoals(goals)
                     },
                     onSkip: {
                         migrationManager.skipMigration()

@@ -613,12 +613,16 @@ struct MigrationImportModalView: View {
     }
     
     private func commitImport() {
-        ImportManager.shared.commitImport(
+        let succeeded = ImportManager.shared.commitImport(
             tasks: parsedTasks,
             scratchpadLists: parsedScratchpadLists,
             context: modelContext
         )
-        
+        guard succeeded else {
+            errorMessage = "Import could not be saved. Your existing data was not changed. Please free storage space and try again.".localized
+            return
+        }
+
         withAnimation(.easeInOut(duration: 0.2)) {
             isPresented = false
         }

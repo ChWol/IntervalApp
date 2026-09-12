@@ -25,6 +25,7 @@ class MigrationManager: ObservableObject {
         static let lastHandledWeek = "lastHandledWeekMarker_v2"
         static let lastHandledMonth = "lastHandledMonthMarker_v2"
         static let lastHandledYear = "lastHandledYearMarker_v2"
+        static let markersNeedSync = "migrationMarkersNeedSync_v1"
     }
     
     private var cancellables = Set<AnyCancellable>()
@@ -144,15 +145,27 @@ class MigrationManager: ObservableObject {
     
     private func setMarker(_ value: String, for key: String) {
         UserDefaults.standard.set(value, forKey: key)
+        UserDefaults.standard.set(true, forKey: StoreKey.markersNeedSync)
+        Task { @MainActor in
+            await self.publishPendingMarkers()
+        }
+    }
+
+    private func markerPayload() -> [String: String] {
         var allMarkers: [String: String] = [:]
         for k in [StoreKey.lastHandledHour, StoreKey.lastHandledDay, StoreKey.lastHandledWeek, StoreKey.lastHandledMonth, StoreKey.lastHandledYear] {
             if let v = UserDefaults.standard.string(forKey: k) {
                 allMarkers[k] = v
             }
         }
-        allMarkers[key] = value
-        Task { @MainActor in
-            await SupabaseSyncManager.shared.updateUserMetadata(allMarkers)
+        return allMarkers
+    }
+
+    /// Retries marker publication on every normal sync until Supabase confirms it.
+    func publishPendingMarkers() async {
+        guard UserDefaults.standard.bool(forKey: StoreKey.markersNeedSync) else { return }
+        if await SupabaseSyncManager.shared.updateUserMetadata(markerPayload()) {
+            UserDefaults.standard.set(false, forKey: StoreKey.markersNeedSync)
         }
     }
     
@@ -441,6 +454,29 @@ class MigrationManager: ObservableObject {
             cleanUpPreviousDayHabitTasks()
             presentFirstHourOfDay()
         }
+    }
+
+    func commitYearGoals(_ goals: [String]) {
+        guard let context = modelContext else { return }
+        if let key = pendingMarkerKey, let value = pendingMarkerValue {
+            setMarker(value, for: key)
+            pendingMarkerKey = nil
+            pendingMarkerValue = nil
+        }
+
+        let allTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        var nextOrder = (allTasks.filter {
+            $0.intervalType == "1 Year" && !$0.completed && $0.deletedAt == nil
+        }.map(\.order).max() ?? -1) + 1
+        for goal in goals {
+            let trimmed = goal.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            context.insert(TaskItem(text: trimmed, intervalType: "1 Year", order: nextOrder))
+            nextOrder += 1
+        }
+        _ = PersistenceSafety.save(context)
+        SupabaseSyncManager.shared.push()
+        currentMigration = nil
     }
     
     private func performBoundaryRollover(for targetInterval: String) {

@@ -13,6 +13,8 @@ final class HabitDragAndDropTests: XCTestCase {
     }
     
     override func tearDown() async throws {
+        HabitDragState.shared.reset()
+        DragState.shared.reset()
         store = nil
         try await super.tearDown()
     }
@@ -101,5 +103,46 @@ final class HabitDragAndDropTests: XCTestCase {
         
         let hourTasks = try store.tasks().filter { $0.intervalType == "1 Hour" }
         XCTAssertEqual(hourTasks.count, 1, "Must not duplicate an active habit task in 1 Hour")
+    }
+
+    func testStartingTaskDragClearsAbandonedHabitDrag() throws {
+        let habit = store.addHabit("Journal", id: "habit")
+        let task = store.addTask("Real task", interval: "1 Day", order: 0, id: "task")
+        HabitDragState.shared.begin(habit)
+        HabitDragState.shared.targetIndex = 0
+        HabitDragState.shared.isTargetingHour = true
+
+        DragState.shared.begin(task, interval: "1 Day", fontSize: 20)
+
+        XCTAssertNil(HabitDragState.shared.draggedHabit)
+        XCTAssertNil(HabitDragState.shared.targetIndex)
+        XCTAssertFalse(HabitDragState.shared.isTargetingHour)
+        XCTAssertEqual(DragState.shared.draggedTask?.id, task.id)
+    }
+
+    func testStartingHabitDragClearsAbandonedTaskDrag() throws {
+        let habit = store.addHabit("Journal", id: "habit")
+        let task = store.addTask("Old task drag", interval: "1 Day", order: 0, id: "task")
+        DragState.shared.begin(task, interval: "1 Hour", fontSize: 20)
+        DragState.shared.targetIndex = 2
+
+        HabitDragState.shared.begin(habit)
+
+        XCTAssertNil(DragState.shared.draggedTask)
+        XCTAssertNil(DragState.shared.targetIndex)
+        XCTAssertEqual(HabitDragState.shared.draggedHabit?.id, habit.id)
+    }
+
+    func testMouseReleaseKeepsHabitAliveForSwiftUIDropHandoff() async throws {
+        let habit = store.addHabit("Journal", id: "habit")
+        HabitDragState.shared.begin(habit)
+
+        HabitDragState.shared.resetAfterDropWindow()
+
+        XCTAssertEqual(HabitDragState.shared.draggedHabit?.id, habit.id,
+                       "Mouse-up must not erase the payload before performDrop runs")
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertNil(HabitDragState.shared.draggedHabit,
+                     "A cancelled drag must still be cleared after the drop hand-off window")
     }
 }

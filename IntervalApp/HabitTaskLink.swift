@@ -101,6 +101,35 @@ enum HabitTaskLink {
         }
         return changed
     }
+
+    /// Resolves a sync race between the separately stored habit and linked task rows.
+    /// The newest side is authoritative; all linked live tasks are then made consistent.
+    @discardableResult
+    static func reconcileCompletion(tasks: [TaskItem], habits: [HabitItem]) -> Bool {
+        let habitsById = Dictionary(habits.filter { $0.deletedAt == nil }.map { ($0.id, $0) },
+                                    uniquingKeysWith: { first, _ in first })
+        let groupedTasks = Dictionary(grouping: tasks.filter { $0.deletedAt == nil && $0.habitId != nil },
+                                      by: { $0.habitId! })
+        var changed = false
+
+        for (habitId, linkedTasks) in groupedTasks {
+            guard let habit = habitsById[habitId],
+                  let newestTask = linkedTasks.max(by: { $0.updatedAt < $1.updatedAt }) else { continue }
+
+            if newestTask.updatedAt > habit.updatedAt {
+                if setHabitCompleted(newestTask.completed, on: habit, now: newestTask.updatedAt) { changed = true }
+                for task in linkedTasks where task !== newestTask {
+                    if setTaskCompleted(newestTask.completed, on: task, now: newestTask.updatedAt) { changed = true }
+                }
+            } else if habit.updatedAt > newestTask.updatedAt {
+                let completed = habit.isCompleted(at: habit.updatedAt)
+                for task in linkedTasks {
+                    if setTaskCompleted(completed, on: task, now: habit.updatedAt) { changed = true }
+                }
+            }
+        }
+        return changed
+    }
     
     /// Soft-deletes every live hour task that was created from this habit. Keeps the hour
     /// list from showing a habit that the user has just removed.

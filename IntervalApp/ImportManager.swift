@@ -492,11 +492,15 @@ public final class ImportManager: Sendable {
     // MARK: - Commit Import into SwiftData & Sync
     
     @MainActor
+    @discardableResult
     public func commitImport(
         tasks: [ImportedTask],
         scratchpadLists: [ImportedScratchpadList],
         context: ModelContext
-    ) {
+    ) -> Bool {
+        // Commit any existing user edits first so rollback below can affect only
+        // this import. A failed import must not leave a partial batch in memory.
+        guard PersistenceSafety.save(context, operation: "Preparing data import") else { return false }
         let now = Date()
         
         // 1. Insert Interval Tasks
@@ -544,9 +548,13 @@ public final class ImportManager: Sendable {
             }
         }
         
-        _ = PersistenceSafety.save(context)
+        guard PersistenceSafety.save(context, operation: "Importing data") else {
+            context.rollback()
+            return false
+        }
         SoundManager.playTransitionChime()
         SupabaseSyncManager.shared.push()
+        return true
     }
     
     // MARK: - Helper Methods

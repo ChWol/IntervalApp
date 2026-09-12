@@ -150,7 +150,6 @@ final class SyncDevice {
     
     /// A full cycle, as the poll timer would run it.
     func sync(with server: FakeSupabase, at time: Date = Date()) throws {
-        push(to: server, at: time)
         try pull(from: server)
         push(to: server, at: time)
     }
