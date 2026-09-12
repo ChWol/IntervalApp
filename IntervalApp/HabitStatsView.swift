@@ -117,7 +117,7 @@ struct HabitStatsView: View {
                 }
             }
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 18)], spacing: 20) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 18, alignment: .top)], spacing: 20) {
                 ForEach(1...12, id: \.self) { month in monthView(month: month, dates: completionDates(for: habit)) }
             }
         }

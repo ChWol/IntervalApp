@@ -187,13 +187,14 @@ struct ContentView: View {
                 }
 
                 ZStack {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    Capsule(style: .continuous)
                         .stroke(Color.primary.opacity(deepFocusBreathing ? 0.26 : 0.12), lineWidth: 1)
-                        .padding(-10)
+                        .frame(maxWidth: 420, minHeight: 156, maxHeight: 156)
                         .scaleEffect(deepFocusBreathing ? 1.035 : 0.965)
                         .opacity(deepFocusBreathing ? 0.72 : 0.42)
                     deepFocusTaskCard(task)
                 }
+                .frame(maxWidth: .infinity, minHeight: 180)
             }
             .padding(24)
             .frame(maxWidth: 620)
@@ -216,9 +217,9 @@ struct ContentView: View {
             .foregroundStyle(.primary)
             .fixedSize(horizontal: false, vertical: true)
             .multilineTextAlignment(.center)
-            .frame(maxWidth: 560, alignment: .center)
-            .padding(.horizontal, 28)
-            .padding(.vertical, 24)
+            .frame(maxWidth: 390, alignment: .center)
+            .padding(.horizontal, 22)
+            .padding(.vertical, 18)
     }
 
     private func closeDeepFocus() {
