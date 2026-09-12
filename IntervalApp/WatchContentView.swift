@@ -24,7 +24,7 @@ public enum WatchTab: String, CaseIterable, Identifiable {
         switch self {
         case .hour: return "1H"
         case .day: return "1D"
-        case .habits: return "HABITS"
+        case .habits: return "HABITS".localized
         }
     }
 }
