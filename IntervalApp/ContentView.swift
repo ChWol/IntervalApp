@@ -114,6 +114,18 @@ struct ContentView: View {
                 deepFocusOverlay(task: task)
                     .zIndex(180)
             }
+
+            #if os(macOS)
+            // Keep Escape outside the hit-testing-disabled main view so it still
+            // works while deep focus is actively dimming the rest of the app.
+            Button(action: { if deepFocusTaskId != nil { closeDeepFocus() } }) {
+                EmptyView()
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.escape, modifiers: [])
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            #endif
         }
         .onOpenURL { url in
             if !SpotlightIndexer.shared.handleOpenURL(url) {
@@ -466,16 +478,6 @@ struct ContentView: View {
                 .opacity(0)
                 .frame(width: 0, height: 0)
 
-                // Register Escape at the window level as well as on the overlay. This
-                // remains available when a task row or text field still owns focus.
-                Button(action: { if deepFocusTaskId != nil { closeDeepFocus() } }) {
-                    EmptyView()
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.escape, modifiers: [])
-                .opacity(0)
-                .frame(width: 0, height: 0)
-                
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         isSearchPresented.toggle()
