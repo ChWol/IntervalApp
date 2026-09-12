@@ -43,6 +43,7 @@ xcodebuild \
   -scheme IntervalApp \
   -destination 'platform=macOS' \
   -derivedDataPath .build \
+  CODE_SIGNING_ALLOWED=NO \
   test \
   -only-testing:IntervalAppTests \
   "$@"

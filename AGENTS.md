@@ -37,3 +37,7 @@ Before finishing any coding task or declaring work complete, you **MUST** run th
 - **macOS Menu Bar**: Shows only active 1-Hour tasks, no completed tasks, no default auto-focus on text input, on-hover input styling, no Quit button.
 - **German Localization**: "Recently Deleted" is "KÜRZLICH GELÖSCHT", "Empty Bin" is "Papierkorb leeren", "Habits" is "GEWOHNHEITEN".
 - **Tab Key Navigation**: Focus advances in strict order: 1 Hour $\to$ 1 Day $\to$ 1 Week $\to$ 1 Month $\to$ 1 Year $\to$ Scratchpad.
+
+## 5. Version Control Hygiene
+- **Commit in focused chunks**: Keep commits small and cohesive, with a message that describes the behavior or invariant being changed. Do not mix generated build products, editor state, or unrelated user work into a feature commit.
+- **Push completed chunks**: After verification, push each focused commit to the configured remote so the repository remains recoverable and collaborators can work from the latest tested state. If a push is blocked, report the exact reason rather than silently leaving the work unshared.

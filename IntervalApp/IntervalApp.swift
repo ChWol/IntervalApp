@@ -50,6 +50,7 @@ struct IntervalApp: App {
                 .handlesExternalEvents(preferring: Set(arrayLiteral: "main"), allowing: Set(arrayLiteral: "*"))
                 #if os(iOS)
                 .task {
+                    WidgetSnapshotStore.write(context: Self.sharedModelContainer.mainContext)
                     await IntervalLiveActivityManager.shared.refresh(context: Self.sharedModelContainer.mainContext)
                 }
                 #endif
