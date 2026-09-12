@@ -175,7 +175,15 @@ struct HabitStatsView: View {
               weekday >= 1, weekday <= calendar.weekdaySymbols.count else {
             return "Weekly".localized
         }
-        return "\("Weekly".localized) · \(calendar.weekdaySymbols[weekday - 1].localized)"
+        return "\("Weekly".localized) · \(weekdayName(for: weekday))"
+    }
+
+    private func weekdayName(for weekday: Int) -> String {
+        // 7 January 2024 was a Sunday. Formatting a real date with the selected
+        // app locale keeps all seven weekday names translated, independent of the
+        // device's system locale.
+        let date = calendar.date(from: DateComponents(year: 2024, month: 1, day: 7 + weekday - 1)) ?? Date()
+        return date.formatted(.dateTime.weekday(.wide).locale(locManager.currentLanguage.locale))
     }
 }
 #endif
