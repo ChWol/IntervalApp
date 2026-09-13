@@ -132,4 +132,32 @@ final class TaskDragMutationTests: XCTestCase {
         XCTAssertEqual(second.intervalType, "1 Week")
         XCTAssertFalse(store.context.hasChanges)
     }
+
+    func testMouseReleasePreservesTaskUntilDropHandoffThenClearsIt() async throws {
+        let store = try TestStore()
+        let task = store.addTask("Keep me", interval: "1 Day", order: 0)
+        DragState.shared.begin(task, interval: "1 Day", fontSize: 20)
+        DragState.shared.targetIndex = 0
+
+        DragState.shared.resetAfterDropWindow()
+        XCTAssertEqual(DragState.shared.draggedTask?.id, task.id,
+                       "SwiftUI must still see the task when performDrop follows mouse-up")
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertNil(DragState.shared.draggedTask,
+                     "A cancelled drag must restore the row after the drop handoff")
+        XCTAssertNil(DragState.shared.targetIndex)
+    }
+
+    func testOldDragCleanupCannotEraseNewDrag() async throws {
+        let store = try TestStore()
+        let first = store.addTask("First", interval: "1 Day")
+        let second = store.addTask("Second", interval: "1 Week")
+        DragState.shared.begin(first, interval: "1 Day", fontSize: 20)
+        DragState.shared.resetAfterDropWindow()
+        DragState.shared.begin(second, interval: "1 Week", fontSize: 20)
+
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(DragState.shared.draggedTask?.id, second.id)
+        DragState.shared.reset()
+    }
 }

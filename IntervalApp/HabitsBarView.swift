@@ -146,7 +146,7 @@ struct HabitsBarView: View {
                             chip
                                 .onDrag {
                                     HabitDragState.shared.begin(habit)
-                                    return NSItemProvider(item: habit.id as NSString, typeIdentifier: UTType.data.identifier)
+                                    return NSItemProvider(object: habit.id as NSString)
                                 } preview: {
                                     Text(habit.text)
                                         .font(.system(size: 12, weight: .light))
@@ -496,6 +496,10 @@ struct HabitChipView: View {
             RoundedRectangle(cornerRadius: 6)
                 .fill((isDone || isPostponed) ? Color.gray.opacity(colorScheme == .dark ? 0.12 : 0.06) : Color.gray.opacity(colorScheme == .dark ? 0.2 : 0.1))
         )
+        .overlay {
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color.gray.opacity(dragState.reorderTargetID == habit.id ? 0.5 : 0), lineWidth: 1)
+        }
         .onHover { hovering in
             hoveredHabitId = hovering ? habit.id : nil
         }
@@ -564,10 +568,14 @@ class HabitDragState: ObservableObject {
     }
     @Published var targetIndex: Int?
     @Published var isTargetingHour: Bool = false
+    @Published var reorderTargetID: String?
     #if os(macOS)
     private var monitor: Any?
     #endif
     private var dragGeneration = 0
+    private var recoveryGeneration = 0
+    private var lastDragActivity = Date.distantPast
+    private var recoveryScheduled = false
 
     func begin(_ habit: HabitItem) {
         DragState.shared.reset()
@@ -575,13 +583,42 @@ class HabitDragState: ObservableObject {
         draggedHabit = habit
         targetIndex = nil
         isTargetingHour = false
+        reorderTargetID = nil
+        noteDragActivity()
     }
     
     func reset() {
         dragGeneration += 1
+        recoveryGeneration += 1
+        recoveryScheduled = false
         draggedHabit = nil
         targetIndex = nil
         isTargetingHour = false
+        reorderTargetID = nil
+    }
+
+    func noteDragActivity() {
+        #if os(iOS)
+        guard draggedHabit != nil else { return }
+        lastDragActivity = Date()
+        guard !recoveryScheduled else { return }
+        recoveryScheduled = true
+        let generation = recoveryGeneration
+        scheduleRecoveryCheck(generation: generation)
+        #endif
+    }
+
+    private func scheduleRecoveryCheck(generation: Int) {
+        #if os(iOS)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
+            guard let self, self.recoveryGeneration == generation else { return }
+            if Date().timeIntervalSince(self.lastDragActivity) >= 4 {
+                self.reset()
+            } else {
+                self.scheduleRecoveryCheck(generation: generation)
+            }
+        }
+        #endif
     }
 
     func resetAfterDropWindow() {
@@ -624,21 +661,9 @@ struct HabitDropDelegate: DropDelegate {
     func dropEntered(info: DropInfo) {
         guard let draggedItem = HabitDragState.shared.draggedHabit else { return }
         if draggedItem.id != item.id {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                let descriptor = FetchDescriptor<HabitItem>()
-                guard let allHabits = try? context.fetch(descriptor) else { return }
-                var sorted = allHabits.filter { $0.deletedAt == nil }.sorted { $0.order < $1.order }
-                
-                if let sourceIdx = sorted.firstIndex(where: { $0.id == draggedItem.id }),
-                   let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) {
-                    let moved = sorted.remove(at: sourceIdx)
-                    sorted.insert(moved, at: targetIdx)
-                }
-                
-                for (i, h) in sorted.enumerated() {
-                    h.order = i
-                }
-            }
+            // SwiftData changes during hover reorder the source chip in the
+            // ScrollView and can cancel the native iPhone drag session.
+            HabitDragState.shared.reorderTargetID = item.id
             withAnimation(.easeInOut(duration: 0.2)) {
                 proxy?.scrollTo(item.id, anchor: .center)
             }
@@ -650,12 +675,23 @@ struct HabitDropDelegate: DropDelegate {
     }
     
     func performDrop(info: DropInfo) -> Bool {
-        // Persist reorder only once, at the end of the drag gesture
-        if let draggedItem = HabitDragState.shared.draggedHabit {
-            draggedItem.updatedAt = Date()
+        guard let draggedItem = HabitDragState.shared.draggedHabit else { return false }
+        let allHabits = (try? context.fetch(FetchDescriptor<HabitItem>())) ?? []
+        var sorted = allHabits.filter { $0.deletedAt == nil }.sorted { $0.order < $1.order }
+        if let source = sorted.firstIndex(where: { $0.id == draggedItem.id }),
+           let destination = sorted.firstIndex(where: { $0.id == item.id }),
+           source != destination {
+            let moved = sorted.remove(at: source)
+            sorted.insert(moved, at: destination)
+            let now = Date()
+            for (index, habit) in sorted.enumerated() where habit.order != index {
+                habit.order = index
+                habit.updatedAt = now
+                habit.syncedAt = nil
+            }
+            _ = PersistenceSafety.save(context)
+            SupabaseSyncManager.shared.push()
         }
-        _ = PersistenceSafety.save(context)
-        SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
             HabitDragState.shared.reset()
         }

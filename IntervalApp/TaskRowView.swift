@@ -28,7 +28,13 @@ struct TaskRowView: View {
     @ObservedObject private var locManager = LocalizationManager.shared
     
     private var isDragged: Bool {
-        !isNew && dragState.draggedTask?.id == task.id
+        #if os(iOS)
+        // Keep the source readable throughout the native touch drag. UIKit can
+        // finish a cancelled drag without calling any SwiftUI drop delegate.
+        return false
+        #else
+        !isNew && dragState.draggedTask?.id == task.id && dragState.targetIndex != nil
+        #endif
     }
     
     var body: some View {
@@ -143,8 +149,9 @@ struct TaskRowView: View {
                 task.text = text
                 task.updatedAt = Date()
             }
+            guard !isNew else { return NSItemProvider() }
             dragState.begin(task, interval: listTitle, fontSize: fontSize)
-            return NSItemProvider(item: task.id as NSString, typeIdentifier: UTType.data.identifier)
+            return NSItemProvider(object: task.id as NSString)
         } preview: {
             let activeFontSize = dragState.targetFontSize
             let displayText = task.text.isEmpty ? (text.isEmpty ? "Task" : text) : task.text
@@ -381,8 +388,7 @@ struct TaskRowView: View {
                         
                         Text(LinkTaskText.displayText(for: displayText))
                             .font(.system(size: fontSize, weight: .light))
-                            .foregroundColor(isPlaceholder ? .secondary.opacity(0.5) : (LinkTaskText.parts(in: displayText) == nil ? .primary : .accentColor))
-                            .underline(LinkTaskText.parts(in: displayText) != nil)
+                            .foregroundColor(isPlaceholder ? .secondary.opacity(0.5) : .primary)
                             .lineLimit(isExpanded ? nil : 1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
@@ -643,20 +649,61 @@ class DragState: ObservableObject {
     @Published var targetFontSize: CGFloat = 20.0
     
     private var monitor: Any?
+    private var recoveryGeneration = 0
+    private var lastDragActivity = Date.distantPast
+    private var recoveryScheduled = false
+    private var dragGeneration = 0
 
     func begin(_ task: TaskItem, interval: String, fontSize: CGFloat) {
         HabitDragState.shared.reset()
+        dragGeneration += 1
         draggedTask = task
         targetIntervalType = interval
         targetIndex = nil
         targetFontSize = fontSize
+        noteDragActivity()
     }
     
     func reset() {
+        dragGeneration += 1
+        recoveryGeneration += 1
+        recoveryScheduled = false
         draggedTask = nil
         targetIntervalType = nil
         targetIndex = nil
         stopMonitoring()
+    }
+
+    func resetAfterDropWindow() {
+        let generation = dragGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            guard let self, self.dragGeneration == generation else { return }
+            self.reset()
+        }
+    }
+
+    func noteDragActivity() {
+        #if os(iOS)
+        guard draggedTask != nil else { return }
+        lastDragActivity = Date()
+        guard !recoveryScheduled else { return }
+        recoveryScheduled = true
+        let generation = recoveryGeneration
+        scheduleRecoveryCheck(generation: generation)
+        #endif
+    }
+
+    private func scheduleRecoveryCheck(generation: Int) {
+        #if os(iOS)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
+            guard let self, self.recoveryGeneration == generation else { return }
+            if Date().timeIntervalSince(self.lastDragActivity) >= 4 {
+                self.reset()
+            } else {
+                self.scheduleRecoveryCheck(generation: generation)
+            }
+        }
+        #endif
     }
     
     private func startMonitoring() {
@@ -667,9 +714,7 @@ class DragState: ObservableObject {
                 
                 if event.type == .leftMouseUp {
                     DispatchQueue.main.async {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            self.reset()
-                        }
+                        self.resetAfterDropWindow()
                     }
                 } else if event.type == .leftMouseDragged {
                     if let window = event.window {
@@ -705,6 +750,8 @@ struct TaskDropDelegate: DropDelegate {
     let context: ModelContext
 
     func dropEntered(info: DropInfo) {
+        DragState.shared.noteDragActivity()
+        HabitDragState.shared.noteDragActivity()
         // 1. Handle habit drag entering a task row in 1 Hour
         if let habit = HabitDragState.shared.draggedHabit {
             if item.intervalType == HabitTaskLink.hourInterval {
@@ -722,17 +769,7 @@ struct TaskDropDelegate: DropDelegate {
         }
         
         // 2. Handle regular task drag
-        guard let draggedItem = DragState.shared.draggedTask else { return }
-        let descriptor = FetchDescriptor<TaskItem>()
-        let allTasks = (try? context.fetch(descriptor)) ?? []
-        let sorted = allTasks.filter {
-            $0.intervalType == item.intervalType && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id
-        }.sorted { $0.order < $1.order }
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-            DragState.shared.targetIntervalType = item.intervalType
-            DragState.shared.targetFontSize = sectionFontSize
-            DragState.shared.targetIndex = sorted.firstIndex(where: { $0.id == item.id }) ?? sorted.count
-        }
+        updateTaskTarget(info: info)
     }
     
     func dropExited(info: DropInfo) {
@@ -742,6 +779,8 @@ struct TaskDropDelegate: DropDelegate {
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {
+        DragState.shared.noteDragActivity()
+        HabitDragState.shared.noteDragActivity()
         // Handle habit drag
         if let habit = HabitDragState.shared.draggedHabit {
             if item.intervalType != HabitTaskLink.hourInterval {
@@ -764,10 +803,29 @@ struct TaskDropDelegate: DropDelegate {
                     HabitDragState.shared.isTargetingHour = true
                 }
             }
-            return DropProposal(operation: .copy)
+            return DropProposal(operation: .move)
         }
         
+        updateTaskTarget(info: info)
         return DropProposal(operation: .move)
+    }
+
+    private func updateTaskTarget(info: DropInfo) {
+        guard let draggedItem = DragState.shared.draggedTask else { return }
+        let allTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        let sorted = allTasks.filter {
+            $0.intervalType == item.intervalType && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id
+        }.sorted { $0.order < $1.order }
+        let rowIndex = sorted.firstIndex(where: { $0.id == item.id }) ?? sorted.count
+        let bottomHalf = info.location.y > max(24, sectionFontSize * 1.2) / 2
+        let proposedIndex = min(sorted.count, rowIndex + (bottomHalf && item.id != draggedItem.id ? 1 : 0))
+        guard DragState.shared.targetIntervalType != item.intervalType
+                || DragState.shared.targetIndex != proposedIndex else { return }
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            DragState.shared.targetIntervalType = item.intervalType
+            DragState.shared.targetFontSize = sectionFontSize
+            DragState.shared.targetIndex = proposedIndex
+        }
     }
     
     func performDrop(info: DropInfo) -> Bool {
@@ -797,18 +855,18 @@ struct TaskDropDelegate: DropDelegate {
             return true
         }
         
-        // Handle regular task drop
-        SoundManager.playTaskDropped()
-        if let draggedItem = DragState.shared.draggedTask {
-            _ = TaskDragMutation.commit(
-                draggedItem,
-                to: DragState.shared.targetIntervalType ?? item.intervalType,
-                index: DragState.shared.targetIndex ?? 0,
-                context: context
-            )
+        guard let draggedItem = DragState.shared.draggedTask else { return false }
+        let changed = TaskDragMutation.commit(
+            draggedItem,
+            to: item.intervalType,
+            index: DragState.shared.targetIndex ?? 0,
+            context: context
+        )
+        if changed {
+            SoundManager.playTaskDropped()
+            _ = PersistenceSafety.save(context)
+            SupabaseSyncManager.shared.push()
         }
-        _ = PersistenceSafety.save(context)
-        SupabaseSyncManager.shared.push()
         withAnimation(.easeInOut(duration: 0.15)) {
             DragState.shared.reset()
         }

@@ -13,6 +13,7 @@ struct TaskListView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var habitDragState = HabitDragState.shared
+    @ObservedObject private var taskDragState = DragState.shared
 
     @State private var isPlusHovered: Bool = false
 
@@ -27,6 +28,15 @@ struct TaskListView: View {
 
     private var shouldShowHabitPlaceholder: Bool {
         isHourSection && habitDragState.draggedHabit != nil && habitDragState.isTargetingHour && !habitAlreadyInHour
+    }
+
+    private var shouldShowTaskPlaceholder: Bool {
+        taskDragState.draggedTask != nil && taskDragState.targetIntervalType == title && taskDragState.targetIndex != nil
+    }
+
+    private func insertionIndex(before row: Int) -> Int {
+        let sourceId = taskDragState.draggedTask?.id
+        return tasks.prefix(row).filter { $0.id != sourceId }.count
     }
 
     var body: some View {
@@ -65,12 +75,22 @@ struct TaskListView: View {
             .padding(.bottom, 5)
             #endif
             
+            // Keep the source view mounted: removing it cancels the native
+            // iPhone drag provider before SwiftUI calls performDrop.
             ForEach(Array(tasks.enumerated()), id: \.element.id) { index, task in
+                if shouldShowTaskPlaceholder && taskDragState.targetIndex == insertionIndex(before: index)
+                    && (index == 0 || insertionIndex(before: index) != insertionIndex(before: index - 1)) {
+                    taskInsertionPlaceholder
+                }
                 if shouldShowHabitPlaceholder && habitDragState.targetIndex == index {
                     habitInsertionPlaceholder
                 }
                 
                 TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title, onDeepFocus: onDeepFocus, focusedTaskId: $focusedTaskId)
+            }
+
+            if shouldShowTaskPlaceholder && taskDragState.targetIndex == insertionIndex(before: tasks.count) {
+                taskInsertionPlaceholder
             }
             
             if shouldShowHabitPlaceholder && (habitDragState.targetIndex == tasks.count || (tasks.isEmpty && habitDragState.isTargetingHour)) {
@@ -100,10 +120,20 @@ struct TaskListView: View {
     
     private var habitInsertionPlaceholder: some View {
         Capsule()
-            .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.75 : 0.55))
-            .frame(height: 3)
-            .padding(.horizontal, 8)
+            .fill(Color.gray.opacity(colorScheme == .dark ? 0.5 : 0.38))
+            .frame(height: 4)
+            .padding(.horizontal, 6)
+            .allowsHitTesting(false)
             .accessibilityLabel("Insert habit here")
+    }
+
+    private var taskInsertionPlaceholder: some View {
+        Capsule()
+            .fill(Color.gray.opacity(colorScheme == .dark ? 0.5 : 0.38))
+            .frame(height: 4)
+            .padding(.horizontal, 6)
+            .allowsHitTesting(false)
+            .accessibilityLabel("Move task here")
     }
     
     private func createNewTaskAtEnd() {
@@ -154,8 +184,10 @@ func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listT
         sorted.insert(newTask, at: clamped)
     }
     
-    for (i, t) in sorted.enumerated() {
+    for (i, t) in sorted.enumerated() where t.order != i {
         t.order = i
+        t.updatedAt = now
+        t.syncedAt = nil
     }
     
     _ = PersistenceSafety.save(context)
@@ -219,6 +251,8 @@ struct TaskListHeaderDropDelegate: DropDelegate {
     let context: ModelContext
 
     func dropEntered(info: DropInfo) {
+        DragState.shared.noteDragActivity()
+        HabitDragState.shared.noteDragActivity()
         // Handle habit drag entering header
         if let habit = HabitDragState.shared.draggedHabit {
             if listTitle == HabitTaskLink.hourInterval {
@@ -249,6 +283,8 @@ struct TaskListHeaderDropDelegate: DropDelegate {
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {
+        DragState.shared.noteDragActivity()
+        HabitDragState.shared.noteDragActivity()
         if let habit = HabitDragState.shared.draggedHabit {
             if listTitle != HabitTaskLink.hourInterval {
                 return DropProposal(operation: .forbidden)
@@ -259,7 +295,7 @@ struct TaskListHeaderDropDelegate: DropDelegate {
             if alreadyInHour {
                 return DropProposal(operation: .forbidden)
             }
-            return DropProposal(operation: .copy)
+            return DropProposal(operation: .move)
         }
         return DropProposal(operation: .move)
     }
@@ -300,6 +336,8 @@ struct TaskListBottomDropDelegate: DropDelegate {
     let context: ModelContext
 
     func dropEntered(info: DropInfo) {
+        DragState.shared.noteDragActivity()
+        HabitDragState.shared.noteDragActivity()
         // Handle habit drag entering bottom zone
         if let habit = HabitDragState.shared.draggedHabit {
             if listTitle == HabitTaskLink.hourInterval {
@@ -335,6 +373,8 @@ struct TaskListBottomDropDelegate: DropDelegate {
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {
+        DragState.shared.noteDragActivity()
+        HabitDragState.shared.noteDragActivity()
         if let habit = HabitDragState.shared.draggedHabit {
             if listTitle != HabitTaskLink.hourInterval {
                 return DropProposal(operation: .forbidden)
@@ -345,7 +385,7 @@ struct TaskListBottomDropDelegate: DropDelegate {
             if alreadyInHour {
                 return DropProposal(operation: .forbidden)
             }
-            return DropProposal(operation: .copy)
+            return DropProposal(operation: .move)
         }
         return DropProposal(operation: .move)
     }

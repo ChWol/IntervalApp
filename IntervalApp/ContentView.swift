@@ -194,7 +194,7 @@ struct ContentView: View {
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
         .onAppear {
             deepFocusBreathing = false
-            withAnimation(.easeInOut(duration: 4.8).repeatForever(autoreverses: true)) {
+            withAnimation(.easeInOut(duration: 3.6).repeatForever(autoreverses: true)) {
                 deepFocusBreathing = true
             }
         }
@@ -222,6 +222,8 @@ struct ContentView: View {
     }
 
     private func closeDeepFocus() {
+        DragState.shared.reset()
+        HabitDragState.shared.reset()
         withAnimation(.easeInOut(duration: 0.2)) {
             deepFocusTaskId = nil
             deepFocusBreathing = false
@@ -265,6 +267,8 @@ struct ContentView: View {
                                             tasks: allTasks.filter { $0.intervalType == interval.0 && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order },
                                             focusedTaskId: $focusedTaskId,
                                             onDeepFocus: { task in
+                                                DragState.shared.reset()
+                                                HabitDragState.shared.reset()
                                                 withAnimation(.easeInOut(duration: 0.25)) { deepFocusTaskId = task.id }
                                             }
                                         )
