@@ -146,7 +146,7 @@ struct HabitsBarView: View {
                             chip
                                 .onDrag {
                                     HabitDragState.shared.begin(habit)
-                                    return NSItemProvider(object: habit.id as NSString)
+                                    return NSItemProvider(item: habit.id as NSString, typeIdentifier: UTType.data.identifier)
                                 } preview: {
                                     Text(habit.text)
                                         .font(.system(size: 12, weight: .light))

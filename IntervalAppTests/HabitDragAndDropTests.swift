@@ -145,4 +145,19 @@ final class HabitDragAndDropTests: XCTestCase {
         XCTAssertNil(HabitDragState.shared.draggedHabit,
                      "A cancelled drag must still be cleared after the drop hand-off window")
     }
+
+    func testVisibleInsertionSlotCreatesLinkedHourTask() throws {
+        let habit = store.addHabit("Stretch", id: "stretch")
+        store.addTask("First", interval: "1 Hour", order: 0)
+        store.addTask("Last", interval: "1 Hour", order: 1)
+        HabitDragState.shared.begin(habit)
+        HabitDragState.shared.targetIndex = 1
+        HabitDragState.shared.isTargetingHour = true
+
+        XCTAssertTrue(TaskListInsertionDropDelegate.commitDrop(to: "1 Hour", at: 1, context: store.context))
+        let ordered = try store.tasks().filter { $0.intervalType == "1 Hour" }.sorted { $0.order < $1.order }
+        XCTAssertEqual(ordered.map(\.text), ["First", "Stretch", "Last"])
+        XCTAssertEqual(ordered[1].habitId, habit.id)
+        XCTAssertNil(HabitDragState.shared.draggedHabit)
+    }
 }

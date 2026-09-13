@@ -36,6 +36,14 @@ struct TaskRowView: View {
         !isNew && dragState.draggedTask?.id == task.id && dragState.targetIndex != nil
         #endif
     }
+
+    private var deepFocusButtonOpacity: Double {
+        #if os(iOS)
+        return 1
+        #else
+        return isHovering || focusedTaskId == task.id ? 1 : 0
+        #endif
+    }
     
     var body: some View {
         ZStack(alignment: .trailing) {
@@ -141,9 +149,8 @@ struct TaskRowView: View {
             }
         }
         .id(isNew ? "NEW_\(listTitle)" : task.id)
-        // SwiftUI uses the same drag interaction on macOS and iPhone. On
-        // iPhone this starts after a long press; the drop delegates below
-        // preserve the same ordering rules as the Mac implementation.
+        // Keep the original local data provider used by the working native
+        // drag interaction on macOS and iPhone.
         .onDrag {
             if !isNew && !text.isEmpty && task.text != text {
                 task.text = text
@@ -151,7 +158,7 @@ struct TaskRowView: View {
             }
             guard !isNew else { return NSItemProvider() }
             dragState.begin(task, interval: listTitle, fontSize: fontSize)
-            return NSItemProvider(object: task.id as NSString)
+            return NSItemProvider(item: task.id as NSString, typeIdentifier: UTType.data.identifier)
         } preview: {
             let activeFontSize = dragState.targetFontSize
             let displayText = task.text.isEmpty ? (text.isEmpty ? "Task" : text) : task.text
@@ -173,16 +180,6 @@ struct TaskRowView: View {
             )
         }
         .onDrop(of: [UTType.data, UTType.plainText, UTType.text], delegate: TaskDropDelegate(item: task, sectionFontSize: fontSize, context: modelContext))
-        .contextMenu {
-            if !isNew, let onDeepFocus {
-                Button {
-                    focusedTaskId = nil
-                    onDeepFocus(task)
-                } label: {
-                    Label("Deep Focus", systemImage: "viewfinder")
-                }
-            }
-        }
     }
     
     // MARK: - Normal Row Content with Dash & Checkmark Transition
@@ -438,7 +435,7 @@ struct TaskRowView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .opacity(isHovering || focusedTaskId == task.id ? 1 : 0)
+                    .opacity(deepFocusButtonOpacity)
                     .onHover { isDeepFocusHovered = $0 }
                     .pointingHandCursor()
                     .help("Deep Focus")

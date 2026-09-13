@@ -81,9 +81,13 @@ struct TaskListView: View {
                 if shouldShowTaskPlaceholder && taskDragState.targetIndex == insertionIndex(before: index)
                     && (index == 0 || insertionIndex(before: index) != insertionIndex(before: index - 1)) {
                     taskInsertionPlaceholder
+                        .onDrop(of: [UTType.data, UTType.plainText, UTType.text],
+                                delegate: TaskListInsertionDropDelegate(listTitle: title, index: insertionIndex(before: index), context: modelContext))
                 }
                 if shouldShowHabitPlaceholder && habitDragState.targetIndex == index {
                     habitInsertionPlaceholder
+                        .onDrop(of: [UTType.data, UTType.plainText, UTType.text],
+                                delegate: TaskListInsertionDropDelegate(listTitle: title, index: index, context: modelContext))
                 }
                 
                 TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title, onDeepFocus: onDeepFocus, focusedTaskId: $focusedTaskId)
@@ -91,10 +95,14 @@ struct TaskListView: View {
 
             if shouldShowTaskPlaceholder && taskDragState.targetIndex == insertionIndex(before: tasks.count) {
                 taskInsertionPlaceholder
+                    .onDrop(of: [UTType.data, UTType.plainText, UTType.text],
+                            delegate: TaskListInsertionDropDelegate(listTitle: title, index: insertionIndex(before: tasks.count), context: modelContext))
             }
             
             if shouldShowHabitPlaceholder && (habitDragState.targetIndex == tasks.count || (tasks.isEmpty && habitDragState.isTargetingHour)) {
                 habitInsertionPlaceholder
+                    .onDrop(of: [UTType.data, UTType.plainText, UTType.text],
+                            delegate: TaskListInsertionDropDelegate(listTitle: title, index: tasks.count, context: modelContext))
             }
             
             if tasks.isEmpty && !shouldShowHabitPlaceholder {
@@ -119,20 +127,31 @@ struct TaskListView: View {
     }
     
     private var habitInsertionPlaceholder: some View {
-        Capsule()
-            .fill(Color.gray.opacity(colorScheme == .dark ? 0.5 : 0.38))
-            .frame(height: 4)
-            .padding(.horizontal, 6)
-            .allowsHitTesting(false)
+        HStack(alignment: .center, spacing: max(8, fontSize * 0.5)) {
+            Image(systemName: "circle")
+                .font(.system(size: max(fontSize * 0.65, 12), weight: .light))
+                .foregroundColor(.secondary.opacity(0.35))
+            if let habit = habitDragState.draggedHabit {
+                Text(habit.text)
+                    .font(.system(size: fontSize, weight: .light))
+                    .foregroundColor(.secondary.opacity(0.55))
+                    .lineLimit(1)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, max(fontSize * 0.25, 4))
+        .background(RoundedRectangle(cornerRadius: 6)
+            .fill(Color.gray.opacity(colorScheme == .dark ? 0.18 : 0.09)))
+        .transition(.opacity.combined(with: .scale(scale: 0.96)))
             .accessibilityLabel("Insert habit here")
     }
 
     private var taskInsertionPlaceholder: some View {
-        Capsule()
-            .fill(Color.gray.opacity(colorScheme == .dark ? 0.5 : 0.38))
-            .frame(height: 4)
-            .padding(.horizontal, 6)
-            .allowsHitTesting(false)
+        RoundedRectangle(cornerRadius: 4)
+            .fill(Color.gray.opacity(colorScheme == .dark ? 0.15 : 0.08))
+            .frame(height: max(fontSize * 1.2, 24))
+            .transition(.opacity.combined(with: .scale(scale: 0.96)))
             .accessibilityLabel("Move task here")
     }
     
@@ -244,6 +263,69 @@ enum TaskDragMutation {
 
 #if !os(watchOS)
 // MARK: - List Drop Delegates
+
+/// The full-height insertion card is itself a drop target. Without this,
+/// SwiftUI can end the drag over the visible card instead of the row below it,
+/// leaving performDrop uncalled even though the UI advertised a valid slot.
+struct TaskListInsertionDropDelegate: DropDelegate {
+    let listTitle: String
+    let index: Int
+    let context: ModelContext
+
+    func dropEntered(info: DropInfo) {
+        DragState.shared.noteDragActivity()
+        HabitDragState.shared.noteDragActivity()
+        if HabitDragState.shared.draggedHabit != nil, listTitle == HabitTaskLink.hourInterval {
+            HabitDragState.shared.targetIndex = index
+            HabitDragState.shared.isTargetingHour = true
+        } else if DragState.shared.draggedTask != nil {
+            DragState.shared.targetIntervalType = listTitle
+            DragState.shared.targetIndex = index
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DragState.shared.noteDragActivity()
+        HabitDragState.shared.noteDragActivity()
+        if let habit = HabitDragState.shared.draggedHabit {
+            guard listTitle == HabitTaskLink.hourInterval else { return DropProposal(operation: .forbidden) }
+            let tasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+            let alreadyPresent = tasks.contains {
+                $0.habitId == habit.id && $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed
+            }
+            return DropProposal(operation: alreadyPresent ? .forbidden : .move)
+        }
+        return DragState.shared.draggedTask == nil ? DropProposal(operation: .forbidden) : DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        DragState.shared.clearTargetAfterExit()
+        HabitDragState.shared.clearTargetAfterExit()
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        Self.commitDrop(to: listTitle, at: index, context: context)
+    }
+
+    @MainActor
+    static func commitDrop(to listTitle: String, at index: Int, context: ModelContext) -> Bool {
+        if let habit = HabitDragState.shared.draggedHabit {
+            guard listTitle == HabitTaskLink.hourInterval else { return false }
+            insertHabitAsTask(habit: habit, at: .atIndex(index), listTitle: listTitle, context: context)
+            withAnimation(.easeInOut(duration: 0.15)) { HabitDragState.shared.reset() }
+            return true
+        }
+        guard let task = DragState.shared.draggedTask else { return false }
+        let changed = TaskDragMutation.commit(task, to: listTitle, index: index, context: context)
+        if changed {
+            SoundManager.playTaskDropped()
+            _ = PersistenceSafety.save(context)
+            SupabaseSyncManager.shared.push()
+        }
+        withAnimation(.easeInOut(duration: 0.15)) { DragState.shared.reset() }
+        return true
+    }
+}
 
 struct TaskListHeaderDropDelegate: DropDelegate {
     let listTitle: String

@@ -160,4 +160,18 @@ final class TaskDragMutationTests: XCTestCase {
         XCTAssertEqual(DragState.shared.draggedTask?.id, second.id)
         DragState.shared.reset()
     }
+
+    func testVisibleInsertionSlotCommitsTaskAtAdvertisedIndex() throws {
+        let store = try TestStore()
+        let dragged = store.addTask("Dragged", interval: "1 Day", order: 0)
+        store.addTask("First", interval: "1 Hour", order: 0)
+        store.addTask("Last", interval: "1 Hour", order: 1)
+        DragState.shared.begin(dragged, interval: "1 Day", fontSize: 20)
+        DragState.shared.targetIndex = 1
+
+        XCTAssertTrue(TaskListInsertionDropDelegate.commitDrop(to: "1 Hour", at: 1, context: store.context))
+        XCTAssertEqual(try store.tasks().filter { $0.intervalType == "1 Hour" }
+            .sorted { $0.order < $1.order }.map(\.text), ["First", "Dragged", "Last"])
+        XCTAssertNil(DragState.shared.draggedTask)
+    }
 }
