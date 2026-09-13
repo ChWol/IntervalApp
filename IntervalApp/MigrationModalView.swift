@@ -133,7 +133,7 @@ struct MigrationModalView: View {
                 HStack(spacing: 12) {
                     Spacer()
                     
-                    // Skip button: Active ONLY when nothing is selected, or triggered via Escape (ESC)
+                    // Clicking Skip is available only when nothing is selected.
                     Button("Skip".localized) { onSkip() }
                         .buttonStyle(.plain)
                         .padding(.horizontal, 15)
@@ -145,8 +145,6 @@ struct MigrationModalView: View {
                         )
                         .disabled(hasSelection)
                         .pointingHandCursor()
-                        .keyboardShortcut(.cancelAction)
-                        .keyboardShortcut(.escape, modifiers: [])
                     
                     if isYearReset {
                         Button("Commit".localized) {
@@ -186,6 +184,16 @@ struct MigrationModalView: View {
             .shadow(radius: 20)
             .frame(maxWidth: isHourMigration ? 620 : 520)
             .padding(20)
+
+            // Escape always dismisses the transition, even when a selection
+            // disables the visible Skip button.
+            Button(action: onSkip) {
+                EmptyView()
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.escape, modifiers: [])
+            .opacity(0)
+            .frame(width: 0, height: 0)
         }
         #if os(macOS)
         .onExitCommand {

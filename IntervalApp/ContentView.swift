@@ -118,13 +118,15 @@ struct ContentView: View {
             #if os(macOS)
             // Keep Escape outside the hit-testing-disabled main view so it still
             // works while deep focus is actively dimming the rest of the app.
-            Button(action: { if deepFocusTaskId != nil { closeDeepFocus() } }) {
-                EmptyView()
+            if deepFocusTaskId != nil {
+                Button(action: closeDeepFocus) {
+                    EmptyView()
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.escape, modifiers: [])
+                .opacity(0)
+                .frame(width: 0, height: 0)
             }
-            .buttonStyle(.plain)
-            .keyboardShortcut(.escape, modifiers: [])
-            .opacity(0)
-            .frame(width: 0, height: 0)
             #endif
         }
         .onOpenURL { url in
@@ -163,7 +165,7 @@ struct ContentView: View {
 
     private func deepFocusOverlay(task: TaskItem) -> some View {
         ZStack {
-            Color.black.opacity(colorScheme == .dark ? 0.62 : 0.48)
+            (colorScheme == .dark ? Color.black.opacity(0.62) : Color.white.opacity(0.84))
                 .ignoresSafeArea()
                 .onTapGesture { closeDeepFocus() }
 
