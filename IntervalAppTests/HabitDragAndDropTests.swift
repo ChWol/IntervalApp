@@ -160,4 +160,39 @@ final class HabitDragAndDropTests: XCTestCase {
         XCTAssertEqual(ordered[1].habitId, habit.id)
         XCTAssertNil(HabitDragState.shared.draggedHabit)
     }
+
+    func testRepeatedDropCallbacksDoNotCreateMultipleActiveHourTasks() throws {
+        let habit = store.addHabit("Read", id: "read")
+        HabitDragState.shared.begin(habit)
+
+        XCTAssertTrue(TaskListInsertionDropDelegate.commitDrop(to: "1 Hour", at: 0, context: store.context))
+        // A native drop can hand off through overlapping slot and row delegates.
+        // Repeated callbacks must leave exactly one linked task.
+        _ = TaskListInsertionDropDelegate.commitDrop(to: "1 Hour", at: 0, context: store.context)
+        insertHabitAsTask(habit: habit, at: .top, listTitle: "1 Hour", context: store.context)
+
+        XCTAssertEqual(try store.tasks().filter {
+            $0.habitId == habit.id && $0.intervalType == "1 Hour" && !$0.completed && $0.deletedAt == nil
+        }.count, 1)
+    }
+
+    func testOneHabitDragCanClaimOnlyOneDrop() throws {
+        let habit = store.addHabit("Read", id: "one-drop")
+        HabitDragState.shared.begin(habit)
+
+        XCTAssertTrue(HabitDragState.shared.claimDrop(for: habit))
+        XCTAssertFalse(HabitDragState.shared.claimDrop(for: habit),
+                       "Overlapping row and insertion-slot callbacks must not both insert")
+    }
+
+    func testCompletedLinkedTaskAllowsARealFutureInsertion() throws {
+        let habit = store.addHabit("Read", id: "repeat-later")
+        XCTAssertTrue(insertHabitAsTask(habit: habit, at: .top, listTitle: "1 Hour", context: store.context))
+        let first = try XCTUnwrap(store.tasks().first { $0.habitId == habit.id })
+        XCTAssertFalse(insertHabitAsTask(habit: habit, at: .top, listTitle: "1 Hour", context: store.context))
+
+        first.completed = true
+        XCTAssertTrue(insertHabitAsTask(habit: habit, at: .top, listTitle: "1 Hour", context: store.context))
+        XCTAssertEqual(try store.tasks().filter { $0.habitId == habit.id && !$0.completed }.count, 1)
+    }
 }

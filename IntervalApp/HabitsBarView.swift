@@ -577,10 +577,12 @@ class HabitDragState: ObservableObject {
     private var lastDragActivity = Date.distantPast
     private var recoveryScheduled = false
     private var targetActivityGeneration = 0
+    private var dropClaimed = false
 
     func begin(_ habit: HabitItem) {
         DragState.shared.reset()
         dragGeneration += 1
+        dropClaimed = false
         draggedHabit = habit
         targetIndex = nil
         isTargetingHour = false
@@ -597,6 +599,21 @@ class HabitDragState: ObservableObject {
         targetIndex = nil
         isTargetingHour = false
         reorderTargetID = nil
+    }
+
+    func claimDrop(for habit: HabitItem) -> Bool {
+        guard draggedHabit?.id == habit.id, !dropClaimed else { return false }
+        dropClaimed = true
+        return true
+    }
+
+    func targetHour(at index: Int) {
+        guard draggedHabit != nil,
+              targetIndex != index || !isTargetingHour else { return }
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            targetIndex = index
+            isTargetingHour = true
+        }
     }
 
     func noteDragActivity() {
@@ -616,8 +633,10 @@ class HabitDragState: ObservableObject {
         let generation = targetActivityGeneration
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
             guard let self, self.targetActivityGeneration == generation else { return }
-            self.targetIndex = nil
-            self.isTargetingHour = false
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                self.targetIndex = nil
+                self.isTargetingHour = false
+            }
         }
         #endif
     }

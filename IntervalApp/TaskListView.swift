@@ -176,15 +176,48 @@ struct TaskListView: View {
 /// Creates a new TaskItem linked to the dragged habit and inserts it at the given position
 /// in the 1 Hour list. Only works when listTitle == "1 Hour" and habit is not already in 1 Hour.
 @MainActor
-func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listTitle: String, context: ModelContext) {
-    guard listTitle == HabitTaskLink.hourInterval else { return }
+private final class ActiveHabitInsertion {
+    weak var context: ModelContext?
+    weak var task: TaskItem?
+
+    init(context: ModelContext, task: TaskItem) {
+        self.context = context
+        self.task = task
+    }
+}
+
+@MainActor
+private enum HabitInsertionRegistry {
+    static var entries: [String: ActiveHabitInsertion] = [:]
+
+    static func hasActiveTask(for habitID: String, in context: ModelContext) -> Bool {
+        guard let entry = entries[habitID], entry.context === context,
+              let task = entry.task, !task.isDeleted,
+              task.deletedAt == nil, !task.completed,
+              task.intervalType == HabitTaskLink.hourInterval else {
+            entries[habitID] = nil
+            return false
+        }
+        return true
+    }
+
+    static func remember(_ task: TaskItem, for habitID: String, in context: ModelContext) {
+        entries[habitID] = ActiveHabitInsertion(context: context, task: task)
+    }
+}
+
+@MainActor
+@discardableResult
+func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listTitle: String, context: ModelContext) -> Bool {
+    guard listTitle == HabitTaskLink.hourInterval,
+          !HabitInsertionRegistry.hasActiveTask(for: habit.id, in: context) else { return false }
     
     let descriptor = FetchDescriptor<TaskItem>()
-    guard let allTasks = try? context.fetch(descriptor) else { return }
+    guard let allTasks = try? context.fetch(descriptor) else { return false }
     
     // If the habit is already present in 1 Hour as an active task, do NOT insert or duplicate
     let alreadyExists = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
-    guard !alreadyExists else { return }
+    guard !alreadyExists else { return false }
     
     var sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
     let now = Date()
@@ -192,6 +225,7 @@ func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listT
     let newTask = TaskItem(text: habit.text, intervalType: HabitTaskLink.hourInterval, order: 0, habitId: habit.id)
     newTask.updatedAt = now
     context.insert(newTask)
+    HabitInsertionRegistry.remember(newTask, for: habit.id, in: context)
     
     switch position {
     case .top:
@@ -211,6 +245,17 @@ func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listT
     
     _ = PersistenceSafety.save(context)
     SupabaseSyncManager.shared.push()
+    return true
+}
+
+@MainActor
+@discardableResult
+func commitHabitDrop(_ habit: HabitItem, at index: Int, listTitle: String, context: ModelContext) -> Bool {
+    guard listTitle == HabitTaskLink.hourInterval,
+          HabitDragState.shared.claimDrop(for: habit) else { return false }
+    let inserted = insertHabitAsTask(habit: habit, at: .atIndex(index), listTitle: listTitle, context: context)
+    withAnimation(.easeInOut(duration: 0.15)) { HabitDragState.shared.reset() }
+    return inserted
 }
 
 enum HabitInsertPosition {
@@ -276,8 +321,7 @@ struct TaskListInsertionDropDelegate: DropDelegate {
         DragState.shared.noteDragActivity()
         HabitDragState.shared.noteDragActivity()
         if HabitDragState.shared.draggedHabit != nil, listTitle == HabitTaskLink.hourInterval {
-            HabitDragState.shared.targetIndex = index
-            HabitDragState.shared.isTargetingHour = true
+            HabitDragState.shared.targetHour(at: index)
         } else if DragState.shared.draggedTask != nil {
             DragState.shared.targetIntervalType = listTitle
             DragState.shared.targetIndex = index
@@ -311,9 +355,7 @@ struct TaskListInsertionDropDelegate: DropDelegate {
     static func commitDrop(to listTitle: String, at index: Int, context: ModelContext) -> Bool {
         if let habit = HabitDragState.shared.draggedHabit {
             guard listTitle == HabitTaskLink.hourInterval else { return false }
-            insertHabitAsTask(habit: habit, at: .atIndex(index), listTitle: listTitle, context: context)
-            withAnimation(.easeInOut(duration: 0.15)) { HabitDragState.shared.reset() }
-            return true
+            return commitHabitDrop(habit, at: index, listTitle: listTitle, context: context)
         }
         guard let task = DragState.shared.draggedTask else { return false }
         let changed = TaskDragMutation.commit(task, to: listTitle, index: index, context: context)
@@ -342,8 +384,7 @@ struct TaskListHeaderDropDelegate: DropDelegate {
                 let allTasks = (try? context.fetch(descriptor)) ?? []
                 let alreadyInHour = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
                 if !alreadyInHour {
-                    HabitDragState.shared.targetIndex = 0
-                    HabitDragState.shared.isTargetingHour = true
+                    HabitDragState.shared.targetHour(at: 0)
                 }
             }
             return
@@ -391,11 +432,7 @@ struct TaskListHeaderDropDelegate: DropDelegate {
                 }
                 return false
             }
-            insertHabitAsTask(habit: habit, at: .atIndex(0), listTitle: listTitle, context: context)
-            withAnimation(.easeInOut(duration: 0.15)) {
-                HabitDragState.shared.reset()
-            }
-            return true
+            return commitHabitDrop(habit, at: 0, listTitle: listTitle, context: context)
         }
         
         // Handle regular task drop
@@ -428,8 +465,7 @@ struct TaskListBottomDropDelegate: DropDelegate {
                 let alreadyInHour = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
                 if !alreadyInHour {
                     let activeCount = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.count
-                    HabitDragState.shared.targetIndex = activeCount
-                    HabitDragState.shared.isTargetingHour = true
+                    HabitDragState.shared.targetHour(at: activeCount)
                 }
             }
             return
@@ -484,11 +520,7 @@ struct TaskListBottomDropDelegate: DropDelegate {
             let descriptor = FetchDescriptor<TaskItem>()
             let allTasks = (try? context.fetch(descriptor)) ?? []
             let activeCount = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.count
-            insertHabitAsTask(habit: habit, at: .atIndex(activeCount), listTitle: listTitle, context: context)
-            withAnimation(.easeInOut(duration: 0.15)) {
-                HabitDragState.shared.reset()
-            }
-            return true
+            return commitHabitDrop(habit, at: activeCount, listTitle: listTitle, context: context)
         }
         
         // Handle regular task drop

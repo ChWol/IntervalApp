@@ -429,8 +429,7 @@ struct TaskRowView: View {
                         Image(systemName: "viewfinder")
                             .font(.system(size: max(fontSize * 0.45, 11), weight: .light))
                             .foregroundColor(isDeepFocusHovered ? .primary : .secondary.opacity(0.7))
-                            .frame(width: 26, height: 26)
-                            .background(Circle().fill(Color.primary.opacity(isDeepFocusHovered ? 0.1 : 0.04)))
+                            .frame(width: 24, height: 24)
                             .scaleEffect(isDeepFocusHovered ? 1.08 : 1)
                             .contentShape(Rectangle())
                     }
@@ -771,8 +770,7 @@ struct TaskDropDelegate: DropDelegate {
                 if !alreadyInHour {
                     let sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
                     let itemIdx = sorted.firstIndex(where: { $0.id == item.id }) ?? 0
-                    HabitDragState.shared.targetIndex = itemIdx
-                    HabitDragState.shared.isTargetingHour = true
+                    HabitDragState.shared.targetHour(at: itemIdx)
                 }
             }
             return
@@ -807,10 +805,7 @@ struct TaskDropDelegate: DropDelegate {
                 // If cursor is in the lower half of this task row, place placeholder below it (index + 1)
                 let isBottomHalf = info.location.y > (sectionFontSize * 1.5 / 2.0)
                 let candidateIdx = isBottomHalf ? itemIdx + 1 : itemIdx
-                if HabitDragState.shared.targetIndex != candidateIdx {
-                    HabitDragState.shared.targetIndex = candidateIdx
-                    HabitDragState.shared.isTargetingHour = true
-                }
+                HabitDragState.shared.targetHour(at: candidateIdx)
             }
             return DropProposal(operation: .move)
         }
@@ -857,11 +852,7 @@ struct TaskDropDelegate: DropDelegate {
             }
             
             let targetIdx = HabitDragState.shared.targetIndex ?? 0
-            insertHabitAsTask(habit: habit, at: .atIndex(targetIdx), listTitle: HabitTaskLink.hourInterval, context: context)
-            withAnimation(.easeInOut(duration: 0.15)) {
-                HabitDragState.shared.reset()
-            }
-            return true
+            return commitHabitDrop(habit, at: targetIdx, listTitle: HabitTaskLink.hourInterval, context: context)
         }
         
         guard let draggedItem = DragState.shared.draggedTask else { return false }
