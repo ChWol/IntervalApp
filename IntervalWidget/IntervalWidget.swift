@@ -77,11 +77,8 @@ struct IntervalWidgetView: View {
                 Circle().trim(from: 0, to: progress)
                     .stroke(.black, style: StrokeStyle(lineWidth: 5, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                VStack(spacing: 1) {
-                    Text("1H").font(.caption.weight(.semibold))
-                    Text("\(max(0, 60 - Calendar.current.component(.minute, from: entry.date)))m")
-                        .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
-                }
+                Text("\(max(0, 60 - Calendar.current.component(.minute, from: entry.date)))m")
+                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             }
             .frame(width: 62, height: 62)
             VStack(alignment: .leading, spacing: 5) {
