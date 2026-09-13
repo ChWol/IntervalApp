@@ -41,3 +41,8 @@ Before finishing any coding task or declaring work complete, you **MUST** run th
 ## 5. Version Control Hygiene
 - **Commit in focused chunks**: Keep commits small and cohesive, with a message that describes the behavior or invariant being changed. Do not mix generated build products, editor state, or unrelated user work into a feature commit.
 - **Push completed chunks**: After verification, push each focused commit to the configured remote so the repository remains recoverable and collaborators can work from the latest tested state. If a push is blocked, report the exact reason rather than silently leaving the work unshared.
+
+## 6. Preserve Working Interactions
+- **Do not redesign or remove a working interaction unless the user asks for that change.** Before changing a gesture, drag/drop flow, animation, or placeholder, inspect its last known working implementation in Git history and preserve its visual and behavioral contract.
+- Fix the reported defect at its cause. If a new feature conflicts with an established interaction, move or adapt the new feature instead of silently replacing the established one.
+- Verify the original interaction and the new behavior on every affected platform. Unit tests alone do not prove a native drag gesture works; record any device interaction that could not be exercised.
