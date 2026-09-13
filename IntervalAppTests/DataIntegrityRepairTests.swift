@@ -47,4 +47,26 @@ final class DataIntegrityRepairTests: XCTestCase {
         XCTAssertEqual(DataIntegrityRepair.safeInterval(nil), "1 Day")
         XCTAssertEqual(DataIntegrityRepair.safeInterval("1 Month"), "1 Month")
     }
+
+    func testRepairSoftDeletesOnlyIdenticalHabitDropBurstCopies() throws {
+        let store = try TestStore()
+        let first = store.addTask("Stretch", interval: "1 Hour", order: 0, habitId: "habit")
+        let duplicate = store.addTask("Stretch", interval: "1 Hour", order: 1, habitId: "habit")
+        let edited = store.addTask("Stretch gently", interval: "1 Hour", order: 2, habitId: "habit")
+        let unrelated = store.addTask("Stretch", interval: "1 Hour", order: 3, habitId: "other")
+        first.createdAt = TestTime.now
+        duplicate.createdAt = TestTime.offset(1)
+        edited.createdAt = TestTime.offset(2)
+        try store.save()
+        let unrelatedStamp = unrelated.updatedAt
+
+        XCTAssertTrue(DataIntegrityRepair.repair(store.context))
+        XCTAssertNil(first.deletedAt)
+        XCTAssertNotNil(duplicate.deletedAt)
+        XCTAssertEqual(duplicate.text, "Stretch")
+        XCTAssertNil(edited.deletedAt)
+        XCTAssertNil(unrelated.deletedAt)
+        XCTAssertEqual(unrelated.updatedAt, unrelatedStamp)
+        XCTAssertFalse(DataIntegrityRepair.repair(store.context))
+    }
 }

@@ -50,6 +50,31 @@ enum DataIntegrityRepair {
             }
         }
 
+        // A single habit drag must produce one active hour task. Earlier builds
+        // could deliver the same drop through overlapping row and slot targets.
+        // Retain the oldest copy and soft-delete only identical burst copies;
+        // differing user-edited text or older tasks remain untouched.
+        let activeLinkedHourTasks = tasks.filter {
+            $0.habitId != nil && $0.intervalType == HabitTaskLink.hourInterval
+                && $0.deletedAt == nil && !$0.completed
+        }
+        let byHabit = Dictionary(grouping: activeLinkedHourTasks, by: { $0.habitId! })
+        let repairTime = Date()
+        for copies in byHabit.values where copies.count > 1 {
+            let ordered = copies.sorted {
+                $0.createdAt == $1.createdAt ? $0.id < $1.id : $0.createdAt < $1.createdAt
+            }
+            guard let keeper = ordered.first else { continue }
+            for duplicate in ordered.dropFirst()
+            where duplicate.text == keeper.text
+                && duplicate.createdAt.timeIntervalSince(keeper.createdAt) <= 600 {
+                duplicate.deletedAt = repairTime
+                duplicate.updatedAt = repairTime
+                duplicate.syncedAt = nil
+                changed = true
+            }
+        }
+
         for item in items {
             if item.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 item.id = UUID().uuidString
