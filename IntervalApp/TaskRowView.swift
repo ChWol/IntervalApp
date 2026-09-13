@@ -653,6 +653,7 @@ class DragState: ObservableObject {
     private var lastDragActivity = Date.distantPast
     private var recoveryScheduled = false
     private var dragGeneration = 0
+    private var targetActivityGeneration = 0
 
     func begin(_ task: TaskItem, interval: String, fontSize: CGFloat) {
         HabitDragState.shared.reset()
@@ -666,6 +667,7 @@ class DragState: ObservableObject {
     
     func reset() {
         dragGeneration += 1
+        targetActivityGeneration += 1
         recoveryGeneration += 1
         recoveryScheduled = false
         draggedTask = nil
@@ -683,6 +685,7 @@ class DragState: ObservableObject {
     }
 
     func noteDragActivity() {
+        targetActivityGeneration += 1
         #if os(iOS)
         guard draggedTask != nil else { return }
         lastDragActivity = Date()
@@ -690,6 +693,16 @@ class DragState: ObservableObject {
         recoveryScheduled = true
         let generation = recoveryGeneration
         scheduleRecoveryCheck(generation: generation)
+        #endif
+    }
+
+    func clearTargetAfterExit() {
+        #if os(iOS)
+        let generation = targetActivityGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
+            guard let self, self.targetActivityGeneration == generation else { return }
+            self.targetIndex = nil
+        }
         #endif
     }
 
@@ -773,9 +786,8 @@ struct TaskDropDelegate: DropDelegate {
     }
     
     func dropExited(info: DropInfo) {
-        // Do not clear the shared drag state here. SwiftUI calls dropExited on the
-        // row being left before it calls dropEntered on the row being entered;
-        // clearing it in between makes the first drop attempt appear to do nothing.
+        DragState.shared.clearTargetAfterExit()
+        HabitDragState.shared.clearTargetAfterExit()
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {

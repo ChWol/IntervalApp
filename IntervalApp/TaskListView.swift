@@ -278,8 +278,8 @@ struct TaskListHeaderDropDelegate: DropDelegate {
     }
     
     func dropExited(info: DropInfo) {
-        // Keep the drag alive while moving between the header, rows, and bottom
-        // zone. The old delegate exits before the next delegate enters.
+        DragState.shared.clearTargetAfterExit()
+        HabitDragState.shared.clearTargetAfterExit()
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {
@@ -368,8 +368,8 @@ struct TaskListBottomDropDelegate: DropDelegate {
     }
     
     func dropExited(info: DropInfo) {
-        // Keep the drag alive while moving between the header, rows, and bottom
-        // zone. The old delegate exits before the next delegate enters.
+        DragState.shared.clearTargetAfterExit()
+        HabitDragState.shared.clearTargetAfterExit()
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {

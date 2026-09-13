@@ -576,6 +576,7 @@ class HabitDragState: ObservableObject {
     private var recoveryGeneration = 0
     private var lastDragActivity = Date.distantPast
     private var recoveryScheduled = false
+    private var targetActivityGeneration = 0
 
     func begin(_ habit: HabitItem) {
         DragState.shared.reset()
@@ -589,6 +590,7 @@ class HabitDragState: ObservableObject {
     
     func reset() {
         dragGeneration += 1
+        targetActivityGeneration += 1
         recoveryGeneration += 1
         recoveryScheduled = false
         draggedHabit = nil
@@ -598,6 +600,7 @@ class HabitDragState: ObservableObject {
     }
 
     func noteDragActivity() {
+        targetActivityGeneration += 1
         #if os(iOS)
         guard draggedHabit != nil else { return }
         lastDragActivity = Date()
@@ -605,6 +608,17 @@ class HabitDragState: ObservableObject {
         recoveryScheduled = true
         let generation = recoveryGeneration
         scheduleRecoveryCheck(generation: generation)
+        #endif
+    }
+
+    func clearTargetAfterExit() {
+        #if os(iOS)
+        let generation = targetActivityGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
+            guard let self, self.targetActivityGeneration == generation else { return }
+            self.targetIndex = nil
+            self.isTargetingHour = false
+        }
         #endif
     }
 
