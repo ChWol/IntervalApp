@@ -1,6 +1,24 @@
 import XCTest
 
 final class OnboardingEligibilityTests: XCTestCase {
+    func testOnboardingCopyCoversEverySupportedLanguage() {
+        let manager = LocalizationManager.shared
+        let welcomeKeys = [
+            "WELCOME TO INTERVAL",
+            "Import your existing tasks from TickTick, Microsoft To Do, Todoist or Apple Reminders, or start fresh.",
+            "Import Tasks",
+            "Start Fresh"
+        ]
+        for language in AppLanguage.allCases {
+            if language != .english && language != .german {
+                XCTAssertEqual(OnboardingTranslations.translations[language]?.count, OnboardingTranslations.keys.count, "Incomplete tour: \(language)")
+            }
+            for key in OnboardingTranslations.keys + welcomeKeys {
+                XCTAssertTrue(manager.hasTranslation(for: key, language: language), "Missing \(language) translation: \(key)")
+            }
+        }
+    }
+
     func testGermanTourHasTranslatedTitlesMessagesAndNavigation() {
         let manager = LocalizationManager.shared
         let original = manager.currentLanguage

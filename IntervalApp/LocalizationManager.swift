@@ -70,8 +70,15 @@ class LocalizationManager: ObservableObject {
     }
     
     func string(for key: String) -> String {
+        if let onboarding = OnboardingTranslations.string(for: key, language: currentLanguage) {
+            return onboarding
+        }
         guard let dict = strings[key] else { return key }
         return dict[currentLanguage] ?? dict[.english] ?? key
+    }
+
+    func hasTranslation(for key: String, language: AppLanguage) -> Bool {
+        OnboardingTranslations.string(for: key, language: language) != nil || strings[key]?[language] != nil
     }
     
     private let strings: [String: [AppLanguage: String]] = [
@@ -1719,7 +1726,7 @@ class LocalizationManager: ObservableObject {
             .english: "No Habits", .german: "Keine Gewohnheiten", .french: "Aucune habitude", .spanish: "Sin hábitos", .portuguese: "Sem hábitos", .italian: "Nessuna abitudine",
             .arabic: "لا عادات", .chinese: "没有习惯", .japanese: "習慣なし", .korean: "습관 없음"
         ],
-        // Guided onboarding. English remains the fallback for languages without a tour translation.
+        // Guided onboarding. Additional languages live in OnboardingTranslations.swift.
         "GETTING STARTED": [.english: "GETTING STARTED", .german: "ERSTE SCHRITTE"],
         "GUIDE": [.english: "GUIDE", .german: "ANLEITUNG"],
         "Replay the tour": [.english: "Replay the tour", .german: "Einführung erneut ansehen"],
