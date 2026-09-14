@@ -15,12 +15,14 @@ enum HabitTaskLink {
                 .filter { $0.deletedAt == nil && !$0.completed }
                 .compactMap { $0.habitId }
         )
+        var seenHabitIds = Set<String>()
         return habits
             .filter { $0.deletedAt == nil }
             .filter { $0.isScheduledForTodayOrOverdue(date: now) }
             .filter { !$0.isCompleted(at: now) }
             .filter { !$0.isPostponed(at: now) }
             .filter { !alreadyListed.contains($0.id) }
+            .filter { seenHabitIds.insert($0.id).inserted }
             .sorted { h1, h2 in
                 let o1 = h1.isOverdueInCurrentWeek(date: now)
                 let o2 = h2.isOverdueInCurrentWeek(date: now)
@@ -33,7 +35,7 @@ enum HabitTaskLink {
     /// A habit that already has a live hour task is skipped so repeated migrations cannot
     /// stack duplicates.
     static func makeHourTasks(for habits: [HabitItem], existingHourTasks: [TaskItem], startingOrder: Int, now: Date = Date()) -> [TaskItem] {
-        let alreadyListed = Set(
+        var alreadyListed = Set(
             existingHourTasks
                 .filter { $0.deletedAt == nil && !$0.completed }
                 .compactMap { $0.habitId }
@@ -47,6 +49,7 @@ enum HabitTaskLink {
             let task = TaskItem(text: text, intervalType: hourInterval, order: order, habitId: habit.id)
             task.updatedAt = now
             created.append(task)
+            alreadyListed.insert(habit.id)
             order += 1
         }
         return created

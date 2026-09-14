@@ -13,6 +13,26 @@ final class HabitTaskLinkTests: XCTestCase {
     }
     
     // MARK: - Selection
+
+    func testRepeatedSelectedHabitCreatesOnlyOneHourTask() throws {
+        let habit = store.addHabit("Meditate", id: "habit-once")
+        let created = HabitTaskLink.makeHourTasks(
+            for: [habit, habit, habit],
+            existingHourTasks: [],
+            startingOrder: 0,
+            now: now
+        )
+        XCTAssertEqual(created.count, 1)
+        XCTAssertEqual(created.first?.habitId, habit.id)
+    }
+
+    func testSelectableHabitsDeduplicatesRepeatedHabitRows() {
+        let habit = store.addHabit("Meditate", id: "habit-once")
+        let selectable = HabitTaskLink.selectableHabits(
+            from: [habit, habit], hourTasks: [], now: now
+        )
+        XCTAssertEqual(selectable.map(\.id), [habit.id])
+    }
     
     func testSelectableHabitsSkipDeletedCompletedPostponedAndAlreadyListed() throws {
         let open = store.addHabit("Meditate", order: 0, id: "h-open")
