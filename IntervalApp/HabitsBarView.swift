@@ -135,6 +135,7 @@ struct HabitsBarView: View {
                 .tracking(2.0)
                 .foregroundColor(.gray)
                 .onboardingTarget("habits")
+                .id("onboarding-habits")
             
             // Habits Chips Container
             ScrollViewReader { proxy in
@@ -190,6 +191,7 @@ struct HabitsBarView: View {
                                 isPlusHovered = hovering
                             }
                         }
+                        .onboardingTarget("habitAdd")
                     } else {
                         HStack(spacing: 8) {
                             // Minimalist Daily | Weekly Toggle

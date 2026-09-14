@@ -12,6 +12,7 @@ struct TaskRowView: View {
     var onDeepFocus: ((TaskItem) -> Void)? = nil
     
     @Binding var focusedTaskId: String?
+    var showsOnboardingTargets: Bool = false
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
@@ -231,6 +232,7 @@ struct TaskRowView: View {
                         isCheckmarkHovering = hovering
                     }
                 }
+                .onboardingTarget(showsOnboardingTargets ? "hourComplete" : "taskComplete-\(task.id)")
             } else {
                 Text("–")
                     .font(.system(size: fontSize * 0.8, weight: .light))
@@ -438,6 +440,7 @@ struct TaskRowView: View {
                     .onHover { isDeepFocusHovered = $0 }
                     .pointingHandCursor()
                     .help("Deep Focus")
+                    .onboardingTarget(showsOnboardingTargets ? "hourFocus" : "taskFocus-\(task.id)")
                 }
                 Button(action: {
                     withAnimation {

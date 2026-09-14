@@ -32,7 +32,6 @@ struct ContentView: View {
     @State private var showImportModal = false
     @State private var onboardingPage: OnboardingPage?
     @State private var onboardingStepIndex = 0
-    @State private var onboardingFrames: [String: CGRect] = [:]
     @State private var onboardingImportInProgress = false
     @State private var hasCompletedInitialPull = false
     
@@ -129,18 +128,6 @@ struct ContentView: View {
                         onSkip: finishOnboarding
                     )
                     .zIndex(250)
-                } else if onboardingPage == .tour {
-                    let step = OnboardingStep.all[onboardingStepIndex]
-                    OnboardingSpotlightView(
-                        step: step,
-                        index: onboardingStepIndex,
-                        total: OnboardingStep.all.count,
-                        targetFrame: onboardingFrames[step.target],
-                        onBack: { changeOnboardingStep(by: -1) },
-                        onNext: { changeOnboardingStep(by: 1) },
-                        onSkip: finishOnboarding
-                    )
-                    .zIndex(250)
                 }
             }
 
@@ -158,8 +145,23 @@ struct ContentView: View {
             }
             #endif
         }
-        .coordinateSpace(name: "onboardingWindow")
-        .onPreferenceChange(OnboardingTargetPreferenceKey.self) { onboardingFrames = $0 }
+        .overlayPreferenceValue(OnboardingTargetPreferenceKey.self) { anchors in
+            GeometryReader { proxy in
+                if syncManager.isAuthenticated && onboardingPage == .tour && !showImportModal && !showUpdatePasswordModal {
+                    let step = OnboardingStep.all[onboardingStepIndex]
+                    OnboardingSpotlightView(
+                        step: step,
+                        index: onboardingStepIndex,
+                        total: OnboardingStep.all.count,
+                        targetFrame: anchors[step.target].map { proxy[$0] },
+                        onBack: { changeOnboardingStep(by: -1) },
+                        onNext: { changeOnboardingStep(by: 1) },
+                        onSkip: finishOnboarding
+                    )
+                }
+            }
+            .allowsHitTesting(onboardingPage == .tour)
+        }
         .onChange(of: syncManager.userId) { _, _ in
             hasCompletedInitialPull = false
             onboardingPage = nil
@@ -305,7 +307,6 @@ struct ContentView: View {
                                 } else {
                                     if showHabits {
                                         HabitsBarView()
-                                            .id("habits")
                                     }
                                     
                                     ForEach(intervals, id: \.0) { interval in
@@ -320,7 +321,6 @@ struct ContentView: View {
                                                 withAnimation(.easeInOut(duration: 0.25)) { deepFocusTaskId = task.id }
                                             }
                                         )
-                                        .id(interval.0)
                                     }
                                 
                                     completedAndDeletedSection
@@ -366,9 +366,9 @@ struct ContentView: View {
                         .onChange(of: onboardingStepIndex) { _, index in
                             guard onboardingPage == .tour else { return }
                             let step = OnboardingStep.all[index]
-                            if step.destination == .intervals && (step.target == "habits" || intervals.contains(where: { $0.0 == step.target })) {
+                            if step.destination == .intervals, let scrollTarget = step.intervalScrollTarget {
                                 withAnimation(.easeInOut(duration: 0.25)) {
-                                    scrollProxy.scrollTo(step.target, anchor: .center)
+                                    scrollProxy.scrollTo(scrollTarget, anchor: .center)
                                 }
                             }
                         }
@@ -376,17 +376,18 @@ struct ContentView: View {
                             guard onboardingPage == .tour else { return }
                             let step = OnboardingStep.all[onboardingStepIndex]
                             guard step.destination == .intervals,
-                                  step.target == "habits" || intervals.contains(where: { $0.0 == step.target }) else { return }
+                                  let scrollTarget = step.intervalScrollTarget else { return }
                             DispatchQueue.main.async {
                                 withAnimation(.easeInOut(duration: 0.25)) {
-                                    scrollProxy.scrollTo(step.target, anchor: .center)
+                                    scrollProxy.scrollTo(scrollTarget, anchor: .center)
                                 }
                             }
                         }
                         .onChange(of: onboardingPage) { _, page in
-                            guard page == .tour else { return }
+                            guard page == .tour,
+                                  let scrollTarget = OnboardingStep.all[onboardingStepIndex].intervalScrollTarget else { return }
                             withAnimation(.easeInOut(duration: 0.25)) {
-                                scrollProxy.scrollTo(OnboardingStep.all[onboardingStepIndex].target, anchor: .center)
+                                scrollProxy.scrollTo(scrollTarget, anchor: .center)
                             }
                         }
                     }

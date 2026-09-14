@@ -212,6 +212,7 @@ struct ScratchpadView: View {
                             .onHover { hovering in
                                 isNewListPlusHovered = hovering
                             }
+                            .onboardingTarget("scratchpadNewList")
                         } else {
                             HStack(spacing: 6) {
                                 TextField("List name...".localized, text: $newListName)
@@ -263,7 +264,6 @@ struct ScratchpadView: View {
                 }
             }
             .padding(.top, 24)
-            .onboardingTarget("scratchpad")
             .padding(.bottom, 5)
 
             // MARK: - Selected List Contents or Empty State
@@ -330,6 +330,7 @@ struct ScratchpadView: View {
                     .onHover { hovering in
                         isShareHovered = hovering
                     }
+                    .onboardingTarget("scratchpadShare")
 
                     Button(action: {
                         createNewItemAtEnd()

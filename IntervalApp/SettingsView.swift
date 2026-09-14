@@ -355,6 +355,8 @@ struct SettingsView: View {
 
                         #if os(macOS)
                         MinimalistToggle(isOn: $showMenuBarExtra, label: "Show in Menu Bar".localized)
+                            .onboardingTarget("settingsPlatform")
+                            .id("settingsPlatform")
                         #endif
 
                         MinimalistToggle(isOn: $showHabits, label: "Show Habits Bar".localized)
@@ -372,6 +374,8 @@ struct SettingsView: View {
                             ),
                             label: "Dynamic Island & Live Activities".localized
                         )
+                        .onboardingTarget("settingsPlatform")
+                        .id("settingsPlatform")
                         #endif
                         
                         // Notifications Toggle & Permission handler
@@ -644,7 +648,7 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }
             .onChange(of: onboardingFocusTarget) { _, target in
-                guard let target, ["settings", "settingsImport", "settingsPreferences"].contains(target) else { return }
+                guard let target, ["settings", "settingsImport", "settingsPreferences", "settingsPlatform"].contains(target) else { return }
                 withAnimation(.easeInOut(duration: 0.25)) {
                     scrollProxy.scrollTo(target, anchor: .center)
                 }

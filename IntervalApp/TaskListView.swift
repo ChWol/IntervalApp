@@ -47,6 +47,7 @@ struct TaskListView: View {
                     .font(.system(size: 10, weight: .light, design: .default))
                     .tracking(2.0)
                     .foregroundColor(.gray)
+                    .onboardingTarget(title)
                 
                 Spacer()
                 
@@ -66,6 +67,7 @@ struct TaskListView: View {
                         isPlusHovered = hovering
                     }
                 }
+                .onboardingTarget(title == "1 Hour" ? "hourAdd" : "taskAdd-\(title)")
             }
             #if !os(watchOS)
             .padding(.bottom, 5)
@@ -74,7 +76,7 @@ struct TaskListView: View {
             #else
             .padding(.bottom, 5)
             #endif
-            .onboardingTarget(title)
+            .id("onboarding-\(title)")
             
             // Keep the source view mounted: removing it cancels the native
             // iPhone drag provider before SwiftUI calls performDrop.
@@ -91,7 +93,7 @@ struct TaskListView: View {
                                 delegate: TaskListInsertionDropDelegate(listTitle: title, index: index, context: modelContext))
                 }
                 
-                TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title, onDeepFocus: onDeepFocus, focusedTaskId: $focusedTaskId)
+                TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title, onDeepFocus: onDeepFocus, focusedTaskId: $focusedTaskId, showsOnboardingTargets: title == "1 Hour" && index == 0)
             }
 
             if shouldShowTaskPlaceholder && taskDragState.targetIndex == insertionIndex(before: tasks.count) {

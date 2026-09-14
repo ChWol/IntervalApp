@@ -33,22 +33,31 @@ struct OnboardingStep {
     let target: String
     let destination: OnboardingDestination
 
+    var intervalScrollTarget: String? {
+        switch target {
+        case "1 Hour", "hourAdd", "hourComplete", "hourFocus", "": return "onboarding-1 Hour"
+        case "1 Day", "1 Week", "1 Month", "1 Year": return "onboarding-\(target)"
+        case "habitAdd": return "onboarding-habits"
+        default: return nil
+        }
+    }
+
     static let all: [OnboardingStep] = [
         .init(title: "A home for every time horizon", message: "Your plan runs from 1 Hour to 1 Year. Put what matters now at the top, and keep longer plans below.", target: "1 Hour", destination: .intervals),
-        .init(title: "Add and edit tasks", message: "Use + beside an interval to add a task. Click or tap a task to edit its text whenever plans change.", target: "1 Hour", destination: .intervals),
+        .init(title: "Add and edit tasks", message: "Use + beside an interval to add a task. Click or tap a task to edit its text whenever plans change.", target: "hourAdd", destination: .intervals),
         .init(title: "Move plans as they change", message: "Drag tasks within an interval to reorder them, or into another interval to change when you plan to do them.", target: "1 Day", destination: .intervals),
         .init(title: "Keep the longer view", message: "1 Week, 1 Month, and 1 Year give larger goals a home. Move an idea closer as it becomes something you can act on.", target: "1 Year", destination: .intervals),
-        .init(title: "Finish or remove a task", message: "Tick the circle when a task is done. Use × to move it to Recently Deleted. Below your lists you can restore a task, or clear it permanently.", target: "1 Hour", destination: .intervals),
-        .init(title: "Focus on just one thing", message: "The viewfinder beside a task opens Deep Focus. The rest of the app fades away until you close it or press Escape.", target: "1 Hour", destination: .intervals),
-        .init(title: "Plan each new interval", message: "At an hour, day, week, month, or year boundary, Interval asks which tasks should move into your next focus. Select what you want, or press Escape to skip. Unselected tasks stay where they are.", target: "1 Hour", destination: .intervals),
-        .init(title: "Make room for habits", message: "Add a daily or weekly habit here. Tick it when done, postpone it for today, or drag it into 1 Hour when you want to focus on it.", target: "habits", destination: .intervals),
+        .init(title: "Finish or remove a task", message: "Tick the dash when a task is done. Use × to move it to Recently Deleted. Below your lists you can restore a task, or clear it permanently.", target: "hourComplete", destination: .intervals),
+        .init(title: "Focus on just one thing", message: "The viewfinder beside a task opens Deep Focus. The rest of the app fades away until you close it or press Escape.", target: "hourFocus", destination: .intervals),
+        .init(title: "Plan each new interval", message: "At an hour, day, week, month, or year boundary, Interval asks which tasks should move into your next focus. Select what you want, or press Escape to skip. Unselected tasks stay where they are.", target: "", destination: .intervals),
+        .init(title: "Make room for habits", message: "Add a daily or weekly habit here. Tick it when done, postpone it for today, or drag it into 1 Hour when you want to focus on it.", target: "habitAdd", destination: .intervals),
         .init(title: "See your rhythm", message: "Habit Statistics shows streaks, yearly completions, and a calendar for each habit.", target: "habitStats", destination: .habitStats),
-        .init(title: "Keep flexible lists", message: "Scratchpad is for notes and lists that do not need a time horizon. Create lists and items, then move an item into your main plan when it becomes actionable.", target: "scratchpad", destination: .scratchpad),
-        .init(title: "Share a list", message: "Open a Scratchpad list and use its people button to share it. Shared lists stay separate from your interval tasks.", target: "scratchpad", destination: .scratchpad),
+        .init(title: "Keep flexible lists", message: "Scratchpad is for notes and lists that do not need a time horizon. Create lists and items, then move an item into your main plan when it becomes actionable.", target: "scratchpadNewList", destination: .scratchpad),
+        .init(title: "Share a list", message: "Open a Scratchpad list and use its people button to share it. Shared lists stay separate from your interval tasks.", target: "scratchpadShare", destination: .scratchpad),
         .init(title: "Find anything quickly", message: searchMessage, target: "search", destination: .intervals),
         .init(title: "Make Interval yours", message: "Settings holds language, habits, sound, notifications, and the start of your day and week. Your account also syncs your plans across signed-in devices.", target: "settings", destination: .settings),
         .init(title: "Import whenever you like", message: "You can import from other apps later in Settings → Data & Import. You can also export a JSON backup here.", target: "settingsImport", destination: .settings),
-        .init(title: "Stay on track anywhere", message: platformExtrasMessage, target: "settingsPreferences", destination: .settings),
+        .init(title: "Stay on track anywhere", message: platformExtrasMessage, target: "settingsPlatform", destination: .settings),
         .init(title: "You're ready", message: "Start with one thing you want to do this hour. You can replay this tour any time from Settings.", target: "1 Hour", destination: .intervals)
     ]
 
@@ -70,22 +79,17 @@ struct OnboardingStep {
 }
 
 struct OnboardingTargetPreferenceKey: PreferenceKey {
-    static var defaultValue: [String: CGRect] = [:]
+    static var defaultValue: [String: Anchor<CGRect>] = [:]
 
-    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+    static func reduce(value: inout [String: Anchor<CGRect>], nextValue: () -> [String: Anchor<CGRect>]) {
         value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
 }
 
 extension View {
     func onboardingTarget(_ id: String) -> some View {
-        background {
-            GeometryReader { proxy in
-                Color.clear.preference(
-                    key: OnboardingTargetPreferenceKey.self,
-                    value: [id: proxy.frame(in: .named("onboardingWindow"))]
-                )
-            }
+        anchorPreference(key: OnboardingTargetPreferenceKey.self, value: .bounds) { anchor in
+            [id: anchor]
         }
     }
 }
@@ -115,7 +119,7 @@ struct OnboardingWelcomeView: View {
                     .accessibilityLabel("Skip onboarding".localized)
                 }
 
-                Text("Make space for what matters now.")
+                Text("Make space for what matters now.".localized)
                     .font(.system(size: 27, weight: .light, design: .rounded))
 
                 Text("Import your existing tasks from TickTick, Microsoft To Do, Todoist or Apple Reminders, or start fresh.".localized)
@@ -170,7 +174,11 @@ struct OnboardingSpotlightView: View {
             let bounds = CGRect(origin: .zero, size: geometry.size)
             let frame = targetFrame.flatMap { candidate -> CGRect? in
                 let visible = candidate.intersection(bounds)
-                return !visible.isNull && visible.width > 20 && visible.height > 15 ? visible.insetBy(dx: -8, dy: -7) : nil
+                guard !visible.isNull,
+                      visible.width > 8,
+                      visible.height > 6,
+                      visible.height >= candidate.height * 0.75 else { return nil }
+                return visible.insetBy(dx: -8, dy: -7)
             }
 
             ZStack {
@@ -181,7 +189,6 @@ struct OnboardingSpotlightView: View {
                     }
                 }
                 .fill(Color.black.opacity(colorScheme == .dark ? 0.78 : 0.62), style: FillStyle(eoFill: true))
-                .ignoresSafeArea()
 
                 if let frame {
                     RoundedRectangle(cornerRadius: 12)
@@ -235,9 +242,9 @@ struct OnboardingSpotlightView: View {
             if step.title == "Plan each new interval" {
                 HStack(spacing: 9) {
                     Image(systemName: "checkmark.circle")
-                    Text("Choose a task")
+                    Text("Choose a task".localized)
                     Spacer()
-                    Text("Migrate  /  Skip")
+                    Text("Migrate  /  Skip".localized)
                 }
                 .font(.system(size: 11, weight: .light))
                 .foregroundStyle(.secondary)
