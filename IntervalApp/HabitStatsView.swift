@@ -27,6 +27,7 @@ struct HabitStatsView: View {
                         .font(.system(size: 10, weight: .light))
                         .tracking(2)
                         .foregroundStyle(.secondary)
+                        .onboardingTarget("habitStats")
                     Text("A quiet look back at what you kept showing up for.".localized)
                         .font(.system(size: 14, weight: .light))
                         .foregroundStyle(.secondary)

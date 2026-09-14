@@ -74,6 +74,7 @@ struct TaskListView: View {
             #else
             .padding(.bottom, 5)
             #endif
+            .onboardingTarget(title)
             
             // Keep the source view mounted: removing it cancels the native
             // iPhone drag provider before SwiftUI calls performDrop.

@@ -134,6 +134,7 @@ struct HabitsBarView: View {
                 .font(.system(size: 10, weight: .light, design: .default))
                 .tracking(2.0)
                 .foregroundColor(.gray)
+                .onboardingTarget("habits")
             
             // Habits Chips Container
             ScrollViewReader { proxy in

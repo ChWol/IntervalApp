@@ -3,6 +3,10 @@ import SwiftUI
 import SwiftData
 import Combine
 
+extension Notification.Name {
+    static let onboardingRegistrationReady = Notification.Name("onboardingRegistrationReady")
+}
+
 @MainActor
 protocol HTTPDataTransport {
     func data(for request: URLRequest) async throws -> (Data, URLResponse)
@@ -336,8 +340,13 @@ class SupabaseSyncManager: ObservableObject {
             
             if let authResp = try? JSONDecoder().decode(AuthResponse.self, from: data), !authResp.access_token.isEmpty {
                 let accepted = handleAuthSuccess(authResp, email: email)
+                if accepted {
+                    UserDefaults.standard.set(email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), forKey: "onboardingPendingEmail")
+                    NotificationCenter.default.post(name: .onboardingRegistrationReady, object: nil)
+                }
                 return SignUpResult(success: accepted, requiresConfirmation: false, error: accepted ? nil : authError)
             } else {
+                UserDefaults.standard.set(email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), forKey: "onboardingPendingEmail")
                 return SignUpResult(success: true, requiresConfirmation: true, error: nil)
             }
         } catch {

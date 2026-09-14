@@ -263,6 +263,7 @@ struct ScratchpadView: View {
                 }
             }
             .padding(.top, 24)
+            .onboardingTarget("scratchpad")
             .padding(.bottom, 5)
 
             // MARK: - Selected List Contents or Empty State

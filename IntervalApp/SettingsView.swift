@@ -257,9 +257,12 @@ struct SettingsView: View {
     #endif
     
     var onClose: () -> Void
+    var onReplayTour: () -> Void
+    var onboardingFocusTarget: String?
 
     var body: some View {
         ZStack {
+            ScrollViewReader { scrollProxy in
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 26) {
                     // Header: Title
@@ -268,6 +271,8 @@ struct SettingsView: View {
                         .tracking(3.0)
                         .foregroundColor(.secondary)
                         .padding(.bottom, 2)
+                        .onboardingTarget("settings")
+                        .id("settings")
 
                     // MARK: Language
                     VStack(alignment: .leading, spacing: 10) {
@@ -321,6 +326,8 @@ struct SettingsView: View {
                     // MARK: Preferences (Habits, Sounds, Notifications, Autostart & Boundaries)
                     VStack(alignment: .leading, spacing: 14) {
                         sectionLabel("PREFERENCES".localized)
+                            .onboardingTarget("settingsPreferences")
+                            .id("settingsPreferences")
 
                         // Launch at Login
                         #if os(macOS)
@@ -489,6 +496,8 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                         .pointingHandCursor()
                         .onHover { isImportHovered = $0 }
+                        .onboardingTarget("settingsImport")
+                        .id("settingsImport")
                         
                         #if os(macOS)
                         Button(action: {
@@ -534,6 +543,17 @@ struct SettingsView: View {
                         .pointingHandCursor()
                         .onHover { isExportHovered = $0 }
                         #endif
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        sectionLabel("GUIDE".localized)
+                        Button(action: onReplayTour) {
+                            Label("Replay the tour".localized, systemImage: "sparkle.magnifyingglass")
+                                .font(.system(size: 12, weight: .light))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .pointingHandCursor()
                     }
 
                     // MARK: Account
@@ -622,6 +642,13 @@ struct SettingsView: View {
                 }
                 .padding(40)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .onChange(of: onboardingFocusTarget) { _, target in
+                guard let target, ["settings", "settingsImport", "settingsPreferences"].contains(target) else { return }
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    scrollProxy.scrollTo(target, anchor: .center)
+                }
+            }
             }
 
             // MARK: - Full Window Centered Custom Modal Popup

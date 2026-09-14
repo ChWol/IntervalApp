@@ -17,7 +17,6 @@ struct ContentView: View {
     
     @ObservedObject private var locManager = LocalizationManager.shared
     @AppStorage("showHabits") private var showHabits: Bool = true
-    @AppStorage("hasDismissedOnboardingImport") private var hasDismissedOnboardingImport: Bool = false
     
     @State private var isCompletedExpanded = false
     @State private var isDeletedExpanded = false
@@ -31,11 +30,13 @@ struct ContentView: View {
     @State private var scratchpadSelectedListId: String? = nil
     @State private var showUpdatePasswordModal = false
     @State private var showImportModal = false
+    @State private var onboardingPage: OnboardingPage?
+    @State private var onboardingStepIndex = 0
+    @State private var onboardingFrames: [String: CGRect] = [:]
+    @State private var onboardingImportInProgress = false
+    @State private var hasCompletedInitialPull = false
     
     @State private var hoveredTopButton: String? = nil
-    @State private var isOnboardingImportHovered = false
-    @State private var isOnboardingFreshHovered = false
-    @State private var isOnboardingCloseHovered = false
     
     enum ViewMode {
         case intervals
@@ -58,7 +59,7 @@ struct ContentView: View {
                 if syncManager.isAuthenticated {
                     mainAppView
                         .blur(radius: deepFocusTaskId == nil ? 0 : 8)
-                        .allowsHitTesting(deepFocusTaskId == nil)
+                        .allowsHitTesting(deepFocusTaskId == nil && (onboardingPage == nil || showImportModal))
                         .onAppear {
                             if DataIntegrityRepair.repair(modelContext) {
                                 _ = PersistenceSafety.save(modelContext, operation: "Repairing local data")
@@ -67,6 +68,8 @@ struct ContentView: View {
                             migrationManager.startMonitoring(context: modelContext)
                         }
                         .onChange(of: syncManager.isAuthenticated) { _, authenticated in
+                            hasCompletedInitialPull = false
+                            if !authenticated { onboardingPage = nil }
                             if authenticated {
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     currentViewMode = .intervals
@@ -115,6 +118,32 @@ struct ContentView: View {
                     .zIndex(180)
             }
 
+            if syncManager.isAuthenticated && !showImportModal && !showUpdatePasswordModal {
+                if onboardingPage == .welcome {
+                    OnboardingWelcomeView(
+                        onImport: {
+                            onboardingImportInProgress = true
+                            showImportModal = true
+                        },
+                        onStartFresh: startOnboardingTour,
+                        onSkip: finishOnboarding
+                    )
+                    .zIndex(250)
+                } else if onboardingPage == .tour {
+                    let step = OnboardingStep.all[onboardingStepIndex]
+                    OnboardingSpotlightView(
+                        step: step,
+                        index: onboardingStepIndex,
+                        total: OnboardingStep.all.count,
+                        targetFrame: onboardingFrames[step.target],
+                        onBack: { changeOnboardingStep(by: -1) },
+                        onNext: { changeOnboardingStep(by: 1) },
+                        onSkip: finishOnboarding
+                    )
+                    .zIndex(250)
+                }
+            }
+
             #if os(macOS)
             // Keep Escape outside the hit-testing-disabled main view so it still
             // works while deep focus is actively dimming the rest of the app.
@@ -128,6 +157,25 @@ struct ContentView: View {
                 .frame(width: 0, height: 0)
             }
             #endif
+        }
+        .coordinateSpace(name: "onboardingWindow")
+        .onPreferenceChange(OnboardingTargetPreferenceKey.self) { onboardingFrames = $0 }
+        .onChange(of: syncManager.userId) { _, _ in
+            hasCompletedInitialPull = false
+            onboardingPage = nil
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .syncPullDidComplete)) { _ in
+            hasCompletedInitialPull = true
+            presentOnboardingIfNeeded()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .onboardingRegistrationReady)) { _ in
+            presentOnboardingIfNeeded()
+        }
+        .onChange(of: showImportModal) { _, isPresented in
+            if !isPresented && onboardingImportInProgress {
+                onboardingImportInProgress = false
+                startOnboardingTour()
+            }
         }
         .onOpenURL { url in
             if !SpotlightIndexer.shared.handleOpenURL(url) {
@@ -242,7 +290,8 @@ struct ContentView: View {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         currentViewMode = .intervals
                     }
-                })
+                }, onReplayTour: startOnboardingTour,
+                   onboardingFocusTarget: onboardingPage == .tour ? OnboardingStep.all[onboardingStepIndex].target : nil)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else if currentViewMode == .habitStats {
                 HabitStatsView()
@@ -254,12 +303,9 @@ struct ContentView: View {
                                 if currentViewMode == .scratchpad {
                                     ScratchpadView(focusedTaskId: $focusedTaskId, selectedListId: $scratchpadSelectedListId)
                                 } else {
-                                    if isAccountEmpty && !hasDismissedOnboardingImport {
-                                        onboardingImportCard
-                                    }
-                                    
                                     if showHabits {
                                         HabitsBarView()
+                                            .id("habits")
                                     }
                                     
                                     ForEach(intervals, id: \.0) { interval in
@@ -274,6 +320,7 @@ struct ContentView: View {
                                                 withAnimation(.easeInOut(duration: 0.25)) { deepFocusTaskId = task.id }
                                             }
                                         )
+                                        .id(interval.0)
                                     }
                                 
                                     completedAndDeletedSection
@@ -315,6 +362,32 @@ struct ContentView: View {
                             guard let currentId = notification.userInfo?["currentId"] as? String,
                                   let direction = notification.userInfo?["direction"] as? String else { return }
                             handleFocusNavigation(from: currentId, direction: direction)
+                        }
+                        .onChange(of: onboardingStepIndex) { _, index in
+                            guard onboardingPage == .tour else { return }
+                            let step = OnboardingStep.all[index]
+                            if step.destination == .intervals && (step.target == "habits" || intervals.contains(where: { $0.0 == step.target })) {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    scrollProxy.scrollTo(step.target, anchor: .center)
+                                }
+                            }
+                        }
+                        .onAppear {
+                            guard onboardingPage == .tour else { return }
+                            let step = OnboardingStep.all[onboardingStepIndex]
+                            guard step.destination == .intervals,
+                                  step.target == "habits" || intervals.contains(where: { $0.0 == step.target }) else { return }
+                            DispatchQueue.main.async {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    scrollProxy.scrollTo(step.target, anchor: .center)
+                                }
+                            }
+                        }
+                        .onChange(of: onboardingPage) { _, page in
+                            guard page == .tour else { return }
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                scrollProxy.scrollTo(OnboardingStep.all[onboardingStepIndex].target, anchor: .center)
+                            }
                         }
                     }
                 }
@@ -459,6 +532,7 @@ struct ContentView: View {
                     .pointingHandCursor()
                     .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "search" : nil } }
                     .help("Search (⌘F)".localized)
+                    .onboardingTarget("search")
                     
                 }
                 
@@ -700,115 +774,71 @@ struct ContentView: View {
         .padding(.top, 20)
     }
     
-    // MARK: - Onboarding Import Card
-    
+    // MARK: - Onboarding
+
     private var isAccountEmpty: Bool {
-        allTasks.filter { $0.deletedAt == nil }.isEmpty &&
-        allHabits.filter { $0.deletedAt == nil }.isEmpty &&
-        allScratchpadLists.filter { $0.deletedAt == nil }.isEmpty
+        allTasks.allSatisfy { $0.deletedAt != nil } &&
+        allHabits.allSatisfy { $0.deletedAt != nil } &&
+        allScratchpadLists.allSatisfy { $0.deletedAt != nil }
     }
-    
-    @ViewBuilder
-    private var onboardingImportCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("WELCOME TO INTERVAL".localized)
-                    .font(.system(size: 10, weight: .semibold))
-                    .tracking(2.0)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-                
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        hasDismissedOnboardingImport = true
-                    }
-                }) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.primary.opacity(isOnboardingCloseHovered ? 0.1 : 0.0))
-                            .frame(width: 22, height: 22)
-                        Image(systemName: "xmark")
-                            .font(.system(size: 10, weight: .light))
-                            .foregroundColor(isOnboardingCloseHovered ? .primary : .secondary.opacity(0.7))
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .pointingHandCursor()
-                .onHover { h in
-                    withAnimation(.easeInOut(duration: 0.12)) {
-                        isOnboardingCloseHovered = h
-                    }
-                }
-            }
-            
-            Text("Import your existing tasks from TickTick, Microsoft To Do, Todoist or Apple Reminders, or start fresh.".localized)
-                .font(.system(size: 13, weight: .light))
-                .foregroundColor(.primary.opacity(0.85))
-                .fixedSize(horizontal: false, vertical: true)
-            
-            HStack(spacing: 16) {
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showImportModal = true
-                    }
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "square.and.arrow.down")
-                            .font(.system(size: 11))
-                        Text("Import Tasks".localized)
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                    .foregroundColor(colorScheme == .dark ? .black : .white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 7)
-                    .background(
-                        Capsule()
-                            .fill(Color.primary.opacity(isOnboardingImportHovered ? 0.88 : 1.0))
-                    )
-                    .scaleEffect(isOnboardingImportHovered ? 1.03 : 1.0)
-                }
-                .buttonStyle(.plain)
-                .pointingHandCursor()
-                .onHover { h in
-                    withAnimation(.easeInOut(duration: 0.12)) {
-                        isOnboardingImportHovered = h
-                    }
-                }
-                
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        hasDismissedOnboardingImport = true
-                    }
-                }) {
-                    Text("Start Fresh".localized)
-                        .font(.system(size: 12, weight: .light))
-                        .foregroundColor(isOnboardingFreshHovered ? .primary : .secondary)
-                        .underline(isOnboardingFreshHovered)
-                }
-                .buttonStyle(.plain)
-                .pointingHandCursor()
-                .onHover { h in
-                    withAnimation(.easeInOut(duration: 0.12)) {
-                        isOnboardingFreshHovered = h
-                    }
-                }
-            }
-            .padding(.top, 2)
+
+    private func presentOnboardingIfNeeded() {
+        guard hasCompletedInitialPull,
+              onboardingPage == nil,
+              let userId = syncManager.userId else { return }
+
+        let pendingEmail = UserDefaults.standard.string(forKey: "onboardingPendingEmail")
+        if OnboardingEligibility.shouldWelcome(
+            initialPullComplete: hasCompletedInitialPull,
+            pendingEmail: pendingEmail,
+            signedInEmail: syncManager.userEmail,
+            accountIsEmpty: isAccountEmpty,
+            alreadyCompleted: UserDefaults.standard.bool(forKey: "onboardingCompleted.\(userId)")
+        ) {
+            currentViewMode = .intervals
+            onboardingPage = .welcome
+        } else if pendingEmail == syncManager.userEmail?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !isAccountEmpty {
+            // A returning account with existing data should never be treated as new.
+            UserDefaults.standard.removeObject(forKey: "onboardingPendingEmail")
         }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(colorScheme == .dark ? 0.05 : 0.03))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
-        )
-        .padding(.top, 14)
-        .padding(.bottom, 8)
+    }
+
+    private func startOnboardingTour() {
+        focusedTaskId = nil
+        deepFocusTaskId = nil
+        onboardingStepIndex = 0
+        currentViewMode = .intervals
+        withAnimation(.easeInOut(duration: 0.2)) {
+            onboardingPage = .tour
+        }
+    }
+
+    private func changeOnboardingStep(by delta: Int) {
+        let next = onboardingStepIndex + delta
+        if next >= OnboardingStep.all.count {
+            finishOnboarding()
+            return
+        }
+        guard next >= 0 else { return }
+        onboardingStepIndex = next
+        switch OnboardingStep.all[next].destination {
+        case .intervals: currentViewMode = .intervals
+        case .scratchpad: currentViewMode = .scratchpad
+        case .habitStats: currentViewMode = .habitStats
+        case .settings: currentViewMode = .settings
+        }
+    }
+
+    private func finishOnboarding() {
+        if let userId = syncManager.userId {
+            UserDefaults.standard.set(true, forKey: "onboardingCompleted.\(userId)")
+        }
+        if UserDefaults.standard.string(forKey: "onboardingPendingEmail") == syncManager.userEmail?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+            UserDefaults.standard.removeObject(forKey: "onboardingPendingEmail")
+        }
+        onboardingImportInProgress = false
+        onboardingPage = nil
+        currentViewMode = .intervals
     }
     
     // MARK: - Actions
