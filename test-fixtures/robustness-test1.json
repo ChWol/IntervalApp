@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "format": "Interval_Backup",
+  "exportedAt": "2026-09-14T10:00:00Z",
+  "tasks": [
+    { "id": "test1-hour-private", "text": "Account A private hour task", "intervalType": "1 Hour", "order": 0, "completed": false, "habitId": null, "createdAt": "2026-09-14T09:00:00Z", "updatedAt": "2026-09-14T09:00:00Z", "completedAt": null, "deletedAt": null },
+    { "id": "test1-day-sync", "text": "Account A offline sync task", "intervalType": "1 Day", "order": 0, "completed": false, "habitId": null, "createdAt": "2026-09-14T09:05:00Z", "updatedAt": "2026-09-14T09:05:00Z", "completedAt": null, "deletedAt": null },
+    { "id": "test1-completed", "text": "Account A completed record", "intervalType": "1 Week", "order": 0, "completed": true, "habitId": null, "createdAt": "2026-09-13T09:00:00Z", "updatedAt": "2026-09-14T08:00:00Z", "completedAt": "2026-09-14T08:00:00Z", "deletedAt": null },
+    { "id": "test1-deleted", "text": "Account A deleted record", "intervalType": "1 Month", "order": 0, "completed": false, "habitId": null, "createdAt": "2026-09-12T09:00:00Z", "updatedAt": "2026-09-14T08:30:00Z", "completedAt": null, "deletedAt": "2026-09-14T08:30:00Z" }
+  ],
+  "habits": [
+    { "id": "test1-habit", "text": "Account A morning habit", "frequency": "Daily", "streak": 4, "order": 0, "lastCompletedDate": "2026-09-13T07:00:00Z", "updatedAt": "2026-09-14T09:10:00Z", "deletedAt": null },
+    { "id": "test1-weekly-habit", "text": "Account A weekly review", "frequency": "Weekly", "streak": 2, "order": 1, "lastCompletedDate": null, "updatedAt": "2026-09-14T09:10:00Z", "deletedAt": null }
+  ],
+  "scratchpadLists": [
+    { "id": "test1-list", "title": "Account A shared-test list", "order": 0, "createdAt": "2026-09-14T09:15:00Z", "updatedAt": "2026-09-14T09:15:00Z", "deletedAt": null }
+  ],
+  "scratchpadItems": [
+    { "id": "test1-item-open", "listId": "test1-list", "text": "Owner-only note before sharing", "order": 0, "completed": false, "createdAt": "2026-09-14T09:16:00Z", "updatedAt": "2026-09-14T09:16:00Z", "completedAt": null, "deletedAt": null },
+    { "id": "test1-item-done", "listId": "test1-list", "text": "Completed shared-list seed item", "order": 1, "completed": true, "createdAt": "2026-09-14T09:17:00Z", "updatedAt": "2026-09-14T09:17:00Z", "completedAt": "2026-09-14T09:17:00Z", "deletedAt": null }
+  ]
+}
