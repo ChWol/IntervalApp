@@ -86,4 +86,45 @@ final class MigrationManagerTests: XCTestCase {
         
         XCTAssertNil(manager.currentMigration, "Active modal must be dismissed immediately when remote marker arrives")
     }
+
+    func testWeekDayAndHourTransitionsAppearImmediatelyInOrder() throws {
+        let defaults = UserDefaults.standard
+        let keys = [
+            "lastHandledYearMarker_v2", "lastHandledMonthMarker_v2",
+            "lastHandledWeekMarker_v2", "lastHandledDayMarker_v2",
+            "lastHandledHourMarker_v2", "dayStartHour", "dayStartMinute"
+        ]
+        let saved = Dictionary(uniqueKeysWithValues: keys.map { ($0, defaults.object(forKey: $0)) })
+        defer {
+            for key in keys {
+                if let value = saved[key] ?? nil { defaults.set(value, forKey: key) }
+                else { defaults.removeObject(forKey: key) }
+            }
+        }
+
+        let date = Date()
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy"
+        defaults.set(formatter.string(from: date), forKey: keys[0])
+        formatter.dateFormat = "yyyy-MM"
+        defaults.set(formatter.string(from: date), forKey: keys[1])
+        defaults.set("previous-week", forKey: keys[2])
+        defaults.set("previous-day", forKey: keys[3])
+        defaults.set("previous-hour", forKey: keys[4])
+        defaults.set(0, forKey: "dayStartHour")
+        defaults.set(0, forKey: "dayStartMinute")
+
+        store.addTask("This week", interval: "1 Month")
+        store.addTask("Today", interval: "1 Week")
+        store.addTask("Now", interval: "1 Day")
+        try store.save()
+
+        manager.checkMigrations()
+        XCTAssertEqual(manager.currentMigration?.dest, "1 Week")
+        manager.skipMigration()
+        XCTAssertEqual(manager.currentMigration?.dest, "1 Day")
+        manager.skipMigration()
+        XCTAssertEqual(manager.currentMigration?.dest, "1 Hour")
+    }
 }

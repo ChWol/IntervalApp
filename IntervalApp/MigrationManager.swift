@@ -33,6 +33,11 @@ class MigrationManager: ObservableObject {
     private var modelContext: ModelContext?
     private var pendingMarkerKey: String?
     private var pendingMarkerValue: String?
+    private var announceMigration: (Migration) -> Void = { migration in
+        SoundManager.playTransitionChime()
+        NotificationManager.shared.sendMigrationNotification(for: migration)
+        NotificationManager.shared.scheduleUpcomingBoundaryNotifications()
+    }
     
     private static let hourFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -316,9 +321,7 @@ class MigrationManager: ObservableObject {
             // Store pending marker info so executeMigration/skipMigration can commit it.
             pendingMarkerKey = key
             pendingMarkerValue = marker
-            SoundManager.playTransitionChime()
-            NotificationManager.shared.sendMigrationNotification(for: migration)
-            NotificationManager.shared.scheduleUpcomingBoundaryNotifications()
+            announceMigration(migration)
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentMigration = migration
             }
@@ -333,6 +336,8 @@ class MigrationManager: ObservableObject {
             setMarker(marker, for: key)
             if migration.source == "1 Week" && migration.dest == "1 Day" {
                 presentFirstHourOfDay()
+            } else {
+                checkMigrations()
             }
         }
     }
@@ -350,9 +355,7 @@ class MigrationManager: ObservableObject {
         if MigrationSchedule.shouldPresent(migration, sourceTaskCount: sourceCount, selectableHabitCount: habitCount, reverseTaskCount: reverseCount) {
             pendingMarkerKey = StoreKey.lastHandledHour
             pendingMarkerValue = currentHour
-            SoundManager.playTransitionChime()
-            NotificationManager.shared.sendMigrationNotification(for: migration)
-            NotificationManager.shared.scheduleUpcomingBoundaryNotifications()
+            announceMigration(migration)
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentMigration = migration
             }
@@ -372,6 +375,7 @@ class MigrationManager: ObservableObject {
         }
         
         // Commit the pending marker now that the user has taken action
+        let hadPendingMarker = pendingMarkerKey != nil
         if let key = pendingMarkerKey, let value = pendingMarkerValue {
             setMarker(value, for: key)
             pendingMarkerKey = nil
@@ -434,11 +438,14 @@ class MigrationManager: ObservableObject {
         if let completedMigration, completedMigration.source == "1 Week" && completedMigration.dest == "1 Day" {
             cleanUpPreviousDayHabitTasks()
             presentFirstHourOfDay()
+        } else if hadPendingMarker {
+            checkMigrations()
         }
     }
     
     func skipMigration() {
         // Commit the pending marker now that the user has skipped
+        let hadPendingMarker = pendingMarkerKey != nil
         if let key = pendingMarkerKey, let value = pendingMarkerValue {
             setMarker(value, for: key)
             pendingMarkerKey = nil
@@ -453,11 +460,14 @@ class MigrationManager: ObservableObject {
         if let skipped, skipped.source == "1 Week" && skipped.dest == "1 Day" {
             cleanUpPreviousDayHabitTasks()
             presentFirstHourOfDay()
+        } else if hadPendingMarker {
+            checkMigrations()
         }
     }
 
     func commitYearGoals(_ goals: [String]) {
         guard let context = modelContext else { return }
+        let hadPendingMarker = pendingMarkerKey != nil
         if let key = pendingMarkerKey, let value = pendingMarkerValue {
             setMarker(value, for: key)
             pendingMarkerKey = nil
@@ -477,6 +487,9 @@ class MigrationManager: ObservableObject {
         _ = PersistenceSafety.save(context)
         SupabaseSyncManager.shared.push()
         currentMigration = nil
+        if hadPendingMarker {
+            checkMigrations()
+        }
     }
     
     private func performBoundaryRollover(for targetInterval: String) {
@@ -544,6 +557,7 @@ class MigrationManager: ObservableObject {
     #if DEBUG
     func attachForTesting(context: ModelContext) {
         modelContext = context
+        announceMigration = { _ in }
     }
     
     func testingPerformBoundaryRollover(for targetInterval: String) {
