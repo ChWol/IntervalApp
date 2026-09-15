@@ -420,6 +420,7 @@ struct HabitChipView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var dragState = HabitDragState.shared
+    @State private var lastPostponeMutation: Date = .distantPast
     
     private var isDragged: Bool {
         dragState.draggedHabit?.id == habit.id
@@ -506,17 +507,27 @@ struct HabitChipView: View {
             hoveredHabitId = hovering ? habit.id : nil
         }
         #if os(iOS)
-        .onLongPressGesture(minimumDuration: 0.55) {
+        .gesture(LongPressGesture(minimumDuration: 0.55).onEnded { _ in
             guard !isDone else { return }
             togglePostpone()
-        }
+        })
         #endif
     }
     
     private func togglePostpone() {
+        let now = Date()
+        guard now.timeIntervalSince(lastPostponeMutation) > 0.4 else { return }
+        lastPostponeMutation = now
+        let previousDate = habit.postponedDate
+        let previousUpdatedAt = habit.updatedAt
         withAnimation(.easeInOut(duration: 0.2)) {
             habit.togglePostponeForToday()
-            if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
+            guard PersistenceSafety.save(modelContext, operation: "Saving habit postponement") else {
+                habit.postponedDate = previousDate
+                habit.updatedAt = previousUpdatedAt
+                return
+            }
+            SupabaseSyncManager.shared.push()
         }
     }
     
