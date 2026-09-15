@@ -36,7 +36,7 @@ struct MigrationImportModalView: View {
         case kanbanReview
     }
     
-    let intervalColumns = ["1 Day", "1 Week", "1 Month", "1 Year"]
+    let intervalColumns = ["1 Hour", "1 Day", "1 Week", "1 Month", "1 Year"]
     
     var body: some View {
         ZStack {
@@ -705,7 +705,7 @@ struct KanbanTaskCardView: View {
         .opacity(isDragging ? 0.2 : 1.0)
         .scaleEffect(isCardHovered && !isDragging ? 1.015 : 1.0)
         .onHover { isCardHovered = $0 }
-        .gesture(
+        .simultaneousGesture(
             DragGesture(minimumDistance: 3, coordinateSpace: .named("kanbanCoordinateSpace"))
                 .onChanged { value in
                     onDragChanged(value.location)
