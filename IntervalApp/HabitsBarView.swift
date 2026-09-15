@@ -505,6 +505,12 @@ struct HabitChipView: View {
         .onHover { hovering in
             hoveredHabitId = hovering ? habit.id : nil
         }
+        #if os(iOS)
+        .onLongPressGesture(minimumDuration: 0.55) {
+            guard !isDone else { return }
+            togglePostpone()
+        }
+        #endif
     }
     
     private func togglePostpone() {

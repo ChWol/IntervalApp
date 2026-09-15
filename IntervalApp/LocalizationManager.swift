@@ -846,6 +846,57 @@ class LocalizationManager: ObservableObject {
             .arabic: "سجّل الدخول لمزامنة أجهزتك", .chinese: "登录以同步你的设备",
             .japanese: "ログインしてデバイスを同期", .korean: "로그인하여 기기를 동기화하세요"
         ],
+        "Create your account": [
+            .english: "Create your account", .german: "Erstelle dein Konto", .french: "Créez votre compte",
+            .spanish: "Crea tu cuenta", .portuguese: "Crie a sua conta", .italian: "Crea il tuo account",
+            .arabic: "أنشئ حسابك", .chinese: "创建你的账户", .japanese: "アカウントを作成", .korean: "계정 만들기"
+        ],
+        "SIGN IN": [
+            .english: "SIGN IN", .german: "ANMELDEN", .french: "SE CONNECTER", .spanish: "INICIAR SESIÓN",
+            .portuguese: "INICIAR SESSÃO", .italian: "ACCEDI", .arabic: "تسجيل الدخول", .chinese: "登录",
+            .japanese: "サインイン", .korean: "로그인"
+        ],
+        "REGISTER": [
+            .english: "REGISTER", .german: "REGISTRIEREN", .french: "S’INSCRIRE", .spanish: "REGISTRARSE",
+            .portuguese: "REGISTAR", .italian: "REGISTRATI", .arabic: "إنشاء حساب", .chinese: "注册",
+            .japanese: "登録", .korean: "가입"
+        ],
+        "Type your account email to confirm": [
+            .english: "Type your account email to confirm", .german: "Gib zur Bestätigung deine Konto-E-Mail ein",
+            .french: "Saisissez l’adresse e-mail de votre compte pour confirmer", .spanish: "Escribe el correo de tu cuenta para confirmar",
+            .portuguese: "Introduza o e-mail da sua conta para confirmar", .italian: "Digita l’e-mail del tuo account per confermare",
+            .arabic: "اكتب بريد حسابك الإلكتروني للتأكيد", .chinese: "输入账户邮箱以确认",
+            .japanese: "確認のためアカウントのメールアドレスを入力", .korean: "확인하려면 계정 이메일을 입력하세요"
+        ],
+        "Account email": [
+            .english: "Account email", .german: "Konto-E-Mail", .french: "E-mail du compte", .spanish: "Correo de la cuenta",
+            .portuguese: "E-mail da conta", .italian: "E-mail dell’account", .arabic: "بريد الحساب", .chinese: "账户邮箱",
+            .japanese: "アカウントのメールアドレス", .korean: "계정 이메일"
+        ],
+        "Remove collaborator?": [
+            .english: "Remove collaborator?", .german: "Mitarbeiter entfernen?", .french: "Supprimer le collaborateur ?",
+            .spanish: "¿Quitar colaborador?", .portuguese: "Remover colaborador?", .italian: "Rimuovere collaboratore?",
+            .arabic: "إزالة المتعاون؟", .chinese: "移除协作者？", .japanese: "共同編集者を削除しますか？", .korean: "공동 작업자를 제거할까요?"
+        ],
+        "This person will lose access to the shared list.": [
+            .english: "This person will lose access to the shared list.", .german: "Diese Person verliert den Zugriff auf die geteilte Liste.",
+            .french: "Cette personne n’aura plus accès à la liste partagée.", .spanish: "Esta persona perderá el acceso a la lista compartida.",
+            .portuguese: "Esta pessoa perderá o acesso à lista partilhada.", .italian: "Questa persona perderà l’accesso alla lista condivisa.",
+            .arabic: "سيفقد هذا الشخص الوصول إلى القائمة المشتركة.", .chinese: "此人将失去共享列表的访问权限。",
+            .japanese: "このユーザーは共有リストにアクセスできなくなります。", .korean: "이 사용자는 공유 목록에 더 이상 접근할 수 없습니다."
+        ],
+        "Leave shared list?": [
+            .english: "Leave shared list?", .german: "Geteilte Liste verlassen?", .french: "Quitter la liste partagée ?",
+            .spanish: "¿Salir de la lista compartida?", .portuguese: "Sair da lista partilhada?", .italian: "Lasciare la lista condivisa?",
+            .arabic: "مغادرة القائمة المشتركة؟", .chinese: "要离开共享列表吗？", .japanese: "共有リストから退出しますか？", .korean: "공유 목록을 나갈까요?"
+        ],
+        "You will lose access to this shared list.": [
+            .english: "You will lose access to this shared list.", .german: "Du verlierst den Zugriff auf diese geteilte Liste.",
+            .french: "Vous perdrez l’accès à cette liste partagée.", .spanish: "Perderás el acceso a esta lista compartida.",
+            .portuguese: "Perderá o acesso a esta lista partilhada.", .italian: "Perderai l’accesso a questa lista condivisa.",
+            .arabic: "ستفقد الوصول إلى هذه القائمة المشتركة.", .chinese: "你将失去对此共享列表的访问权限。",
+            .japanese: "この共有リストにアクセスできなくなります。", .korean: "이 공유 목록에 더 이상 접근할 수 없습니다."
+        ],
         "Sign out paused": [
             .english: "Sign out paused", .german: "Abmeldung angehalten", .french: "Déconnexion interrompue",
             .spanish: "Cierre de sesión en pausa", .portuguese: "Terminar sessão em pausa", .italian: "Disconnessione in pausa",

@@ -247,6 +247,7 @@ struct SettingsView: View {
     @State private var isPaypalHovered: Bool = false
     @State private var showImportModal: Bool = false
     @State private var exportSuccess: Bool = false
+    @State private var deleteConfirmationText = ""
     #if os(iOS)
     @State private var isExporting: Bool = false
     @State private var exportData: Data?
@@ -591,6 +592,7 @@ struct SettingsView: View {
 
                                 Button(action: {
                                     withAnimation(.easeInOut(duration: 0.15)) {
+                                        deleteConfirmationText = ""
                                         activeModal = .deleteAccount
                                     }
                                 }) {
@@ -733,6 +735,21 @@ struct SettingsView: View {
                 .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
 
+                if modal == .deleteAccount {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Type your account email to confirm".localized)
+                            .font(.system(size: 11, weight: .light))
+                            .foregroundColor(.secondary)
+                        TextField("Account email".localized, text: $deleteConfirmationText)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 12, weight: .light))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 7)
+                            .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.primary.opacity(0.15)))
+                    }
+                    .frame(maxWidth: 300)
+                }
+
                 // Action Buttons (Cancel / Confirm)
                 HStack(spacing: 16) {
                     Button(action: {
@@ -770,6 +787,7 @@ struct SettingsView: View {
                         }
                         .buttonStyle(InteractivePlainButtonStyle())
                         .pointingHandCursor()
+                        .disabled(deleteConfirmationText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != (syncManager.userEmail ?? "").lowercased())
                     } else {
                         Button(action: {
                             withAnimation(.easeInOut(duration: 0.15)) {

@@ -40,7 +40,9 @@ struct TaskRowView: View {
 
     private var deepFocusButtonOpacity: Double {
         #if os(iOS)
-        return 1
+        // Deep Focus is intentionally a long-press action on touch devices; showing a
+        // permanent icon competes with the compact task row and suggests a tap target.
+        return 0
         #else
         return isHovering || focusedTaskId == task.id ? 1 : 0
         #endif
@@ -123,6 +125,14 @@ struct TaskRowView: View {
                                 }
                             }
                         }
+                    }
+            )
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.55)
+                    .onEnded { _ in
+                        guard !isNew, let onDeepFocus else { return }
+                        focusedTaskId = nil
+                        onDeepFocus(task)
                     }
             )
             #endif

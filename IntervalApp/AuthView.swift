@@ -346,6 +346,8 @@ struct AuthView: View {
                     .foregroundStyle(.secondary)
             }
             .menuStyle(.borderlessButton)
+            .tint(.primary)
+            .foregroundStyle(.secondary)
             .padding(24)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         }

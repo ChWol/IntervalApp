@@ -20,6 +20,8 @@ struct ShareListModalView: View {
     @State private var successMessage: String? = nil
     @State private var isCloseHovered: Bool = false
     @State private var isLeaveHovered: Bool = false
+    @State private var collaboratorPendingRemoval: ScratchpadMemberDTO?
+    @State private var showLeaveConfirmation = false
     @FocusState private var isEmailFieldFocused: Bool
     
     private var isOwner: Bool {
@@ -179,7 +181,7 @@ struct ShareListModalView: View {
                                     // 2. Collaborators with accented remove button
                                     ForEach(otherCollaborators) { member in
                                         MemberRowView(member: member, canRemove: true) {
-                                            remove(member)
+                                            collaboratorPendingRemoval = member
                                         }
                                     }
                                     
@@ -262,7 +264,7 @@ struct ShareListModalView: View {
                     HStack {
                         Spacer()
                         
-                        Button(action: leaveList) {
+                        Button(action: { showLeaveConfirmation = true }) {
                             HStack(spacing: 6) {
                                 if isLeaving {
                                     ProgressView()
@@ -339,6 +341,24 @@ struct ShareListModalView: View {
             #if os(macOS)
             removeKeyboardMonitor()
             #endif
+        }
+        .alert("Remove collaborator?".localized, isPresented: Binding(
+            get: { collaboratorPendingRemoval != nil },
+            set: { if !$0 { collaboratorPendingRemoval = nil } }
+        )) {
+            Button("Cancel".localized, role: .cancel) { collaboratorPendingRemoval = nil }
+            Button("Remove".localized, role: .destructive) {
+                if let member = collaboratorPendingRemoval { remove(member) }
+                collaboratorPendingRemoval = nil
+            }
+        } message: {
+            Text("This person will lose access to the shared list.".localized)
+        }
+        .alert("Leave shared list?".localized, isPresented: $showLeaveConfirmation) {
+            Button("Cancel".localized, role: .cancel) {}
+            Button("Leave".localized, role: .destructive) { leaveList() }
+        } message: {
+            Text("You will lose access to this shared list.".localized)
         }
     }
     
