@@ -28,6 +28,12 @@ The existing safeguards include per-record sync timestamps, tombstones, protecti
 
 Local safeguards and the live server configuration audit are complete. End-to-end release drills remain in section 13.
 
+## Open findings from live release testing
+
+- [ ] Reconcile ordering after independent edits on multiple devices so the same account presents a deterministic order everywhere.
+- [ ] Decide which Settings values are account-level and synchronize those values across devices; keep device-only preferences explicitly local.
+- [ ] Replace the failed-logout message with a clear localized explanation that unsaved changes are safe on this device but must sync after reconnecting before logout can complete. Add translations for all ten supported languages.
+
 ## 2. Persistence and crash-safety tests
 
 Add deterministic tests that simulate:
