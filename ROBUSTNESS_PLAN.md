@@ -40,6 +40,9 @@ Local safeguards and the live server configuration audit are complete. End-to-en
 - [ ] Localize the registration screen's account-creation title and register action in all ten languages.
 - [ ] Make the import preview display the complete task set consistently before confirmation.
 - [ ] Make import-preview task dragging visibly respond and commit the intended ordering/move.
+- [ ] Require a deliberate typed confirmation token derived from the account identity before account deletion.
+- [ ] Add a concise confirmation dialog before removing a collaborator from a shared list.
+- [ ] Add a concise confirmation dialog before leaving a shared list.
 
 ## 2. Persistence and crash-safety tests
 
