@@ -897,6 +897,23 @@ class LocalizationManager: ObservableObject {
             .arabic: "ستفقد الوصول إلى هذه القائمة المشتركة.", .chinese: "你将失去对此共享列表的访问权限。",
             .japanese: "この共有リストにアクセスできなくなります。", .korean: "이 공유 목록에 더 이상 접근할 수 없습니다."
         ],
+        "This account no longer exists.": [
+            .english: "This account no longer exists.", .german: "Dieses Konto existiert nicht mehr.", .french: "Ce compte n’existe plus.",
+            .spanish: "Esta cuenta ya no existe.", .portuguese: "Esta conta já não existe.", .italian: "Questo account non esiste più.",
+            .arabic: "لم يعد هذا الحساب موجوداً.", .chinese: "此账户已不存在。", .japanese: "このアカウントは存在しません。", .korean: "이 계정은 더 이상 존재하지 않습니다."
+        ],
+        "Unsaved changes are safe on this device. Connect to the internet so they can sync before signing out.": [
+            .english: "Unsaved changes are safe on this device. Connect to the internet so they can sync before signing out.",
+            .german: "Nicht synchronisierte Änderungen sind auf diesem Gerät sicher. Stelle eine Internetverbindung her, damit sie vor dem Abmelden synchronisiert werden können.",
+            .french: "Les modifications non synchronisées sont conservées sur cet appareil. Connectez-vous à Internet pour les synchroniser avant de vous déconnecter.",
+            .spanish: "Los cambios sin sincronizar están a salvo en este dispositivo. Conéctate a Internet para sincronizarlos antes de cerrar sesión.",
+            .portuguese: "As alterações não sincronizadas estão seguras neste dispositivo. Ligue-se à Internet para as sincronizar antes de terminar sessão.",
+            .italian: "Le modifiche non sincronizzate sono al sicuro su questo dispositivo. Connettiti a Internet per sincronizzarle prima di disconnetterti.",
+            .arabic: "التغييرات غير المتزامنة آمنة على هذا الجهاز. اتصل بالإنترنت لمزامنتها قبل تسجيل الخروج.",
+            .chinese: "未同步的更改已安全保存在此设备上。请连接互联网，在退出登录前完成同步。",
+            .japanese: "同期されていない変更はこのデバイスに安全に保存されています。ログアウトする前にインターネットへ接続して同期してください。",
+            .korean: "동기화되지 않은 변경 사항은 이 기기에 안전하게 저장되어 있습니다. 로그아웃하기 전에 인터넷에 연결하여 동기화하세요."
+        ],
         "Sign out paused": [
             .english: "Sign out paused", .german: "Abmeldung angehalten", .french: "Déconnexion interrompue",
             .spanish: "Cierre de sesión en pausa", .portuguese: "Terminar sessão em pausa", .italian: "Disconnessione in pausa",

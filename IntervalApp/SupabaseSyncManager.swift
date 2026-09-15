@@ -69,6 +69,11 @@ struct AuthErrorResponse: Codable {
         let fields = [error, error_code, message, error_description, msg].compactMap { $0?.lowercased() }
         return fields.contains { $0.contains("invalid_grant") || $0.contains("refresh token") || $0.contains("invalid token") }
     }
+
+    var isUserNotFound: Bool {
+        let fields = [error, error_code, message, error_description, msg].compactMap { $0?.lowercased() }
+        return fields.contains { $0.contains("user not found") || $0.contains("user does not exist") || $0.contains("email not found") }
+    }
 }
 
 // MARK: - Supabase DTOs (for decoding)
@@ -397,7 +402,7 @@ class SupabaseSyncManager: ObservableObject {
             let (data, response) = try await transport.data(for: request)
             if let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode >= 400 {
                 if let err = try? JSONDecoder().decode(AuthErrorResponse.self, from: data) {
-                    authError = err.displayMessage
+                    authError = err.isUserNotFound ? "This account no longer exists.".localized : err.displayMessage
                 } else {
                     authError = "Login failed (\(statusCode))"
                 }
@@ -600,7 +605,7 @@ class SupabaseSyncManager: ObservableObject {
             syncSucceeded: pushSucceeded
         ) else {
             lastError = "Couldn't sign out because some changes are not synced yet. Please try again when connected."
-            signOutAlert = "Your changes are safe on this device. Connect to the internet and try signing out again after they sync.".localized
+            signOutAlert = "Unsaved changes are safe on this device. Connect to the internet so they can sync before signing out.".localized
             return
         }
 
