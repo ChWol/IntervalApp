@@ -15,11 +15,7 @@ import UIKit
 extension View {
     func pointingHandCursor() -> some View {
         self.onHover { inside in
-            if inside {
-                NSCursor.pointingHand.push()
-            } else {
-                NSCursor.pop()
-            }
+            (inside ? NSCursor.pointingHand : NSCursor.arrow).set()
         }
     }
 }
@@ -63,7 +59,7 @@ struct MinimalistToggle: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(InteractivePlainButtonStyle())
         .pointingHandCursor()
     }
 }
@@ -109,7 +105,7 @@ struct MinimalistTimePicker: View {
                 Capsule().stroke(Color.primary.opacity(isHovered ? 0.25 : 0.12), lineWidth: 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(InteractivePlainButtonStyle())
         .pointingHandCursor()
         .onHover { isHovered = $0 }
         .popover(isPresented: $isPopoverPresented, arrowEdge: .bottom) {
@@ -155,7 +151,7 @@ struct MinimalistTimePicker: View {
                                                 .fill(isSelected ? Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.08) : Color.clear)
                                         )
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(InteractivePlainButtonStyle())
                                     .pointingHandCursor()
                                     .id(h)
                                 }
@@ -200,7 +196,7 @@ struct MinimalistTimePicker: View {
                                             .fill(isSelected ? Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.08) : Color.clear)
                                     )
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(InteractivePlainButtonStyle())
                                 .pointingHandCursor()
                             }
                         }
@@ -314,7 +310,7 @@ struct SettingsView: View {
                                                 lineWidth: 1)
                                         )
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(InteractivePlainButtonStyle())
                                     .pointingHandCursor()
                                     .onHover { hoveredLang = $0 ? lang : nil }
                                 }
@@ -355,8 +351,8 @@ struct SettingsView: View {
 
                         #if os(macOS)
                         MinimalistToggle(isOn: $showMenuBarExtra, label: "Show in Menu Bar".localized)
-                            .onboardingTarget("settingsPlatform")
-                            .id("settingsPlatform")
+                            .onboardingTarget("settingsMenuBar")
+                            .id("settingsMenuBar")
                         #endif
 
                         MinimalistToggle(isOn: $showHabits, label: "Show Habits Bar".localized)
@@ -374,8 +370,8 @@ struct SettingsView: View {
                             ),
                             label: "Dynamic Island & Live Activities".localized
                         )
-                        .onboardingTarget("settingsPlatform")
-                        .id("settingsPlatform")
+                        .onboardingTarget("settingsLiveActivities")
+                        .id("settingsLiveActivities")
                         #endif
                         
                         // Notifications Toggle & Permission handler
@@ -403,7 +399,7 @@ struct SettingsView: View {
                                 }
                                 .contentShape(Rectangle())
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(InteractivePlainButtonStyle())
                             .pointingHandCursor()
 
                             if notificationManager.authorizationStatus == .denied {
@@ -423,7 +419,7 @@ struct SettingsView: View {
                                         }
                                         .foregroundColor(isSystemSettingsHovered ? .primary : .secondary)
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(InteractivePlainButtonStyle())
                                     .pointingHandCursor()
                                     .onHover { isSystemSettingsHovered = $0 }
                                 }
@@ -471,7 +467,7 @@ struct SettingsView: View {
                                                     lineWidth: 1)
                                             )
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(InteractivePlainButtonStyle())
                                     .pointingHandCursor()
                                 }
                             }
@@ -497,7 +493,7 @@ struct SettingsView: View {
                             .padding(.vertical, 2)
                             .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                         .pointingHandCursor()
                         .onHover { isImportHovered = $0 }
                         .onboardingTarget("settingsImport")
@@ -523,7 +519,7 @@ struct SettingsView: View {
                             .padding(.vertical, 2)
                             .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                         .pointingHandCursor()
                         .onHover { isExportHovered = $0 }
                         #else
@@ -543,7 +539,7 @@ struct SettingsView: View {
                             .padding(.vertical, 2)
                             .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                         .pointingHandCursor()
                         .onHover { isExportHovered = $0 }
                         #endif
@@ -556,7 +552,7 @@ struct SettingsView: View {
                                 .font(.system(size: 12, weight: .light))
                                 .foregroundStyle(.secondary)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                         .pointingHandCursor()
                     }
 
@@ -589,7 +585,7 @@ struct SettingsView: View {
                                         .padding(.vertical, 2)
                                         .contentShape(Rectangle())
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(InteractivePlainButtonStyle())
                                 .pointingHandCursor()
                                 .onHover { isSignOutHovered = $0 }
 
@@ -604,7 +600,7 @@ struct SettingsView: View {
                                         .padding(.vertical, 2)
                                         .contentShape(Rectangle())
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(InteractivePlainButtonStyle())
                                 .pointingHandCursor()
                                 .onHover { isDeleteHovered = $0 }
                             }
@@ -648,7 +644,7 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }
             .onChange(of: onboardingFocusTarget) { _, target in
-                guard let target, ["settings", "settingsImport", "settingsPreferences", "settingsPlatform"].contains(target) else { return }
+                guard let target, ["settings", "settingsImport", "settingsPreferences", "settingsMenuBar", "settingsLiveActivities"].contains(target) else { return }
                 withAnimation(.easeInOut(duration: 0.25)) {
                     scrollProxy.scrollTo(target, anchor: .center)
                 }
@@ -709,7 +705,7 @@ struct SettingsView: View {
     private func modalOverlay(for modal: SettingsModalType) -> some View {
         ZStack {
             // Full-screen backdrop covering the entire window
-            Color.black.opacity(0.75)
+            AppVisualTokens.modalScrim(for: colorScheme)
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
                 .onTapGesture {
@@ -752,7 +748,7 @@ struct SettingsView: View {
                             .background(Color.primary.opacity(0.06))
                             .cornerRadius(8)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
 
                     if modal == .deleteAccount {
@@ -772,7 +768,7 @@ struct SettingsView: View {
                                 .background(Color.red)
                                 .cornerRadius(8)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                         .pointingHandCursor()
                     } else {
                         Button(action: {
@@ -789,7 +785,7 @@ struct SettingsView: View {
                                 .background(Color.primary)
                                 .cornerRadius(8)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                         .pointingHandCursor()
                     }
                 }

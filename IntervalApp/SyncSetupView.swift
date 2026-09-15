@@ -14,22 +14,22 @@ struct SyncSetupView: View {
                 .font(.system(size: 48))
                 .foregroundColor(.secondary)
             
-            Text("Sync Setup")
+            Text("Sync Setup".localized)
                 .font(.system(size: 24, weight: .bold))
             
-            Text("Enter a sync code to link your devices.\nUse the same code on your Mac and iPhone.")
+            Text("Enter a sync code to link your devices.\nUse the same code on your Mac and iPhone.".localized)
                 .font(.system(size: 13))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
             
-            TextField("Sync code (e.g. your name)", text: $syncKeyInput)
+            TextField("Sync code (e.g. your name)".localized, text: $syncKeyInput)
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: 280)
                 .padding(.top, 8)
             
             Button(action: onConfirm) {
-                Text("Start Sync")
+                Text("Start Sync".localized)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 32)
@@ -39,7 +39,7 @@ struct SyncSetupView: View {
                             .fill(syncKeyInput.trimmingCharacters(in: .whitespaces).isEmpty ? Color.gray : Color.accentColor)
                     )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(InteractivePlainButtonStyle())
             .disabled(syncKeyInput.trimmingCharacters(in: .whitespaces).isEmpty)
             
             Spacer()

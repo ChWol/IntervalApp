@@ -15,10 +15,14 @@ struct UpdatePasswordModalView: View {
     @State private var successMessage: String? = nil
     @State private var isCloseHovered = false
     @State private var isEyeHovered = false
+    @State private var isSubmitHovered = false
+    #if os(macOS)
+    @State private var escapeMonitor: Any?
+    #endif
     
     var body: some View {
         ZStack {
-            Color.black.opacity(0.4)
+            (colorScheme == .dark ? Color.black.opacity(0.52) : Color.white.opacity(0.76))
                 .ignoresSafeArea()
                 .onTapGesture {
                     if !isSubmitting { isPresented = false }
@@ -46,7 +50,7 @@ struct UpdatePasswordModalView: View {
                             .frame(width: 28, height: 28)
                             .background(Circle().fill(isCloseHovered ? Color.primary.opacity(0.08) : Color.clear))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
                     .onHover { isCloseHovered = $0 }
                 }
@@ -80,7 +84,7 @@ struct UpdatePasswordModalView: View {
                                     .foregroundColor(isEyeHovered ? .primary : .secondary.opacity(0.6))
                                     .padding(4)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(InteractivePlainButtonStyle())
                             .pointingHandCursor()
                             .onHover { isEyeHovered = $0 }
                         }
@@ -161,12 +165,17 @@ struct UpdatePasswordModalView: View {
                     .padding(.vertical, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(isValid ? Color.primary : Color.primary.opacity(0.15))
+                            .fill(isValid
+                                  ? Color.primary.opacity(isSubmitHovered ? 0.82 : 1)
+                                  : Color.primary.opacity(0.15))
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .pointingHandCursor()
                 .disabled(!isValid || isSubmitting)
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.12)) { isSubmitHovered = hovering }
+                }
             }
             .padding(28)
             .frame(width: 360)
@@ -182,12 +191,19 @@ struct UpdatePasswordModalView: View {
         }
         #if os(macOS)
         .onAppear {
-            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
+            escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                 if event.keyCode == 53 && isPresented {
                     isPresented = false
                     return nil
                 }
                 return event
+            }
+        }
+        .onDisappear {
+            if let escapeMonitor {
+                NSEvent.removeMonitor(escapeMonitor)
+                self.escapeMonitor = nil
             }
         }
         #endif

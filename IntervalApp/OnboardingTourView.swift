@@ -35,7 +35,7 @@ struct OnboardingStep {
 
     var intervalScrollTarget: String? {
         switch target {
-        case "1 Hour", "hourAdd", "hourComplete", "hourFocus", "": return "onboarding-1 Hour"
+        case "1 Hour", "hourAdd", "hourComplete", "hourFocus": return "onboarding-1 Hour"
         case "1 Day", "1 Week", "1 Month", "1 Year": return "onboarding-\(target)"
         case "habitAdd": return "onboarding-habits"
         default: return nil
@@ -49,7 +49,7 @@ struct OnboardingStep {
         .init(title: "Keep the longer view", message: "1 Week, 1 Month, and 1 Year give larger goals a home. Move an idea closer as it becomes something you can act on.", target: "1 Year", destination: .intervals),
         .init(title: "Finish or remove a task", message: "Tick the dash when a task is done. Use × to move it to Recently Deleted. Below your lists you can restore a task, or clear it permanently.", target: "hourComplete", destination: .intervals),
         .init(title: "Focus on just one thing", message: "The viewfinder beside a task opens Deep Focus. The rest of the app fades away until you close it or press Escape.", target: "hourFocus", destination: .intervals),
-        .init(title: "Plan each new interval", message: "At an hour, day, week, month, or year boundary, Interval asks which tasks should move into your next focus. Select what you want, or press Escape to skip. Unselected tasks stay where they are.", target: "", destination: .intervals),
+        .init(title: "Plan each new interval", message: "At an hour, day, week, month, or year boundary, Interval asks which tasks should move into your next focus. Select what you want, or press Escape to skip. Unselected tasks stay where they are.", target: "1 Hour", destination: .intervals),
         .init(title: "Make room for habits", message: "Add a daily or weekly habit here. Tick it when done, postpone it for today, or drag it into 1 Hour when you want to focus on it.", target: "habitAdd", destination: .intervals),
         .init(title: "See your rhythm", message: "Habit Statistics shows streaks, yearly completions, and a calendar for each habit.", target: "habitStats", destination: .habitStats),
         .init(title: "Keep flexible lists", message: "Scratchpad is for notes and lists that do not need a time horizon. Create lists and items, then move an item into your main plan when it becomes actionable.", target: "scratchpadNewList", destination: .scratchpad),
@@ -57,7 +57,7 @@ struct OnboardingStep {
         .init(title: "Find anything quickly", message: searchMessage, target: "search", destination: .intervals),
         .init(title: "Make Interval yours", message: "Settings holds language, habits, sound, notifications, and the start of your day and week. Your account also syncs your plans across signed-in devices.", target: "settings", destination: .settings),
         .init(title: "Import whenever you like", message: "You can import from other apps later in Settings → Data & Import. You can also export a JSON backup here.", target: "settingsImport", destination: .settings),
-        .init(title: "Stay on track anywhere", message: platformExtrasMessage, target: "settingsPlatform", destination: .settings),
+        .init(title: "Stay on track anywhere", message: platformExtrasMessage, target: platformTarget, destination: .settings),
         .init(title: "You're ready", message: "Start with one thing you want to do this hour. You can replay this tour any time from Settings.", target: "1 Hour", destination: .intervals)
     ]
 
@@ -66,6 +66,14 @@ struct OnboardingStep {
         return "Keep your 1 Hour tasks in the menu bar, choose whether Interval launches at login, and print or save your plan with ⌘P."
         #else
         return "Use Interval on your phone with widgets and, if enabled in Settings, Dynamic Island and Live Activities for your current hour."
+        #endif
+    }
+
+    private static var platformTarget: String {
+        #if os(macOS)
+        return "settingsMenuBar"
+        #else
+        return "settingsLiveActivities"
         #endif
     }
 
@@ -115,7 +123,7 @@ struct OnboardingWelcomeView: View {
                         Image(systemName: "xmark")
                             .frame(width: 28, height: 28)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .accessibilityLabel("Skip onboarding".localized)
                 }
 
@@ -136,11 +144,11 @@ struct OnboardingWelcomeView: View {
                             .foregroundStyle(colorScheme == .dark ? .black : .white)
                             .background(Capsule().fill(Color.primary))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
 
                     Button("Start Fresh".localized, action: onStartFresh)
                         .font(.system(size: 13, weight: .light))
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                 }
 
                 Text("You can import later in Settings → Data & Import.".localized)
@@ -264,7 +272,7 @@ struct OnboardingSpotlightView: View {
                     .fontWeight(.medium)
             }
             .font(.system(size: 12))
-            .buttonStyle(.plain)
+            .buttonStyle(InteractivePlainButtonStyle())
             .padding(.top, 5)
         }
         .padding(22)

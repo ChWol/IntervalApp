@@ -18,6 +18,12 @@ final class SpotlightIndexer {
 
     private init() {}
 
+    func clear() {
+        pendingWork?.cancel()
+        pendingWork = nil
+        index.deleteAllSearchableItems()
+    }
+
     func schedule(context: ModelContext) {
         pendingWork?.cancel()
         let work = DispatchWorkItem { [weak self] in

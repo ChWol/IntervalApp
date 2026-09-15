@@ -45,7 +45,7 @@ struct TaskAgingHelper {
         guard task.habitId == nil else { return false }
         guard let th = threshold(for: task.intervalType) else { return false }
         
-        let age = now.timeIntervalSince(task.createdAt)
+        let age = now.timeIntervalSince(task.intervalEnteredAt ?? task.createdAt)
         return age >= th
     }
 

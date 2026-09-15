@@ -51,6 +51,34 @@ final class AccountIdentityTransitionTests: XCTestCase {
         XCTAssertEqual(try store.scratchpadItems().count, 1)
     }
 
+    func testWorkScheduledForAnInvalidatedSessionCannotRun() async throws {
+        let store = try TestStore()
+        store.addTask("Account A")
+        let manager = SupabaseSyncManager.makeForTesting(
+            context: store.context,
+            uid: "A",
+            transport: IdentityTransport()
+        )
+        let oldSession = manager.testingSessionIdentifier
+
+        manager.testingInvalidateScheduledSyncWork()
+
+        let didRun = await manager.testingRunSyncCycle(expectedSession: oldSession)
+        XCTAssertFalse(didRun)
+        XCTAssertEqual(try store.tasks().map(\.text), ["Account A"])
+    }
+
+    func testExpiredSessionReauthenticationKeepsTheRetainedAccountIdentity() {
+        XCTAssertEqual(
+            SessionIdentityPolicy.transition(isAuthenticated: false, currentUserId: "A", incomingUserId: "A"),
+            .sameAccount
+        )
+        XCTAssertEqual(
+            SessionIdentityPolicy.transition(isAuthenticated: false, currentUserId: "A", incomingUserId: "B"),
+            .rejectAccountSwitch
+        )
+    }
+
     private func authResponse(userId: String) -> AuthResponse {
         AuthResponse(
             access_token: "new-access",

@@ -12,6 +12,14 @@ public struct ImportedTask: Identifiable, Hashable {
     public var dueDate: Date?
     public var isCompleted: Bool
     public var isSelected: Bool
+    public var order: Int?
+    public var habitId: String?
+    public var intervalEnteredAt: Date?
+    public var createdAt: Date?
+    public var updatedAt: Date?
+    public var completedAt: Date?
+    public var deletedAt: Date?
+    public var preservesIdentity: Bool
     
     public init(
         id: String = UUID().uuidString,
@@ -20,7 +28,15 @@ public struct ImportedTask: Identifiable, Hashable {
         originalListName: String = "",
         dueDate: Date? = nil,
         isCompleted: Bool = false,
-        isSelected: Bool = true
+        isSelected: Bool = true,
+        order: Int? = nil,
+        habitId: String? = nil,
+        intervalEnteredAt: Date? = nil,
+        createdAt: Date? = nil,
+        updatedAt: Date? = nil,
+        completedAt: Date? = nil,
+        deletedAt: Date? = nil,
+        preservesIdentity: Bool = false
     ) {
         self.id = id
         self.text = text
@@ -29,6 +45,14 @@ public struct ImportedTask: Identifiable, Hashable {
         self.dueDate = dueDate
         self.isCompleted = isCompleted
         self.isSelected = isSelected
+        self.order = order
+        self.habitId = habitId
+        self.intervalEnteredAt = intervalEnteredAt
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.completedAt = completedAt
+        self.deletedAt = deletedAt
+        self.preservesIdentity = preservesIdentity
     }
 }
 
@@ -37,17 +61,32 @@ public struct ImportedScratchpadList: Identifiable, Hashable {
     public var title: String
     public var items: [ImportedScratchpadItem]
     public var isSelected: Bool
+    public var order: Int?
+    public var createdAt: Date?
+    public var updatedAt: Date?
+    public var deletedAt: Date?
+    public var preservesIdentity: Bool
     
     public init(
         id: String = UUID().uuidString,
         title: String,
         items: [ImportedScratchpadItem] = [],
-        isSelected: Bool = true
+        isSelected: Bool = true,
+        order: Int? = nil,
+        createdAt: Date? = nil,
+        updatedAt: Date? = nil,
+        deletedAt: Date? = nil,
+        preservesIdentity: Bool = false
     ) {
         self.id = id
         self.title = title
         self.items = items
         self.isSelected = isSelected
+        self.order = order
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.deletedAt = deletedAt
+        self.preservesIdentity = preservesIdentity
     }
 }
 
@@ -55,11 +94,26 @@ public struct ImportedScratchpadItem: Identifiable, Hashable {
     public let id: String
     public var text: String
     public var isCompleted: Bool
+    public var order: Int?
+    public var createdAt: Date?
+    public var updatedAt: Date?
+    public var completedAt: Date?
+    public var deletedAt: Date?
+    public var preservesIdentity: Bool
     
-    public init(id: String = UUID().uuidString, text: String, isCompleted: Bool = false) {
+    public init(id: String = UUID().uuidString, text: String, isCompleted: Bool = false,
+                order: Int? = nil, createdAt: Date? = nil, updatedAt: Date? = nil,
+                completedAt: Date? = nil, deletedAt: Date? = nil,
+                preservesIdentity: Bool = false) {
         self.id = id
         self.text = text
         self.isCompleted = isCompleted
+        self.order = order
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.completedAt = completedAt
+        self.deletedAt = deletedAt
+        self.preservesIdentity = preservesIdentity
     }
 }
 
@@ -71,9 +125,14 @@ public struct ImportedHabit: Identifiable {
     public let order: Int
     public let lastCompletedDate: Date?
     public let postponedDate: Date?
+    public let completionHistoryJSON: String?
+    public let updatedAt: Date?
+    public let deletedAt: Date?
 
     public init(id: String, text: String, frequency: String, streak: Int, order: Int,
-                lastCompletedDate: Date?, postponedDate: Date? = nil) {
+                lastCompletedDate: Date?, postponedDate: Date? = nil,
+                completionHistoryJSON: String? = nil, updatedAt: Date? = nil,
+                deletedAt: Date? = nil) {
         self.id = id
         self.text = text
         self.frequency = frequency
@@ -81,6 +140,9 @@ public struct ImportedHabit: Identifiable {
         self.order = order
         self.lastCompletedDate = lastCompletedDate
         self.postponedDate = postponedDate
+        self.completionHistoryJSON = completionHistoryJSON
+        self.updatedAt = updatedAt
+        self.deletedAt = deletedAt
     }
 }
 
@@ -157,13 +219,25 @@ public enum ImportSource: String, CaseIterable, Identifiable {
 
 public final class ImportManager: Sendable {
     public static let shared = ImportManager()
+    private static let maximumImportBytes = 25 * 1_024 * 1_024
     
     private init() {}
     
     // MARK: - Parsing Engine
     
     public func parseFile(at url: URL) throws -> ImportAnalysis {
+        if let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+           size > Self.maximumImportBytes {
+            throw NSError(domain: "ImportManager", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "This import is larger than 25 MB. Split it into smaller files and try again."
+            ])
+        }
         let data = try Data(contentsOf: url)
+        guard data.count <= Self.maximumImportBytes else {
+            throw NSError(domain: "ImportManager", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "This import is larger than 25 MB. Split it into smaller files and try again."
+            ])
+        }
         guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else {
             throw NSError(domain: "ImportManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to read file encoding."])
         }
@@ -390,7 +464,15 @@ public final class ImportManager: Sendable {
                     targetInterval: t.intervalType,
                     originalListName: "Interval Backup",
                     dueDate: nil,
-                    isCompleted: t.completed
+                    isCompleted: t.completed,
+                    order: t.order,
+                    habitId: t.habitId,
+                    intervalEnteredAt: SyncTimestamp.parse(t.intervalEnteredAt),
+                    createdAt: SyncTimestamp.parse(t.createdAt),
+                    updatedAt: SyncTimestamp.parse(t.updatedAt),
+                    completedAt: SyncTimestamp.parse(t.completedAt),
+                    deletedAt: SyncTimestamp.parse(t.deletedAt),
+                    preservesIdentity: true
                 ))
             }
             
@@ -398,12 +480,23 @@ public final class ImportManager: Sendable {
             let activeItems = backup.scratchpadItems.filter { $0.deletedAt == nil }
             for l in backup.scratchpadLists where l.deletedAt == nil {
                 let listItems = activeItems.filter { $0.listId == l.id }.map {
-                    ImportedScratchpadItem(id: $0.id, text: $0.text, isCompleted: $0.completed)
+                    ImportedScratchpadItem(id: $0.id, text: $0.text, isCompleted: $0.completed,
+                                           order: $0.order,
+                                           createdAt: SyncTimestamp.parse($0.createdAt),
+                                           updatedAt: SyncTimestamp.parse($0.updatedAt),
+                                           completedAt: SyncTimestamp.parse($0.completedAt),
+                                           deletedAt: SyncTimestamp.parse($0.deletedAt),
+                                           preservesIdentity: true)
                 }
                 scratchpadLists.append(ImportedScratchpadList(
                     id: l.id,
                     title: l.title,
-                    items: listItems
+                    items: listItems,
+                    order: l.order,
+                    createdAt: SyncTimestamp.parse(l.createdAt),
+                    updatedAt: SyncTimestamp.parse(l.updatedAt),
+                    deletedAt: SyncTimestamp.parse(l.deletedAt),
+                    preservesIdentity: true
                 ))
             }
             
@@ -411,7 +504,10 @@ public final class ImportManager: Sendable {
                 ImportedHabit(id: $0.id, text: $0.text, frequency: $0.frequency,
                               streak: $0.streak, order: $0.order,
                               lastCompletedDate: SyncTimestamp.parse($0.lastCompletedDate),
-                              postponedDate: SyncTimestamp.parse($0.postponedDate))
+                              postponedDate: SyncTimestamp.parse($0.postponedDate),
+                              completionHistoryJSON: $0.completionHistory,
+                              updatedAt: SyncTimestamp.parse($0.updatedAt),
+                              deletedAt: SyncTimestamp.parse($0.deletedAt))
             }
             return ImportAnalysis(intervalTasks: intervalTasks, scratchpadLists: scratchpadLists,
                                   habits: habits, detectedSource: .intervalBackup)
@@ -547,54 +643,79 @@ public final class ImportManager: Sendable {
             item.streak = habit.streak
             item.lastCompletedDate = habit.lastCompletedDate
             item.postponedDate = habit.postponedDate
-            if let date = habit.lastCompletedDate { item.setCompletionDates([date]) }
-            item.updatedAt = now
+            if let history = habit.completionHistoryJSON { item.completionHistoryJSON = history }
+            else if let date = habit.lastCompletedDate { item.setCompletionDates([date]) }
+            item.deletedAt = habit.deletedAt
+            item.updatedAt = habit.updatedAt ?? now
             context.insert(item)
             existingHabitIds.insert(habit.id)
         }
         
         // 1. Insert Interval Tasks
         let existingTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        var existingTaskIds = Set(existingTasks.map(\.id))
         var maxOrder = (existingTasks.map { $0.order }.max() ?? -1) + 1
         
-        for task in tasks where task.isSelected && !task.text.trimmingCharacters(in: .whitespaces).isEmpty {
+        for task in tasks where task.isSelected && !task.text.trimmingCharacters(in: .whitespaces).isEmpty
+            && (!task.preservesIdentity || !existingTaskIds.contains(task.id)) {
             let taskItem = TaskItem(
                 text: task.text.trimmingCharacters(in: .whitespaces),
                 intervalType: task.targetInterval,
-                order: maxOrder
+                order: task.order ?? maxOrder,
+                habitId: task.habitId
             )
+            if task.preservesIdentity { taskItem.id = task.id }
             taskItem.completed = task.isCompleted
-            taskItem.completedAt = task.isCompleted ? now : nil
-            taskItem.createdAt = now
-            taskItem.updatedAt = now
+            taskItem.intervalEnteredAt = task.intervalEnteredAt
+            taskItem.completedAt = task.completedAt ?? (task.isCompleted ? now : nil)
+            taskItem.deletedAt = task.deletedAt
+            taskItem.createdAt = task.createdAt ?? now
+            taskItem.updatedAt = task.updatedAt ?? now
             context.insert(taskItem)
-            maxOrder += 1
+            existingTaskIds.insert(taskItem.id)
+            maxOrder = max(maxOrder, taskItem.order + 1)
         }
         
         // 2. Insert Scratchpad Lists & Items
         let existingLists = (try? context.fetch(FetchDescriptor<ScratchpadList>())) ?? []
+        var existingListsById = Dictionary(existingLists.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let existingItems = (try? context.fetch(FetchDescriptor<ScratchpadItem>())) ?? []
+        var existingItemIds = Set(existingItems.map(\.id))
         var maxListOrder = (existingLists.map { $0.order }.max() ?? -1) + 1
         
-        for list in scratchpadLists where list.isSelected && !list.items.isEmpty {
-            let newList = ScratchpadList(title: list.title.trimmingCharacters(in: .whitespaces), order: maxListOrder)
-            newList.createdAt = now
-            newList.updatedAt = now
-            context.insert(newList)
-            maxListOrder += 1
+        for list in scratchpadLists where list.isSelected && (list.preservesIdentity || !list.items.isEmpty) {
+            let targetList: ScratchpadList
+            if list.preservesIdentity, let existing = existingListsById[list.id] {
+                targetList = existing
+            } else {
+                let newList = ScratchpadList(title: list.title.trimmingCharacters(in: .whitespaces), order: list.order ?? maxListOrder)
+                if list.preservesIdentity { newList.id = list.id }
+                newList.createdAt = list.createdAt ?? now
+                newList.updatedAt = list.updatedAt ?? now
+                newList.deletedAt = list.deletedAt
+                context.insert(newList)
+                existingListsById[newList.id] = newList
+                maxListOrder = max(maxListOrder, newList.order + 1)
+                targetList = newList
+            }
             
             var itemOrder = 0
-            for item in list.items where !item.text.trimmingCharacters(in: .whitespaces).isEmpty {
+            for item in list.items where !item.text.trimmingCharacters(in: .whitespaces).isEmpty
+                && (!item.preservesIdentity || !existingItemIds.contains(item.id)) {
                 let newItem = ScratchpadItem(
-                    listId: newList.id,
+                    listId: targetList.id,
                     text: item.text.trimmingCharacters(in: .whitespaces),
-                    order: itemOrder
+                    order: item.order ?? itemOrder
                 )
+                if item.preservesIdentity { newItem.id = item.id }
                 newItem.completed = item.isCompleted
-                newItem.completedAt = item.isCompleted ? now : nil
-                newItem.createdAt = now
-                newItem.updatedAt = now
+                newItem.completedAt = item.completedAt ?? (item.isCompleted ? now : nil)
+                newItem.deletedAt = item.deletedAt
+                newItem.createdAt = item.createdAt ?? now
+                newItem.updatedAt = item.updatedAt ?? now
                 context.insert(newItem)
-                itemOrder += 1
+                existingItemIds.insert(newItem.id)
+                itemOrder = max(itemOrder, newItem.order + 1)
             }
         }
         

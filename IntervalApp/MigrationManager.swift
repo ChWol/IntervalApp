@@ -31,6 +31,9 @@ class MigrationManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var isFirstHourAfterDayMigration = false
     private var modelContext: ModelContext?
+    /// Local transition markers must never bleed between accounts on a shared device.
+    /// Tests deliberately leave this nil so their isolated defaults keys stay unchanged.
+    private var accountId: String?
     private var pendingMarkerKey: String?
     private var pendingMarkerValue: String?
     private var announceMigration: (Migration) -> Void = { migration in
@@ -96,12 +99,16 @@ class MigrationManager: ObservableObject {
     
     func applyRemoteMarkers(_ markers: [String: String]) {
         var didUpdate = false
+        let supportedKeys = Set([StoreKey.lastHandledHour, StoreKey.lastHandledDay,
+                                 StoreKey.lastHandledWeek, StoreKey.lastHandledMonth,
+                                 StoreKey.lastHandledYear])
         for (key, val) in markers {
-            guard !val.isEmpty else { continue }
-            let local = UserDefaults.standard.string(forKey: key) ?? ""
+            guard supportedKeys.contains(key), !val.isEmpty else { continue }
+            let localKey = scopedKey(key)
+            let local = UserDefaults.standard.string(forKey: localKey) ?? ""
             if val >= local {
                 if val != local {
-                    UserDefaults.standard.set(val, forKey: key)
+                    UserDefaults.standard.set(val, forKey: localKey)
                 }
                 didUpdate = true
             }
@@ -145,21 +152,26 @@ class MigrationManager: ObservableObject {
     }
     
     private func getMarker(for key: String, defaultVal: String) -> String {
-        return UserDefaults.standard.string(forKey: key) ?? defaultVal
+        UserDefaults.standard.string(forKey: scopedKey(key)) ?? defaultVal
     }
     
     private func setMarker(_ value: String, for key: String) {
-        UserDefaults.standard.set(value, forKey: key)
-        UserDefaults.standard.set(true, forKey: StoreKey.markersNeedSync)
+        UserDefaults.standard.set(value, forKey: scopedKey(key))
+        UserDefaults.standard.set(true, forKey: scopedKey(StoreKey.markersNeedSync))
         Task { @MainActor in
             await self.publishPendingMarkers()
         }
     }
 
+    private func scopedKey(_ key: String) -> String {
+        guard let accountId, !accountId.isEmpty else { return key }
+        return "\(key).\(accountId)"
+    }
+
     private func markerPayload() -> [String: String] {
         var allMarkers: [String: String] = [:]
         for k in [StoreKey.lastHandledHour, StoreKey.lastHandledDay, StoreKey.lastHandledWeek, StoreKey.lastHandledMonth, StoreKey.lastHandledYear] {
-            if let v = UserDefaults.standard.string(forKey: k) {
+            if let v = UserDefaults.standard.string(forKey: scopedKey(k)) {
                 allMarkers[k] = v
             }
         }
@@ -168,19 +180,22 @@ class MigrationManager: ObservableObject {
 
     /// Retries marker publication on every normal sync until Supabase confirms it.
     func publishPendingMarkers() async {
-        guard UserDefaults.standard.bool(forKey: StoreKey.markersNeedSync) else { return }
+        let pendingKey = scopedKey(StoreKey.markersNeedSync)
+        guard UserDefaults.standard.bool(forKey: pendingKey) else { return }
         if await SupabaseSyncManager.shared.updateUserMetadata(markerPayload()) {
-            UserDefaults.standard.set(false, forKey: StoreKey.markersNeedSync)
+            UserDefaults.standard.set(false, forKey: pendingKey)
         }
     }
     
     func startMonitoring(context: ModelContext) {
         self.modelContext = context
+        self.accountId = SupabaseSyncManager.shared.userId
         cancellables.removeAll()
+        migrateLegacyMarkersToCurrentAccountIfNeeded()
         
         // Initial setup for first install
         let now = Date()
-        if UserDefaults.standard.string(forKey: StoreKey.lastHandledHour) == nil {
+        if UserDefaults.standard.string(forKey: scopedKey(StoreKey.lastHandledHour)) == nil {
             setMarker(Self.hourFormatter.string(from: now), for: StoreKey.lastHandledHour)
             setMarker(Self.dayFormatter.string(from: now), for: StoreKey.lastHandledDay)
             setMarker(Self.weekFormatter.string(from: now), for: StoreKey.lastHandledWeek)
@@ -234,6 +249,21 @@ class MigrationManager: ObservableObject {
         #endif
         
         scheduleNextHourTimer()
+    }
+
+    private func migrateLegacyMarkersToCurrentAccountIfNeeded() {
+        guard let accountId else { return }
+        let migrationKey = "migrationMarkersScoped_v1.\(accountId)"
+        guard !UserDefaults.standard.bool(forKey: migrationKey) else { return }
+        for key in [StoreKey.lastHandledHour, StoreKey.lastHandledDay, StoreKey.lastHandledWeek,
+                    StoreKey.lastHandledMonth, StoreKey.lastHandledYear] {
+            let destination = scopedKey(key)
+            if UserDefaults.standard.string(forKey: destination) == nil,
+               let legacy = UserDefaults.standard.string(forKey: key) {
+                UserDefaults.standard.set(legacy, forKey: destination)
+            }
+        }
+        UserDefaults.standard.set(true, forKey: migrationKey)
     }
     
     private func scheduleNextHourTimer() {
@@ -295,7 +325,7 @@ class MigrationManager: ObservableObject {
                 targetStoreKey = StoreKey.lastHandledWeek
                 targetMarker = currentWeek
             } else if lastHandledDay != currentDay {
-                performBoundaryRollover(for: "1 Day")
+                guard performBoundaryRollover(for: "1 Day") else { return }
                 pending = Migration(source: "1 Week", dest: "1 Day")
                 targetStoreKey = StoreKey.lastHandledDay
                 targetMarker = currentDay
@@ -373,14 +403,11 @@ class MigrationManager: ObservableObject {
             currentMigration = nil
             return
         }
+        guard PersistenceSafety.save(context, operation: "Preparing interval transition") else { return }
         
-        // Commit the pending marker now that the user has taken action
+        // The marker is committed only after the corresponding model changes are durable.
         let hadPendingMarker = pendingMarkerKey != nil
-        if let key = pendingMarkerKey, let value = pendingMarkerValue {
-            setMarker(value, for: key)
-            pendingMarkerKey = nil
-            pendingMarkerValue = nil
-        }
+        let markerToCommit = pendingMarkerKey.flatMap { key in pendingMarkerValue.map { (key, $0) } }
         
         let allTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
         let allHabits = (try? context.fetch(FetchDescriptor<HabitItem>())) ?? []
@@ -393,6 +420,7 @@ class MigrationManager: ObservableObject {
         for task in active where task.intervalType == migration.source {
             if selectedTaskIds.contains(task.id) {
                 task.intervalType = migration.dest
+                task.intervalEnteredAt = now
                 task.order = maxOrder
                 task.updatedAt = now
                 maxOrder += 1
@@ -406,6 +434,7 @@ class MigrationManager: ObservableObject {
             for task in active where task.intervalType == migration.dest {
                 if selectedReverseTaskIds.contains(task.id) {
                     task.intervalType = parent
+                    task.intervalEnteredAt = now
                     task.order = parentMaxOrder
                     task.updatedAt = now
                     parentMaxOrder += 1
@@ -427,7 +456,15 @@ class MigrationManager: ObservableObject {
             }
         }
         
-        _ = PersistenceSafety.save(context)
+        guard PersistenceSafety.save(context, operation: "Saving interval transition") else {
+            context.rollback()
+            return
+        }
+        if let (key, value) = markerToCommit {
+            setMarker(value, for: key)
+            pendingMarkerKey = nil
+            pendingMarkerValue = nil
+        }
         SupabaseSyncManager.shared.push()
         
         let completedMigration = currentMigration
@@ -467,12 +504,9 @@ class MigrationManager: ObservableObject {
 
     func commitYearGoals(_ goals: [String]) {
         guard let context = modelContext else { return }
+        guard PersistenceSafety.save(context, operation: "Preparing yearly goals") else { return }
         let hadPendingMarker = pendingMarkerKey != nil
-        if let key = pendingMarkerKey, let value = pendingMarkerValue {
-            setMarker(value, for: key)
-            pendingMarkerKey = nil
-            pendingMarkerValue = nil
-        }
+        let markerToCommit = pendingMarkerKey.flatMap { key in pendingMarkerValue.map { (key, $0) } }
 
         let allTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
         var nextOrder = (allTasks.filter {
@@ -484,7 +518,15 @@ class MigrationManager: ObservableObject {
             context.insert(TaskItem(text: trimmed, intervalType: "1 Year", order: nextOrder))
             nextOrder += 1
         }
-        _ = PersistenceSafety.save(context)
+        guard PersistenceSafety.save(context, operation: "Saving yearly goals") else {
+            context.rollback()
+            return
+        }
+        if let (key, value) = markerToCommit {
+            setMarker(value, for: key)
+            pendingMarkerKey = nil
+            pendingMarkerValue = nil
+        }
         SupabaseSyncManager.shared.push()
         currentMigration = nil
         if hadPendingMarker {
@@ -492,11 +534,13 @@ class MigrationManager: ObservableObject {
         }
     }
     
-    private func performBoundaryRollover(for targetInterval: String) {
+    @discardableResult
+    private func performBoundaryRollover(for targetInterval: String) -> Bool {
         // Rollover is intentionally restricted to the Day boundary (1 Hour -> 1 Day).
         // Higher horizons (Week, Month, Year) do NOT automatically pull tasks from subordinate lists.
-        guard targetInterval == "1 Day" else { return }
-        guard let context = modelContext else { return }
+        guard targetInterval == "1 Day" else { return true }
+        guard let context = modelContext else { return false }
+        guard PersistenceSafety.save(context, operation: "Preparing day rollover") else { return false }
         let allTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
         let active = allTasks.filter { !$0.completed && $0.deletedAt == nil }
         let now = Date()
@@ -519,6 +563,7 @@ class MigrationManager: ObservableObject {
             // Place rolled-over tasks at the top with sequential order starting from 0
             for (index, task) in tasksToRollOver.enumerated() {
                 task.intervalType = targetInterval
+                task.intervalEnteredAt = now
                 task.order = index
                 task.updatedAt = now
             }
@@ -533,9 +578,13 @@ class MigrationManager: ObservableObject {
         }
         
         if didModify {
-            _ = PersistenceSafety.save(context)
+            guard PersistenceSafety.save(context, operation: "Saving day rollover") else {
+                context.rollback()
+                return false
+            }
             SupabaseSyncManager.shared.push()
         }
+        return true
     }
     
     private func cleanUpPreviousDayHabitTasks() {
@@ -549,8 +598,7 @@ class MigrationManager: ObservableObject {
             didClean = true
         }
         if didClean {
-            _ = PersistenceSafety.save(context)
-            SupabaseSyncManager.shared.push()
+            if PersistenceSafety.save(context) { SupabaseSyncManager.shared.push() }
         }
     }
     
@@ -561,7 +609,7 @@ class MigrationManager: ObservableObject {
     }
     
     func testingPerformBoundaryRollover(for targetInterval: String) {
-        performBoundaryRollover(for: targetInterval)
+        _ = performBoundaryRollover(for: targetInterval)
     }
     #endif
     

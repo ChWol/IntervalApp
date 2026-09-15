@@ -43,6 +43,7 @@ struct TaskBackupDTO: Codable {
     let id: String
     let text: String
     let intervalType: String
+    let intervalEnteredAt: String?
     let order: Int
     let completed: Bool
     let habitId: String?
@@ -60,6 +61,7 @@ struct HabitBackupDTO: Codable {
     let order: Int
     let lastCompletedDate: String?
     let postponedDate: String?
+    let completionHistory: String?
     let updatedAt: String?
     let deletedAt: String?
 }
@@ -110,6 +112,7 @@ final class ExportManager {
                 id: t.id,
                 text: t.text,
                 intervalType: t.intervalType,
+                intervalEnteredAt: t.intervalEnteredAt.map { Self.isoFormatter.string(from: $0) },
                 order: t.order,
                 completed: t.completed,
                 habitId: t.habitId,
@@ -129,6 +132,7 @@ final class ExportManager {
                 order: h.order,
                 lastCompletedDate: h.lastCompletedDate.map { Self.isoFormatter.string(from: $0) },
                 postponedDate: h.postponedDate.map { Self.isoFormatter.string(from: $0) },
+                completionHistory: h.completionHistoryJSON,
                 updatedAt: Self.isoFormatter.string(from: h.updatedAt),
                 deletedAt: h.deletedAt.map { Self.isoFormatter.string(from: $0) }
             )
@@ -160,7 +164,7 @@ final class ExportManager {
         }
         
         let backup = IntervalBackupDTO(
-            version: "1.0",
+            version: "1.1",
             format: "Interval_Backup",
             exportedAt: Self.isoFormatter.string(from: Date()),
             tasks: taskDTOs,

@@ -76,12 +76,15 @@ struct AuthErrorResponse: Codable {
 // Every column is decoded optionally: one malformed or NULL field must never be able to
 // take down the sync of an entire table.
 
-struct SupabaseTaskDTO: Decodable {
+private protocol SupabaseRowDTO { var id: String { get } }
+
+struct SupabaseTaskDTO: Decodable, SupabaseRowDTO {
     let id: String
     let text: String?
     let completed: Bool?
     let created_at: String?
     let interval_type: String?
+    var interval_entered_at: String? = nil
     let order: Int?
     let deleted_at: String?
     let completed_at: String?
@@ -90,7 +93,7 @@ struct SupabaseTaskDTO: Decodable {
     let updated_at: String?
 }
 
-struct SupabaseHabitDTO: Decodable {
+struct SupabaseHabitDTO: Decodable, SupabaseRowDTO {
     let id: String
     let text: String?
     let frequency: String?
@@ -104,7 +107,7 @@ struct SupabaseHabitDTO: Decodable {
     let updated_at: String?
 }
 
-struct SupabaseScratchpadListDTO: Decodable {
+struct SupabaseScratchpadListDTO: Decodable, SupabaseRowDTO {
     let id: String
     let title: String?
     let order: Int?
@@ -114,7 +117,7 @@ struct SupabaseScratchpadListDTO: Decodable {
     let updated_at: String?
 }
 
-struct SupabaseScratchpadItemDTO: Decodable {
+struct SupabaseScratchpadItemDTO: Decodable, SupabaseRowDTO {
     let id: String
     let list_id: String?
     let text: String?
@@ -194,8 +197,14 @@ class SupabaseSyncManager: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var isSyncing: Bool = false
     @Published var lastSyncedAt: Date? = nil
+    @Published private(set) var onboardingCompletedForAccount = false
+    private var onboardingCompletionPending = false
     
     var isConfigured: Bool { isAuthenticated }
+    var sessionIdentifier: UUID { sessionGeneration }
+    func isCurrentSession(_ identifier: UUID) -> Bool {
+        isAuthenticated && sessionGeneration == identifier
+    }
     
     private var accessToken: String? {
         didSet {
@@ -222,6 +231,9 @@ class SupabaseSyncManager: ObservableObject {
     private var isSyncLoopRunning = false
     private var isSyncCycleRunning = false
     private var pendingSyncCycleRequested = false
+    /// Invalidates delayed work when the authenticated account is cleared. Every scheduled
+    /// sync captures this value, so work created for a previous account cannot run later.
+    private var sessionGeneration = UUID()
     private var networkMonitor: NWPathMonitor?
     
     private var isPushing = false
@@ -231,7 +243,10 @@ class SupabaseSyncManager: ObservableObject {
     private var testingPersistenceSave: ((ModelContext) -> Bool)?
     
     private var refreshTask: Task<Bool, Never>?
+    private var metadataUpdateTask: Task<Bool, Never>?
+    private var pendingMetadataUpdates: [String: String] = [:]
     private var pendingLocalPurge = false
+    private var reauthenticationRequired = false
     
     private var clock = ServerClock()
     private var ledger = TombstoneLedger()
@@ -244,6 +259,7 @@ class SupabaseSyncManager: ObservableObject {
     /// is dropped from the payload if the server rejects it, so an older schema degrades to
     /// device-local habit links instead of breaking every task push.
     private var tasksSupportHabitId = true
+    private var tasksSupportIntervalEnteredAt = true
     /// Databases created before habit history was introduced do not have this
     /// column.  Keep syncing the rest of the habit row when that schema is
     /// encountered and transparently start sending history after migration.
@@ -374,7 +390,8 @@ class SupabaseSyncManager: ObservableObject {
         request.httpMethod = "POST"
         request.setValue(supabaseKey, forHTTPHeaderField: "apikey")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: ["email": email, "password": password])
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["email": normalizedEmail, "password": password])
         
         do {
             let (data, response) = try await transport.data(for: request)
@@ -388,7 +405,7 @@ class SupabaseSyncManager: ObservableObject {
             }
             
             let authResp = try JSONDecoder().decode(AuthResponse.self, from: data)
-            _ = handleAuthSuccess(authResp, email: email)
+            _ = handleAuthSuccess(authResp, email: normalizedEmail)
         } catch {
             authError = "Network error: \(error.localizedDescription)"
         }
@@ -440,23 +457,19 @@ class SupabaseSyncManager: ObservableObject {
         
         var tokenMap: [String: String] = [:]
         
-        // Parse fragment (#access_token=...)
-        if let fragment = url.fragment {
-            for pair in fragment.components(separatedBy: "&") {
-                let parts = pair.components(separatedBy: "=")
-                if parts.count == 2 {
-                    tokenMap[parts[0]] = parts[1].removingPercentEncoding ?? parts[1]
-                }
+        func collect(_ encodedPairs: String) {
+            for pair in encodedPairs.split(separator: "&", omittingEmptySubsequences: true) {
+                let pieces = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+                guard pieces.count == 2 else { continue }
+                let key = String(pieces[0]).removingPercentEncoding ?? String(pieces[0])
+                let value = String(pieces[1]).removingPercentEncoding ?? String(pieces[1])
+                tokenMap[key] = value
             }
         }
-        
-        // Parse query (?access_token=...)
-        if let query = url.query {
-            for pair in query.components(separatedBy: "&") {
-                let parts = pair.components(separatedBy: "=")
-                if parts.count == 2 {
-                    tokenMap[parts[0]] = parts[1].removingPercentEncoding ?? parts[1]
-                }
+        if let fragment = url.fragment { collect(fragment) }
+        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            for item in components.queryItems ?? [] {
+                if let value = item.value { tokenMap[item.name] = value }
             }
         }
         
@@ -604,18 +617,17 @@ class SupabaseSyncManager: ObservableObject {
             guard purgeLocalStore(context: ctx) else { return false }
         }
         else { pendingLocalPurge = true }
+        invalidateScheduledSyncWork()
         accessToken = nil
         refreshToken = nil
+        recoveryAccessToken = nil
         accessTokenExpiry = nil
         userId = nil
         userEmail = nil
+        onboardingCompletedForAccount = false
+        onboardingCompletionPending = false
         isAuthenticated = false
-        isSyncLoopRunning = false
-        cancellables.removeAll()
-        networkMonitor?.cancel()
-        networkMonitor = nil
-        refreshTask?.cancel()
-        refreshTask = nil
+        reauthenticationRequired = false
         missingTaskIds.removeAll()
         missingHabitIds.removeAll()
         missingScratchpadListIds.removeAll()
@@ -627,11 +639,44 @@ class SupabaseSyncManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: StoreKey.refreshToken)
         UserDefaults.standard.removeObject(forKey: StoreKey.userId)
         UserDefaults.standard.removeObject(forKey: StoreKey.tokenExpiry)
+        clearExternalAccountSurfaces()
         return true
+    }
+
+    private func invalidateScheduledSyncWork() {
+        sessionGeneration = UUID()
+        debounceTimer?.cancel()
+        debounceTimer = nil
+        pendingSyncCycleRequested = false
+        pendingPushRequested = false
+        pendingPullRequested = false
+        isSyncLoopRunning = false
+        cancellables.removeAll()
+        networkMonitor?.cancel()
+        networkMonitor = nil
+        refreshTask?.cancel()
+        refreshTask = nil
+        metadataUpdateTask?.cancel()
+        metadataUpdateTask = nil
+        pendingMetadataUpdates.removeAll()
+    }
+
+    private func clearExternalAccountSurfaces() {
+        #if os(iOS) || os(macOS)
+        SpotlightIndexer.shared.clear()
+        #endif
+        #if os(iOS)
+        WidgetSnapshotStore.clear()
+        Task { @MainActor in await IntervalLiveActivityManager.shared.endAll() }
+        #endif
     }
     
     @discardableResult
     func deleteAccount() async -> Bool {
+        guard !isPushing, !isPulling, !isSyncCycleRunning else {
+            lastError = "Account deletion is waiting for synchronization to finish."
+            return false
+        }
         guard isAuthenticated, userId != nil,
               let url = URL(string: "\(supabaseURL)/rest/v1/rpc/delete_interval_account") else {
             lastError = "Account deletion requires an authenticated session."
@@ -680,6 +725,8 @@ class SupabaseSyncManager: ObservableObject {
             }
             else { pendingLocalPurge = true }
         }
+        onboardingCompletedForAccount = false
+        onboardingCompletionPending = false
         ledger.removeAll()
         persistLedger()
         missingTaskIds.removeAll()
@@ -689,11 +736,14 @@ class SupabaseSyncManager: ObservableObject {
         
         applyTokens(response)
         userId = response.user.id
-        userEmail = email
-        UserDefaults.standard.set(email, forKey: StoreKey.userEmail)
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        userEmail = normalizedEmail
+        UserDefaults.standard.set(normalizedEmail, forKey: StoreKey.userEmail)
         isAuthenticated = true
+        let shouldRestartAfterReauthentication = reauthenticationRequired
+        reauthenticationRequired = false
         
-        if transition == .freshLogin, let ctx = modelContext {
+        if (transition == .freshLogin || shouldRestartAfterReauthentication), let ctx = modelContext {
             startSync(context: ctx)
             Task { @MainActor in
                 _ = await self.runSyncCycle(force: true)
@@ -745,7 +795,7 @@ class SupabaseSyncManager: ObservableObject {
                 // Only a rejected token ends the session. A server or transport failure is
                 // transient and must never sign the user out.
                 if statusCode == 400 || statusCode == 401, err?.isInvalidGrant ?? true {
-                    signOut()
+                    enterReauthenticationRequiredState()
                 } else {
                     lastError = "Auth refresh failed (HTTP \(statusCode))"
                 }
@@ -759,6 +809,18 @@ class SupabaseSyncManager: ObservableObject {
             return false
         }
     }
+
+    private func enterReauthenticationRequiredState() {
+        invalidateScheduledSyncWork()
+        accessToken = nil
+        refreshToken = nil
+        accessTokenExpiry = nil
+        recoveryAccessToken = nil
+        reauthenticationRequired = true
+        isAuthenticated = false
+        authError = "Your session expired. Sign in again to safely continue syncing."
+        lastError = authError
+    }
     
     private func ensureFreshToken() async {
         guard isAuthenticated, let expiry = accessTokenExpiry else { return }
@@ -771,6 +833,33 @@ class SupabaseSyncManager: ObservableObject {
     
     @discardableResult
     func updateUserMetadata(_ data: [String: String]) async -> Bool {
+        pendingMetadataUpdates.merge(data) { _, newest in newest }
+        if let metadataUpdateTask { return await metadataUpdateTask.value }
+        let generation = sessionGeneration
+        let task = Task { @MainActor [weak self] () -> Bool in
+            guard let self else { return false }
+            return await self.drainMetadataUpdates(expectedSession: generation)
+        }
+        metadataUpdateTask = task
+        let result = await task.value
+        metadataUpdateTask = nil
+        return result
+    }
+
+    private func drainMetadataUpdates(expectedSession generation: UUID) async -> Bool {
+        while !pendingMetadataUpdates.isEmpty {
+            guard generation == sessionGeneration else { return false }
+            let payload = pendingMetadataUpdates
+            pendingMetadataUpdates.removeAll()
+            guard await performUserMetadataUpdate(payload) else {
+                pendingMetadataUpdates.merge(payload) { current, _ in current }
+                return false
+            }
+        }
+        return true
+    }
+
+    private func performUserMetadataUpdate(_ data: [String: String]) async -> Bool {
         guard isAuthenticated, let url = URL(string: "\(supabaseURL)/auth/v1/user") else { return false }
         await ensureFreshToken()
         guard let token = accessToken else { return false }
@@ -817,6 +906,18 @@ class SupabaseSyncManager: ObservableObject {
         }
         return result
     }
+
+    func markOnboardingCompleted() {
+        onboardingCompletedForAccount = true
+        onboardingCompletionPending = true
+        Task { @MainActor in
+            if await updateUserMetadata(["onboarding_completed": "true"]) {
+                self.onboardingCompletionPending = false
+            } else {
+                self.lastError = "Onboarding completion will be synced when the connection returns."
+            }
+        }
+    }
     
     // MARK: - Sync Control
     
@@ -836,14 +937,15 @@ class SupabaseSyncManager: ObservableObject {
         self.modelContext = context
         cancellables.removeAll()
         isSyncLoopRunning = true
+        let generation = sessionGeneration
         armLegacyBinPurgeIfNeeded(context: context)
         let monitor = NWPathMonitor()
         networkMonitor = monitor
         monitor.pathUpdateHandler = { [weak self] path in
             guard path.status == .satisfied else { return }
             Task { @MainActor in
-                guard let self, self.isAuthenticated else { return }
-                _ = await self.runSyncCycle(force: true)
+                guard let self, self.isAuthenticated, self.sessionGeneration == generation else { return }
+                _ = await self.runSyncCycle(force: true, expectedSession: generation)
             }
         }
         monitor.start(queue: DispatchQueue(label: "IntervalApp.sync.network"))
@@ -863,14 +965,14 @@ class SupabaseSyncManager: ObservableObject {
         NotificationCenter.default.publisher(for: activeNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                Task { @MainActor in _ = await self?.runSyncCycle(force: true) }
+                Task { @MainActor in _ = await self?.runSyncCycle(force: true, expectedSession: generation) }
             }
             .store(in: &cancellables)
         
         NotificationCenter.default.publisher(for: inactiveNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                Task { @MainActor in _ = await self?.runSyncCycle(force: true) }
+                Task { @MainActor in _ = await self?.runSyncCycle(force: true, expectedSession: generation) }
             }
             .store(in: &cancellables)
         
@@ -879,22 +981,24 @@ class SupabaseSyncManager: ObservableObject {
         Timer.publish(every: pollInterval, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                Task { @MainActor in _ = await self?.runSyncCycle(force: false) }
+                Task { @MainActor in _ = await self?.runSyncCycle(force: false, expectedSession: generation) }
             }
             .store(in: &cancellables)
         
         // Initial sync
         Task { @MainActor in
+            guard self.sessionGeneration == generation else { return }
             await ensureFreshToken()
-            _ = await runSyncCycle(force: true)
+            _ = await runSyncCycle(force: true, expectedSession: generation)
         }
     }
     
     /// Pull then push. Merge preserves genuinely newer unpublished local edits and queues
     /// them for upload, while stale cached rows first adopt the newer server version.
     @discardableResult
-    private func runSyncCycle(force: Bool) async -> Bool {
-        guard isAuthenticated else { return false }
+    private func runSyncCycle(force: Bool, expectedSession: UUID? = nil) async -> Bool {
+        let generation = expectedSession ?? sessionGeneration
+        guard isAuthenticated, generation == sessionGeneration else { return false }
         if isSyncCycleRunning {
             pendingSyncCycleRequested = true
             return false
@@ -905,14 +1009,20 @@ class SupabaseSyncManager: ObservableObject {
             isSyncCycleRunning = false
             if pendingSyncCycleRequested {
                 pendingSyncCycleRequested = false
-                Task { @MainActor in _ = await runSyncCycle(force: true) }
+                Task { @MainActor in _ = await runSyncCycle(force: true, expectedSession: generation) }
             }
         }
         
-        let pulled = await pullFromSupabase()
-        guard pulled else { return false }
+        let pulled = await pullFromSupabase(expectedSession: generation)
+        guard pulled, generation == sessionGeneration else { return false }
         await MigrationManager.shared.publishPendingMarkers()
-        let pushed = await pushToSupabase()
+        guard generation == sessionGeneration else { return false }
+        if onboardingCompletionPending,
+           await updateUserMetadata(["onboarding_completed": "true"]) {
+            onboardingCompletionPending = false
+        }
+        guard generation == sessionGeneration else { return false }
+        let pushed = await pushToSupabase(expectedSession: generation)
         return pushed && pulled
     }
     
@@ -920,7 +1030,8 @@ class SupabaseSyncManager: ObservableObject {
     func push() {
         guard isAuthenticated else { return }
         debounceTimer?.cancel()
-        Task { @MainActor in _ = await runSyncCycle(force: true) }
+        let generation = sessionGeneration
+        Task { @MainActor in _ = await runSyncCycle(force: true, expectedSession: generation) }
     }
     
     /// Debounced push for rapid typing (pushes shortly after the last keystroke)
@@ -930,7 +1041,9 @@ class SupabaseSyncManager: ObservableObject {
         debounceTimer = Just(())
             .delay(for: .seconds(debounceDelay), scheduler: RunLoop.main)
             .sink { [weak self] _ in
-                Task { @MainActor in _ = await self?.runSyncCycle(force: true) }
+                guard let self else { return }
+                let generation = self.sessionGeneration
+                Task { @MainActor in _ = await self.runSyncCycle(force: true, expectedSession: generation) }
             }
     }
     
@@ -945,12 +1058,28 @@ class SupabaseSyncManager: ObservableObject {
     /// is retried until the server confirms it and an in-flight pull can never bring them back.
     /// Call this *before* deleting the rows from the local store.
     func deleteRemote(table: String, ids: [String]) {
+        stageRemoteDeletion(table: table, ids: ids)
+        flushStagedRemoteDeletions()
+    }
+
+    func stageRemoteDeletion(table: String, ids: [String]) {
         guard !ids.isEmpty else { return }
         ledger.add(table: table, ids: ids)
         persistLedger()
+    }
+
+    func cancelStagedRemoteDeletion(table: String, ids: [String]) {
+        ledger.remove(table: table, ids: ids)
+        persistLedger()
+    }
+
+    func flushStagedRemoteDeletions() {
         guard isAuthenticated else { return }
+        let generation = sessionGeneration
         Task { @MainActor in
+            guard self.sessionGeneration == generation else { return }
             await ensureFreshToken()
+            guard self.sessionGeneration == generation else { return }
             _ = await flushTombstones()
         }
     }
@@ -958,12 +1087,14 @@ class SupabaseSyncManager: ObservableObject {
     // MARK: - Push to Supabase
     
     @discardableResult
-    private func pushToSupabase() async -> Bool {
+    private func pushToSupabase(expectedSession: UUID? = nil) async -> Bool {
+        let generation = expectedSession ?? sessionGeneration
         if isPushing {
             pendingPushRequested = true
             return false
         }
-        guard isAuthenticated, let context = modelContext, let uid = userId else { return false }
+        guard isAuthenticated, generation == sessionGeneration,
+              let context = modelContext, let uid = userId else { return false }
         
         isPushing = true
         isSyncing = true
@@ -1020,7 +1151,7 @@ class SupabaseSyncManager: ObservableObject {
         }
         
         // Scratchpad Lists
-        let scratchpadLists = pushableScratchpadLists(context: context)
+        let scratchpadLists = pushableScratchpadLists(context: context, uid: uid)
         for chunk in scratchpadLists.filter({ needsPush($0) }).chunked(into: upsertBatchSize) {
             let stamps = chunk.map { $0.updatedAt }
             let payload = chunk.map { scratchpadListPayload($0, uid: uid) }
@@ -1114,14 +1245,39 @@ class SupabaseSyncManager: ObservableObject {
         return pushable
     }
     
-    private func pushableScratchpadLists(context: ModelContext) -> [ScratchpadList] {
+    private func pushableScratchpadLists(context: ModelContext, uid: String) -> [ScratchpadList] {
         guard let all = try? context.fetch(FetchDescriptor<ScratchpadList>()) else { return [] }
-        return all.filter { !$0.title.trimmingCharacters(in: .whitespaces).isEmpty || $0.deletedAt != nil }
+        var result: [ScratchpadList] = []
+        for list in all {
+            if ledger.contains(table: SyncTable.scratchpadLists, id: list.id) {
+                context.delete(list)
+                continue
+            }
+            // Members may edit items in a shared list, but list ownership/title remains
+            // controlled by the owner. Never rewrite the owner's row as the member.
+            if let ownerId = list.ownerId, ownerId != uid { continue }
+            if !list.title.trimmingCharacters(in: .whitespaces).isEmpty || list.deletedAt != nil {
+                result.append(list)
+            }
+        }
+        return result
     }
     
     private func pushableScratchpadItems(context: ModelContext) -> [ScratchpadItem] {
         guard let all = try? context.fetch(FetchDescriptor<ScratchpadItem>()) else { return [] }
-        return all.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty || $0.deletedAt != nil }
+        let validListIds = Set(((try? context.fetch(FetchDescriptor<ScratchpadList>())) ?? []).map(\.id))
+        var result: [ScratchpadItem] = []
+        for item in all {
+            if ledger.contains(table: SyncTable.scratchpadItems, id: item.id) {
+                context.delete(item)
+                continue
+            }
+            guard validListIds.contains(item.listId) else { continue }
+            if !item.text.trimmingCharacters(in: .whitespaces).isEmpty || item.deletedAt != nil {
+                result.append(item)
+            }
+        }
+        return result
     }
     
     // Explicit dictionary payloads guarantee key symmetry across the array (PostgREST PGRST102).
@@ -1132,6 +1288,7 @@ class SupabaseSyncManager: ObservableObject {
             "completed": task.completed,
             "created_at": SyncTimestamp.format(task.createdAt),
             "interval_type": task.intervalType,
+            "interval_entered_at": task.intervalEnteredAt.map { SyncTimestamp.format($0) } ?? NSNull(),
             "order": task.order,
             "deleted_at": task.deletedAt.map { SyncTimestamp.format($0) } ?? NSNull(),
             "completed_at": task.completedAt.map { SyncTimestamp.format($0) } ?? NSNull(),
@@ -1141,6 +1298,7 @@ class SupabaseSyncManager: ObservableObject {
         if tasksSupportHabitId {
             payload["habit_id"] = task.habitId ?? NSNull()
         }
+        if !tasksSupportIntervalEnteredAt { payload.removeValue(forKey: "interval_entered_at") }
         return payload
     }
     
@@ -1204,12 +1362,14 @@ class SupabaseSyncManager: ObservableObject {
     // MARK: - Pull from Supabase
     
     @discardableResult
-    private func pullFromSupabase() async -> Bool {
+    private func pullFromSupabase(expectedSession: UUID? = nil) async -> Bool {
+        let generation = expectedSession ?? sessionGeneration
         if isPulling {
             pendingPullRequested = true
             return false
         }
-        guard isAuthenticated, let context = modelContext, let uid = userId else { return false }
+        guard isAuthenticated, generation == sessionGeneration,
+              let context = modelContext, let uid = userId else { return false }
         
         isPulling = true
         isSyncing = true
@@ -1218,7 +1378,7 @@ class SupabaseSyncManager: ObservableObject {
             isSyncing = isPushing
             if pendingPullRequested {
                 pendingPullRequested = false
-                Task { @MainActor in _ = await pullFromSupabase() }
+                Task { @MainActor in _ = await pullFromSupabase(expectedSession: generation) }
             }
         }
         
@@ -1233,6 +1393,7 @@ class SupabaseSyncManager: ObservableObject {
             backoff.recordFailure()
             return false
         }
+        guard generation == sessionGeneration, userId == uid, isAuthenticated else { return false }
         
         _ = mergeRemoteTasks(remoteTasks, context: context, uid: uid)
         _ = mergeRemoteHabits(remoteHabits, context: context, uid: uid)
@@ -1240,7 +1401,11 @@ class SupabaseSyncManager: ObservableObject {
         let localHabits = (try? context.fetch(FetchDescriptor<HabitItem>())) ?? []
         _ = HabitTaskLink.reconcileCompletion(tasks: localTasks, habits: localHabits)
         _ = mergeRemoteScratchpadLists(remoteScratchpadLists, context: context, uid: uid)
-        _ = mergeRemoteScratchpadItems(remoteScratchpadItems, context: context, uid: uid)
+        let authorizedRemoteListIds = Set(remoteScratchpadLists.compactMap { dto in
+            dto.user_id == nil ? nil : dto.id
+        })
+        _ = mergeRemoteScratchpadItems(remoteScratchpadItems, authorizedListIds: authorizedRemoteListIds,
+                                       context: context, uid: uid)
         
         guard persist(context) else {
             backoff.recordFailure()
@@ -1251,6 +1416,9 @@ class SupabaseSyncManager: ObservableObject {
         
         if let metadata = await fetchUserMetadata() {
             MigrationManager.shared.applyRemoteMarkers(metadata)
+            let remoteCompleted = metadata["onboarding_completed"] == "true"
+            if remoteCompleted { onboardingCompletionPending = false }
+            onboardingCompletedForAccount = remoteCompleted || onboardingCompletionPending
         }
         
         NotificationCenter.default.post(name: .syncPullDidComplete, object: nil)
@@ -1292,6 +1460,9 @@ class SupabaseSyncManager: ObservableObject {
                     assign(text, to: existing, \.text)
                     assign(dto.completed ?? existing.completed, to: existing, \.completed)
                     assign(DataIntegrityRepair.safeInterval(dto.interval_type), to: existing, \.intervalType)
+                    if let enteredAt = SyncTimestamp.parse(dto.interval_entered_at) {
+                        assign(Optional(enteredAt), to: existing, \.intervalEnteredAt)
+                    }
                     assign(dto.order ?? existing.order, to: existing, \.order)
                     assign(SyncTimestamp.parse(dto.created_at) ?? existing.createdAt, to: existing, \.createdAt)
                     assign(SyncTimestamp.parse(dto.deleted_at), to: existing, \.deletedAt)
@@ -1326,6 +1497,7 @@ class SupabaseSyncManager: ObservableObject {
                 task.id = dto.id
                 task.completed = dto.completed ?? false
                 task.createdAt = SyncTimestamp.parse(dto.created_at) ?? Date()
+                task.intervalEnteredAt = SyncTimestamp.parse(dto.interval_entered_at)
                 task.deletedAt = SyncTimestamp.parse(dto.deleted_at)
                 task.completedAt = SyncTimestamp.parse(dto.completed_at)
                 task.habitId = dto.habit_id
@@ -1435,19 +1607,17 @@ class SupabaseSyncManager: ObservableObject {
         var remoteIds = Set<String>()
         
         for dto in dtos {
+            guard let remoteOwner = dto.user_id, !remoteOwner.isEmpty else { continue }
             remoteIds.insert(dto.id)
             let title = (dto.title ?? "").trimmingCharacters(in: .whitespaces)
             let remoteStamp = SyncTimestamp.parse(dto.updated_at).map { clock.toLocal($0) }
             
             if let existing = localById[dto.id] {
-                if existing.ownerId != dto.user_id {
-                    existing.ownerId = dto.user_id
-                }
                 switch MergePolicy.resolve(remoteUpdatedAt: remoteStamp, localUpdatedAt: existing.updatedAt, localSyncedAt: existing.syncedAt) {
                 case .adoptRemote(let stamp):
                     assign(title, to: existing, \.title)
                     assign(dto.order ?? existing.order, to: existing, \.order)
-                    assign(dto.user_id, to: existing, \.ownerId)
+                    assign(Optional(remoteOwner), to: existing, \.ownerId)
                     assign(SyncTimestamp.parse(dto.created_at) ?? existing.createdAt, to: existing, \.createdAt)
                     assign(SyncTimestamp.parse(dto.deleted_at), to: existing, \.deletedAt)
                     assign(stamp, to: existing, \.updatedAt)
@@ -1458,7 +1628,7 @@ class SupabaseSyncManager: ObservableObject {
                     break
                 }
             } else {
-                let list = ScratchpadList(title: title, order: dto.order ?? 0, ownerId: dto.user_id)
+                let list = ScratchpadList(title: title, order: dto.order ?? 0, ownerId: remoteOwner)
                 list.id = dto.id
                 list.createdAt = SyncTimestamp.parse(dto.created_at) ?? Date()
                 list.deletedAt = SyncTimestamp.parse(dto.deleted_at)
@@ -1492,13 +1662,18 @@ class SupabaseSyncManager: ObservableObject {
         return needsFollowupPush
     }
     
-    private func mergeRemoteScratchpadItems(_ dtos: [SupabaseScratchpadItemDTO], context: ModelContext, uid: String) -> Bool {
+    private func mergeRemoteScratchpadItems(_ dtos: [SupabaseScratchpadItemDTO],
+                                            authorizedListIds: Set<String>,
+                                            context: ModelContext, uid: String) -> Bool {
         var needsFollowupPush = false
         guard let all = try? context.fetch(FetchDescriptor<ScratchpadItem>()) else { return false }
         var localById = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         var remoteIds = Set<String>()
         
         for dto in dtos {
+            guard dto.user_id?.isEmpty == false,
+                  let remoteListId = dto.list_id,
+                  authorizedListIds.contains(remoteListId) else { continue }
             remoteIds.insert(dto.id)
             let text = (dto.text ?? "").trimmingCharacters(in: .whitespaces)
             let remoteStamp = SyncTimestamp.parse(dto.updated_at).map { clock.toLocal($0) }
@@ -1506,7 +1681,7 @@ class SupabaseSyncManager: ObservableObject {
             if let existing = localById[dto.id] {
                 switch MergePolicy.resolve(remoteUpdatedAt: remoteStamp, localUpdatedAt: existing.updatedAt, localSyncedAt: existing.syncedAt) {
                 case .adoptRemote(let stamp):
-                    assign(dto.list_id ?? existing.listId, to: existing, \.listId)
+                    assign(remoteListId, to: existing, \.listId)
                     assign(text, to: existing, \.text)
                     assign(dto.completed ?? existing.completed, to: existing, \.completed)
                     assign(dto.order ?? existing.order, to: existing, \.order)
@@ -1521,7 +1696,7 @@ class SupabaseSyncManager: ObservableObject {
                     break
                 }
             } else {
-                let item = ScratchpadItem(listId: dto.list_id ?? "", text: text, order: dto.order ?? 0)
+                let item = ScratchpadItem(listId: remoteListId, text: text, order: dto.order ?? 0)
                 item.id = dto.id
                 item.completed = dto.completed ?? false
                 item.createdAt = SyncTimestamp.parse(dto.created_at) ?? Date()
@@ -1728,6 +1903,13 @@ class SupabaseSyncManager: ObservableObject {
                 let stripped = payload.map { row in row.filter { $0.key != "habit_id" } }
                 return await upsert(table: table, payload: stripped)
             }
+            if table == SyncTable.tasks, tasksSupportIntervalEnteredAt,
+               Self.mentionsMissingIntervalEnteredAtColumn(body) {
+                print("[Supabase] tasks.interval_entered_at is missing; interval age falls back to creation time until supabase/add_task_interval_entered_at.sql is applied.")
+                tasksSupportIntervalEnteredAt = false
+                let stripped = payload.map { row in row.filter { $0.key != "interval_entered_at" } }
+                return await upsert(table: table, payload: stripped)
+            }
             if table == SyncTable.habits, habitsSupportCompletionHistory,
                Self.mentionsMissingCompletionHistoryColumn(body) {
                 print("[Supabase] habits.completion_history is missing; habit statistics remain device-local. Add supabase/add_habit_completion_history.sql to sync history.")
@@ -1751,6 +1933,15 @@ class SupabaseSyncManager: ObservableObject {
     static func mentionsMissingHabitIdColumn(_ body: String) -> Bool {
         let lowered = body.lowercased()
         guard lowered.contains("habit_id") else { return false }
+        return lowered.contains("pgrst204")
+            || lowered.contains("42703")
+            || lowered.contains("could not find")
+            || lowered.contains("does not exist")
+    }
+
+    static func mentionsMissingIntervalEnteredAtColumn(_ body: String) -> Bool {
+        let lowered = body.lowercased()
+        guard lowered.contains("interval_entered_at") else { return false }
         return lowered.contains("pgrst204")
             || lowered.contains("42703")
             || lowered.contains("could not find")
@@ -1790,9 +1981,10 @@ class SupabaseSyncManager: ObservableObject {
     }
     
     /// Reads a whole table in pages. Returns `nil` unless the full snapshot was retrieved.
-    private func fetchAll<T: Decodable>(table: String, uid: String, filterByUserId: Bool = true) async -> [T]? {
+    private func fetchAll<T: Decodable & SupabaseRowDTO>(table: String, uid: String, filterByUserId: Bool = true) async -> [T]? {
         var results: [T] = []
         var offset = 0
+        var seenIds = Set<String>()
         
         for _ in 0..<maxPages {
             guard var components = URLComponents(string: "\(supabaseURL)/rest/v1/\(table)") else { return nil }
@@ -1831,6 +2023,12 @@ class SupabaseSyncManager: ObservableObject {
                 lastError = "Incomplete \(table) snapshot: \(unreadableCount) unreadable row(s)"
                 return nil
             }
+            let pageIds = Set(decoded.map(\.id))
+            guard pageIds.count == decoded.count, seenIds.isDisjoint(with: pageIds) else {
+                lastError = "Incomplete \(table) snapshot: pagination repeated rows"
+                return nil
+            }
+            seenIds.formUnion(pageIds)
             results.append(contentsOf: decoded)
             
             // A short page is the last page.
@@ -2075,6 +2273,11 @@ extension SupabaseSyncManager {
 
     func testingPush() async -> Bool { await pushToSupabase() }
     func testingRunSyncCycle() async -> Bool { await runSyncCycle(force: true) }
+    func testingRunSyncCycle(expectedSession: UUID) async -> Bool {
+        await runSyncCycle(force: true, expectedSession: expectedSession)
+    }
+    var testingSessionIdentifier: UUID { sessionGeneration }
+    func testingInvalidateScheduledSyncWork() { invalidateScheduledSyncWork() }
 
     func testingFetchTasks() async -> [SupabaseTaskDTO]? {
         guard let uid = userId else { return nil }
@@ -2125,7 +2328,7 @@ extension SupabaseSyncManager {
     
     /// Applies a complete server snapshot. Returns whether a follow-up push is needed.
     @discardableResult
-    func testingMerge(tasks: [SupabaseTaskDTO], habits: [SupabaseHabitDTO] = []) -> Bool {
+    func testingMerge(tasks: [SupabaseTaskDTO] = [], habits: [SupabaseHabitDTO] = []) -> Bool {
         guard let context = modelContext, let uid = userId else { return false }
         var needsFollowup = mergeRemoteTasks(tasks, context: context, uid: uid)
         if mergeRemoteHabits(habits, context: context, uid: uid) { needsFollowup = true }
@@ -2139,7 +2342,8 @@ extension SupabaseSyncManager {
     func testingMergeScratchpads(lists: [SupabaseScratchpadListDTO], items: [SupabaseScratchpadItemDTO]) -> Bool {
         guard let context = modelContext, let uid = userId else { return false }
         var needsFollowup = mergeRemoteScratchpadLists(lists, context: context, uid: uid)
-        if mergeRemoteScratchpadItems(items, context: context, uid: uid) { needsFollowup = true }
+        let authorizedListIds = Set(lists.compactMap { $0.user_id == nil ? nil : $0.id })
+        if mergeRemoteScratchpadItems(items, authorizedListIds: authorizedListIds, context: context, uid: uid) { needsFollowup = true }
         return persist(context) ? needsFollowup : false
     }
     

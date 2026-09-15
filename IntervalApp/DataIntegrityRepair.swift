@@ -19,6 +19,7 @@ enum DataIntegrityRepair {
         let replacementHabitId = emptyHabits.count == 1 ? UUID().uuidString : nil
         for habit in emptyHabits {
             habit.id = replacementHabitId ?? UUID().uuidString
+            habit.updatedAt = Date()
             habit.syncedAt = nil
             changed = true
         }
@@ -27,6 +28,7 @@ enum DataIntegrityRepair {
         let replacementListId = emptyLists.count == 1 ? UUID().uuidString : nil
         for list in emptyLists {
             list.id = replacementListId ?? UUID().uuidString
+            list.updatedAt = Date()
             list.syncedAt = nil
             changed = true
         }
@@ -39,6 +41,7 @@ enum DataIntegrityRepair {
             }
             if !validIntervals.contains(task.intervalType) {
                 task.intervalType = "1 Day"
+                task.intervalEnteredAt = Date()
                 task.updatedAt = Date()
                 task.syncedAt = nil
                 changed = true
@@ -85,6 +88,33 @@ enum DataIntegrityRepair {
                let replacementListId {
                 item.listId = replacementListId
                 item.syncedAt = nil
+                changed = true
+            }
+        }
+
+        // SwiftData does not enforce uniqueness for application ids. Preserve every
+        // scratchpad record while giving colliding copies deterministic independent ids;
+        // otherwise dictionary merges and batch upserts can silently discard one copy.
+        let repairStamp = Date()
+        for copies in Dictionary(grouping: lists, by: \ScratchpadList.id).values where copies.count > 1 {
+            let ordered = copies.sorted {
+                $0.updatedAt == $1.updatedAt ? $0.createdAt > $1.createdAt : $0.updatedAt > $1.updatedAt
+            }
+            for duplicate in ordered.dropFirst() {
+                duplicate.id = UUID().uuidString
+                duplicate.updatedAt = repairStamp
+                duplicate.syncedAt = nil
+                changed = true
+            }
+        }
+        for copies in Dictionary(grouping: items, by: \ScratchpadItem.id).values where copies.count > 1 {
+            let ordered = copies.sorted {
+                $0.updatedAt == $1.updatedAt ? $0.createdAt > $1.createdAt : $0.updatedAt > $1.updatedAt
+            }
+            for duplicate in ordered.dropFirst() {
+                duplicate.id = UUID().uuidString
+                duplicate.updatedAt = repairStamp
+                duplicate.syncedAt = nil
                 changed = true
             }
         }

@@ -8,7 +8,9 @@ enum SessionIdentityTransition: Equatable {
 
 enum SessionIdentityPolicy {
     static func transition(isAuthenticated: Bool, currentUserId: String?, incomingUserId: String) -> SessionIdentityTransition {
-        guard isAuthenticated, let currentUserId else { return .freshLogin }
+        // A rejected/expired token can temporarily make the UI unauthenticated while the
+        // account's unsynced local cache is deliberately retained for reauthentication.
+        guard let currentUserId else { return .freshLogin }
         return currentUserId == incomingUserId ? .sameAccount : .rejectAccountSwitch
     }
 }
@@ -180,7 +182,10 @@ struct Tombstone: Codable, Equatable {
 struct TombstoneLedger: Codable, Equatable {
     /// Confirmed entries are held this long so a snapshot fetched before the delete cannot
     /// reintroduce the row, then dropped to keep the record from growing without bound.
-    static let confirmedRetention: TimeInterval = 15 * 60
+    // Keep confirmed deletes through long-running background/suspension windows. This is
+    // intentionally much longer than an HTTP request so a delayed cached snapshot cannot
+    // reintroduce a row after the app wakes later in the day.
+    static let confirmedRetention: TimeInterval = 24 * 60 * 60
     
     private var entries: [String: [String: Tombstone]] = [:]
     
@@ -223,6 +228,13 @@ struct TombstoneLedger: Codable, Equatable {
     
     mutating func removeAll() {
         entries.removeAll()
+    }
+
+    mutating func remove(table: String, ids: [String]) {
+        guard var forTable = entries[table] else { return }
+        for id in ids { forTable.removeValue(forKey: id) }
+        if forTable.isEmpty { entries.removeValue(forKey: table) }
+        else { entries[table] = forTable }
     }
     
     var isEmpty: Bool { entries.allSatisfy { $0.value.isEmpty } }

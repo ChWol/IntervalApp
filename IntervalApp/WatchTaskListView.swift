@@ -123,7 +123,7 @@ public struct WatchTaskRow: View {
                     .fill(Color.white.opacity(task.completed ? 0.03 : 0.06))
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(InteractivePlainButtonStyle())
     }
 
     private func toggleTask() {
@@ -145,8 +145,7 @@ public struct WatchTaskRow: View {
             }
         }
 
-        _ = PersistenceSafety.save(modelContext)
-        SupabaseSyncManager.shared.push()
+        if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
     }
 }
 
@@ -247,7 +246,7 @@ public struct WatchHabitRow: View {
                     .fill(Color.white.opacity(habit.isCompletedCurrentPeriod ? 0.03 : 0.06))
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(InteractivePlainButtonStyle())
     }
 
     private func toggleHabit() {
@@ -272,7 +271,6 @@ public struct WatchHabitRow: View {
             }
         }
 
-        _ = PersistenceSafety.save(modelContext)
-        SupabaseSyncManager.shared.push()
+        if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
     }
 }

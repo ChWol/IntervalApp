@@ -77,6 +77,9 @@ final class TaskItem {
     var completed: Bool = false
     var createdAt: Date = Date()
     var intervalType: String = ""
+    /// When the task most recently entered its current horizon. Older stores leave this nil
+    /// and safely fall back to createdAt until the task is moved once.
+    var intervalEnteredAt: Date? = nil
     var order: Int = 0
     var deletedAt: Date? = nil
     var completedAt: Date? = nil
@@ -94,6 +97,7 @@ final class TaskItem {
         self.completed = false
         self.createdAt = Date()
         self.intervalType = intervalType
+        self.intervalEnteredAt = nil
         self.order = order
         self.deletedAt = nil
         self.completedAt = nil

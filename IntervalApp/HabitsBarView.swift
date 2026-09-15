@@ -184,7 +184,7 @@ struct HabitsBarView: View {
                                 .padding(.vertical, 4)
                                 .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                         .pointingHandCursor()
                         .onHover { hovering in
                             withAnimation(.easeInOut(duration: 0.12)) {
@@ -205,7 +205,7 @@ struct HabitsBarView: View {
                                 }
                                 .foregroundColor(selectedFrequency == "Daily" ? .primary : .secondary)
                                 .font(.system(size: 10, weight: selectedFrequency == "Daily" ? .medium : .light))
-                                .buttonStyle(.plain)
+                                .buttonStyle(InteractivePlainButtonStyle())
                                 .pointingHandCursor()
                                 
                                 Text("|")
@@ -224,7 +224,7 @@ struct HabitsBarView: View {
                                         .foregroundColor(selectedFrequency.starts(with: "Weekly") ? .primary : .secondary)
                                         .font(.system(size: 10, weight: selectedFrequency.starts(with: "Weekly") ? .medium : .light))
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(InteractivePlainButtonStyle())
                                 .pointingHandCursor()
                                 .popover(isPresented: $showWeekdayPopover, arrowEdge: .bottom) {
                                     weekdayPickerPopover
@@ -254,7 +254,7 @@ struct HabitsBarView: View {
                                     .font(.system(size: 10))
                                     .foregroundColor(.primary)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(InteractivePlainButtonStyle())
                             .pointingHandCursor()
                             
                             Button(action: {
@@ -268,7 +268,7 @@ struct HabitsBarView: View {
                                     .font(.system(size: 10))
                                     .foregroundColor(.secondary)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(InteractivePlainButtonStyle())
                             .pointingHandCursor()
                         }
                         .padding(.horizontal, 10)
@@ -289,7 +289,7 @@ struct HabitsBarView: View {
                     }
                     
                     if habits.isEmpty && !isAdding {
-                        Text("No habits added yet. Click + New Habit to set daily or weekly routines.")
+                        Text("No habits added yet. Click + New Habit to set daily or weekly routines.".localized)
                             .font(.system(size: 12, weight: .light))
                             .foregroundColor(.gray)
                     }
@@ -370,7 +370,7 @@ struct HabitsBarView: View {
                                 .fill(selectedWeekday == opt.id ? Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.06) : Color.clear)
                         )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
                 }
             }
@@ -404,8 +404,7 @@ struct HabitsBarView: View {
         let maxOrder = (habits.map { $0.order }.max() ?? -1) + 1
         let newHabit = HabitItem(text: trimmed, frequency: selectedFrequency, order: maxOrder)
         modelContext.insert(newHabit)
-        _ = PersistenceSafety.save(modelContext)
-        SupabaseSyncManager.shared.push()
+        if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         withAnimation {
             isAdding = false
             showWeekdayPopover = false
@@ -465,7 +464,7 @@ struct HabitChipView: View {
                     }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(InteractivePlainButtonStyle())
             .pointingHandCursor()
             
             if hoveredHabitId == habit.id {
@@ -477,7 +476,7 @@ struct HabitChipView: View {
                                 .font(.system(size: 8))
                                 .foregroundColor(.secondary)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                         .pointingHandCursor()
                         .help(isPostponed ? "Unpostpone for today".localized : "Postpone for today".localized)
                     }
@@ -488,7 +487,7 @@ struct HabitChipView: View {
                             .font(.system(size: 8))
                             .foregroundColor(.secondary)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
                 }
             }
@@ -511,8 +510,7 @@ struct HabitChipView: View {
     private func togglePostpone() {
         withAnimation(.easeInOut(duration: 0.2)) {
             habit.togglePostponeForToday()
-            _ = PersistenceSafety.save(modelContext)
-            SupabaseSyncManager.shared.push()
+            if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         }
     }
     
@@ -534,8 +532,7 @@ struct HabitChipView: View {
             if let tasks = try? modelContext.fetch(FetchDescriptor<TaskItem>()) {
                 HabitTaskLink.applyHabitCompletionToTasks(habit, tasks: tasks, now: now)
             }
-            _ = PersistenceSafety.save(modelContext)
-            SupabaseSyncManager.shared.push()
+            if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         }
     }
     
@@ -549,8 +546,7 @@ struct HabitChipView: View {
             if let tasks = try? modelContext.fetch(FetchDescriptor<TaskItem>()) {
                 _ = HabitTaskLink.binLinkedHourTasks(for: habit, tasks: tasks, now: now)
             }
-            _ = PersistenceSafety.save(modelContext)
-            SupabaseSyncManager.shared.push()
+            if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         }
     }
 }
@@ -725,8 +721,7 @@ struct HabitDropDelegate: DropDelegate {
                 habit.updatedAt = now
                 habit.syncedAt = nil
             }
-            _ = PersistenceSafety.save(context)
-            SupabaseSyncManager.shared.push()
+            if PersistenceSafety.save(context) { SupabaseSyncManager.shared.push() }
         }
         withAnimation(.easeInOut(duration: 0.15)) {
             HabitDragState.shared.reset()

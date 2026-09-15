@@ -64,7 +64,7 @@ public struct WatchContentView: View {
                                         .fill(selectedTab == tab ? Color.white.opacity(0.18) : Color.clear)
                                 )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                     }
                 }
                 .padding(.top, 2)

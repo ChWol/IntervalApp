@@ -25,7 +25,7 @@ struct BinRowView: View {
                         .strikethrough(task.completed)
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(InteractivePlainButtonStyle())
             .onHover { hovering in
                 isUndoHovered = hovering
             }
@@ -39,7 +39,7 @@ struct BinRowView: View {
                     .frame(width: 24, height: 24)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(InteractivePlainButtonStyle())
             .onHover { hovering in
                 isXHovered = hovering
             }

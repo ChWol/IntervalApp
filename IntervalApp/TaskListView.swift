@@ -60,7 +60,7 @@ struct TaskListView: View {
                         .padding(4)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .pointingHandCursor()
                 .onHover { hovering in
                     withAnimation(.easeInOut(duration: 0.12)) {
@@ -165,8 +165,7 @@ struct TaskListView: View {
             let maxOrder = (sorted.last?.order ?? -1) + 1
             let newTask = TaskItem(text: "", intervalType: title, order: maxOrder)
             modelContext.insert(newTask)
-            _ = PersistenceSafety.save(modelContext)
-            SupabaseSyncManager.shared.push()
+            if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
             DispatchQueue.main.async {
                 focusedTaskId = newTask.id
             }
@@ -246,7 +245,7 @@ func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listT
         t.syncedAt = nil
     }
     
-    _ = PersistenceSafety.save(context)
+    guard PersistenceSafety.save(context) else { return false }
     SupabaseSyncManager.shared.push()
     return true
 }
@@ -286,6 +285,7 @@ enum TaskDragMutation {
         }.sorted { $0.order < $1.order }
         destination.insert(dragged, at: min(max(index, 0), destination.count))
         dragged.intervalType = interval
+        dragged.intervalEnteredAt = now
 
         var affected = destination
         if sourceInterval != interval {
@@ -364,8 +364,7 @@ struct TaskListInsertionDropDelegate: DropDelegate {
         let changed = TaskDragMutation.commit(task, to: listTitle, index: index, context: context)
         if changed {
             SoundManager.playTaskDropped()
-            _ = PersistenceSafety.save(context)
-            SupabaseSyncManager.shared.push()
+            if PersistenceSafety.save(context) { SupabaseSyncManager.shared.push() }
         }
         withAnimation(.easeInOut(duration: 0.15)) { DragState.shared.reset() }
         return true
@@ -443,8 +442,7 @@ struct TaskListHeaderDropDelegate: DropDelegate {
         if let draggedItem = DragState.shared.draggedTask {
             _ = TaskDragMutation.commit(draggedItem, to: listTitle, index: 0, context: context)
         }
-        _ = PersistenceSafety.save(context)
-        SupabaseSyncManager.shared.push()
+        if PersistenceSafety.save(context) { SupabaseSyncManager.shared.push() }
         withAnimation(.easeInOut(duration: 0.15)) {
             DragState.shared.reset()
         }
@@ -534,8 +532,7 @@ struct TaskListBottomDropDelegate: DropDelegate {
             }.count
             _ = TaskDragMutation.commit(draggedItem, to: listTitle, index: count, context: context)
         }
-        _ = PersistenceSafety.save(context)
-        SupabaseSyncManager.shared.push()
+        if PersistenceSafety.save(context) { SupabaseSyncManager.shared.push() }
         withAnimation(.easeInOut(duration: 0.15)) {
             DragState.shared.reset()
         }

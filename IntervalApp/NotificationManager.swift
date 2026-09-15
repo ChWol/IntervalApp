@@ -78,7 +78,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     
     func sendMigrationNotification(for migration: Migration) {
         let isEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
-        guard isEnabled, authorizationStatus == .authorized || authorizationStatus == .provisional else { return }
+        guard isEnabled, (authorizationStatus == .authorized || authorizationStatus == .provisional) else { return }
         
         let hourStr = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .short)
         let dedupeKey = "\(migration.source)_\(migration.dest)_\(hourStr)"
@@ -145,7 +145,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     
     func scheduleUpcomingBoundaryNotifications() {
         let isEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
-        guard isEnabled, authorizationStatus == .authorized || authorizationStatus == .provisional else {
+        guard isEnabled, (authorizationStatus == .authorized || authorizationStatus == .provisional) else {
             UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
             return
         }

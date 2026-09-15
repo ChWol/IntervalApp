@@ -40,7 +40,7 @@ struct MigrationImportModalView: View {
     
     var body: some View {
         ZStack {
-            Color.black.opacity(colorScheme == .dark ? 0.75 : 0.5)
+            AppVisualTokens.modalScrim(for: colorScheme)
                 .ignoresSafeArea()
                 .onTapGesture {
                     if step == .upload {
@@ -75,7 +75,7 @@ struct MigrationImportModalView: View {
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
                     .onHover { hovering in
                         withAnimation(.easeInOut(duration: 0.12)) {
@@ -163,7 +163,7 @@ struct MigrationImportModalView: View {
                                     .fill(isSelected ? Color.primary.opacity(colorScheme == .dark ? 0.2 : 0.08) : (isHovered ? Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.04) : Color.clear))
                             )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
                     .onHover { h in
                         withAnimation(.easeInOut(duration: 0.12)) {
@@ -257,7 +257,7 @@ struct MigrationImportModalView: View {
                 }
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(InteractivePlainButtonStyle())
             .pointingHandCursor()
             .onHover { h in
                 withAnimation(.easeInOut(duration: 0.15)) {
@@ -321,7 +321,7 @@ struct MigrationImportModalView: View {
                         .foregroundColor(.secondary)
                         .underline()
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .pointingHandCursor()
             }
             .padding(.horizontal, 28)
@@ -372,7 +372,7 @@ struct MigrationImportModalView: View {
                         .font(.system(size: 12, weight: .light))
                         .foregroundColor(.secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .pointingHandCursor()
                 
                 Spacer()
@@ -395,7 +395,7 @@ struct MigrationImportModalView: View {
                             .fill(Color.primary)
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .pointingHandCursor()
             }
             .padding(.horizontal, 28)
@@ -679,7 +679,7 @@ struct KanbanTaskCardView: View {
                         )
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .pointingHandCursor()
                 .opacity(isCardHovered || isXHovered ? 1.0 : 0.2)
                 .onHover { isXHovered = $0 }
@@ -807,7 +807,7 @@ struct KanbanScratchpadListCardView: View {
                         )
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .pointingHandCursor()
                 .opacity(isHovered || isXHovered ? 1.0 : 0.2)
                 .onHover { isXHovered = $0 }

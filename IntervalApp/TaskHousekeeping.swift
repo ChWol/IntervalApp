@@ -40,8 +40,9 @@ enum TaskHousekeeping {
         SoundManager.playTaskDeleted()
         task.deletedAt = now
         task.updatedAt = now
-        _ = PersistenceSafety.save(context)
-        (sync ?? SupabaseSyncManager.shared).push()
+        if PersistenceSafety.save(context) {
+            (sync ?? SupabaseSyncManager.shared).push()
+        }
     }
     
     static func restore(_ task: TaskItem,
@@ -59,8 +60,9 @@ enum TaskHousekeeping {
            let habits = try? context.fetch(FetchDescriptor<HabitItem>()) {
             HabitTaskLink.applyTaskCompletionToHabit(task, habits: habits, now: now)
         }
-        _ = PersistenceSafety.save(context)
-        (sync ?? SupabaseSyncManager.shared).push()
+        if PersistenceSafety.save(context) {
+            (sync ?? SupabaseSyncManager.shared).push()
+        }
     }
     
     /// Hard delete. The remote delete is registered *before* the local row disappears, so a
@@ -71,11 +73,18 @@ enum TaskHousekeeping {
                                   sync: SupabaseSyncManager? = nil) {
         guard !tasks.isEmpty else { return }
         let syncManager = sync ?? SupabaseSyncManager.shared
-        syncManager.deleteRemote(table: SyncTable.tasks, ids: tasks.map { $0.id })
+        guard PersistenceSafety.save(context, operation: "Preparing permanent deletion") else { return }
+        let ids = tasks.map { $0.id }
+        syncManager.stageRemoteDeletion(table: SyncTable.tasks, ids: ids)
         for task in tasks {
             context.delete(task)
         }
-        _ = PersistenceSafety.save(context)
+        guard PersistenceSafety.save(context, operation: "Deleting tasks permanently") else {
+            context.rollback()
+            syncManager.cancelStagedRemoteDeletion(table: SyncTable.tasks, ids: ids)
+            return
+        }
+        syncManager.flushStagedRemoteDeletions()
     }
 }
 

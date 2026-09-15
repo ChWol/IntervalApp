@@ -202,7 +202,7 @@ struct SpotlightSearchView: View {
                             .font(.system(size: 14))
                             .foregroundColor(.secondary.opacity(0.7))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                 }
                 
                 #if os(iOS)
@@ -341,7 +341,7 @@ struct SpotlightSearchView: View {
                 Image(systemName: "plus.circle")
                     .font(.system(size: 14, weight: .light))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Add to 1 Hour")
+                    Text("Add to 1 Hour".localized)
                         .font(.system(size: 13, weight: .medium))
                     Text(query.trimmingCharacters(in: .whitespacesAndNewlines))
                         .font(.system(size: 11, weight: .light))
@@ -357,7 +357,7 @@ struct SpotlightSearchView: View {
             .padding(.vertical, 10)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(InteractivePlainButtonStyle())
         .foregroundColor(.primary)
     }
 
@@ -370,8 +370,9 @@ struct SpotlightSearchView: View {
             .filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
             .map(\.order).max().map { $0 + 1 } ?? 0
         modelContext.insert(TaskItem(text: title, intervalType: HabitTaskLink.hourInterval, order: order))
-        _ = PersistenceSafety.save(modelContext, operation: "Adding Spotlight task")
-        SupabaseSyncManager.shared.push()
+        if PersistenceSafety.save(modelContext, operation: "Adding Spotlight task") {
+            SupabaseSyncManager.shared.push()
+        }
         closeSearch()
     }
     

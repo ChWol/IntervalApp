@@ -48,7 +48,7 @@ struct DataStoreUnavailableView: View {
             Image(systemName: "externaldrive.badge.exclamationmark")
                 .font(.system(size: 28, weight: .light))
                 .foregroundStyle(.secondary)
-            Text("Your data could not be opened")
+            Text("Your data could not be opened".localized)
                 .font(.system(size: 17, weight: .medium))
             Text(message)
                 .font(.system(size: 13, weight: .light))

@@ -10,6 +10,7 @@ struct MenuBarTaskView: View {
     @ObservedObject private var locManager = LocalizationManager.shared
     
     @Query(sort: \TaskItem.order) private var allTasks: [TaskItem]
+    @Query(sort: \HabitItem.order) private var allHabits: [HabitItem]
     
     @State private var newTaskText: String = ""
     @State private var isInputHovered: Bool = false
@@ -61,7 +62,7 @@ struct MenuBarTaskView: View {
                                     .font(.system(size: 12, weight: .light))
                                     .foregroundColor(.secondary)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(InteractivePlainButtonStyle())
                             .pointingHandCursor()
                             
                             Text(task.text)
@@ -124,7 +125,7 @@ struct MenuBarTaskView: View {
                     }
                     .foregroundColor(.secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .pointingHandCursor()
                 
                 Spacer()
@@ -149,17 +150,18 @@ struct MenuBarTaskView: View {
     
     private func toggleTask(_ task: TaskItem) {
         withAnimation(.easeInOut(duration: 0.2)) {
-            task.completed.toggle()
-            if task.completed {
-                task.completedAt = Date()
+            let now = Date()
+            let targetCompleted = !task.completed
+            HabitTaskLink.setTaskCompleted(targetCompleted, on: task, now: now)
+            if task.habitId != nil {
+                HabitTaskLink.applyTaskCompletionToHabit(task, habits: allHabits, now: now)
+            }
+            if targetCompleted {
                 SoundManager.playTaskCompleted()
             } else {
-                task.completedAt = nil
                 SoundManager.playUndo()
             }
-            task.updatedAt = Date()
-            _ = PersistenceSafety.save(modelContext)
-            SupabaseSyncManager.shared.push()
+            if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         }
     }
     
@@ -173,9 +175,10 @@ struct MenuBarTaskView: View {
             let maxOrder = (sorted.last?.order ?? -1) + 1
             let newTask = TaskItem(text: trimmed, intervalType: "1 Hour", order: maxOrder)
             modelContext.insert(newTask)
-            _ = PersistenceSafety.save(modelContext)
-            SupabaseSyncManager.shared.push()
-            newTaskText = ""
+            if PersistenceSafety.save(modelContext) {
+                SupabaseSyncManager.shared.push()
+                newTaskText = ""
+            }
         }
     }
     

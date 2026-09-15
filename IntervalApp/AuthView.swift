@@ -109,7 +109,7 @@ struct AuthView: View {
                                         .padding(.vertical, 2)
                                         .background(Capsule().fill(Color.primary.opacity(isKeyHovered ? 0.12 : 0.06)))
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(InteractivePlainButtonStyle())
                                     .pointingHandCursor()
                                     .help("Suggest strong password".localized)
                                     .onHover { hovering in
@@ -156,7 +156,7 @@ struct AuthView: View {
                                         .padding(4)
                                         .contentShape(Rectangle())
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(InteractivePlainButtonStyle())
                                 .pointingHandCursor()
                                 .help(isPasswordVisible ? "Hide password".localized : "Show password".localized)
                                 .onHover { hovering in
@@ -190,7 +190,7 @@ struct AuthView: View {
                                             .underline(isForgotHovered, color: .primary)
                                             .padding(.top, 2)
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(InteractivePlainButtonStyle())
                                     .pointingHandCursor()
                                     .onHover { hovering in
                                         withAnimation(.easeInOut(duration: 0.12)) {
@@ -251,7 +251,7 @@ struct AuthView: View {
                             .fill(isFormValid ? Color.primary : Color.primary.opacity(0.15))
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .pointingHandCursor()
                 .disabled(!isFormValid || syncManager.isLoading)
                 
@@ -280,7 +280,7 @@ struct AuthView: View {
                                     .fill(isBackHovered ? Color.primary.opacity(0.06) : Color.clear)
                             )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                         .pointingHandCursor()
                         .onHover { hovering in
                             withAnimation(.easeInOut(duration: 0.12)) {
@@ -313,7 +313,7 @@ struct AuthView: View {
                                     .fill(isToggleHovered ? Color.primary.opacity(0.06) : Color.clear)
                             )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                         .pointingHandCursor()
                         .onHover { hovering in
                             withAnimation(.easeInOut(duration: 0.12)) {

@@ -103,4 +103,45 @@ final class CrossPlatformInteractionsTests: XCTestCase {
         XCTAssertEqual(tasks.count, 1)
         XCTAssertEqual(tasks.first?.text, "Existing Safe Task")
     }
+
+    func testIntervalBackupImportIsIdempotentAndPreservesIdentityAndRelationships() throws {
+        let habit = store.addHabit("Read", id: "backup-habit")
+        habit.completionHistoryJSON = "[721692800]"
+        habit.updatedAt = now
+        let task = store.addTask("Read", interval: "1 Hour", order: 7,
+                                 habitId: habit.id, id: "backup-task")
+        task.createdAt = now.addingTimeInterval(-3_600)
+        task.updatedAt = now
+        let list = store.addScratchpadList("Notes", id: "backup-list")
+        list.order = 4
+        let item = store.addScratchpadItem("Remember", listId: list.id, id: "backup-item")
+        item.order = 3
+        try store.save()
+
+        let data = try XCTUnwrap(ExportManager.shared.generateBackupData(context: store.context))
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("json")
+        try data.write(to: url, options: .atomic)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let analysis = try ImportManager.shared.parseFile(at: url)
+        let restored = try TestStore()
+        for _ in 0..<2 {
+            XCTAssertTrue(ImportManager.shared.commitImport(
+                tasks: analysis.intervalTasks,
+                scratchpadLists: analysis.scratchpadLists,
+                habits: analysis.habits,
+                context: restored.context
+            ))
+        }
+
+        let restoredTask = try XCTUnwrap(restored.tasks().first)
+        XCTAssertEqual(try restored.tasks().count, 1)
+        XCTAssertEqual(restoredTask.id, task.id)
+        XCTAssertEqual(restoredTask.habitId, habit.id)
+        XCTAssertEqual(restoredTask.order, 7)
+        XCTAssertEqual(try restored.scratchpadLists().map(\.id), [list.id])
+        XCTAssertEqual(try restored.scratchpadItems().map(\.id), [item.id])
+        XCTAssertEqual(try restored.habits().map(\.id), [habit.id])
+        XCTAssertEqual(try restored.habits().first?.completionHistoryJSON, habit.completionHistoryJSON)
+    }
 }

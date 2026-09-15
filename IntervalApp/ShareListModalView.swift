@@ -41,7 +41,7 @@ struct ShareListModalView: View {
     var body: some View {
         ZStack {
             // Ambient Backdrop
-            Color.black.opacity(colorScheme == .dark ? 0.7 : 0.4)
+            AppVisualTokens.modalScrim(for: colorScheme)
                 .ignoresSafeArea()
                 .onTapGesture {
                     closeModal()
@@ -69,7 +69,7 @@ struct ShareListModalView: View {
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
                     .onHover { hovering in
                         isCloseHovered = hovering
@@ -110,7 +110,7 @@ struct ShareListModalView: View {
                                 .foregroundColor(Color(colorScheme == .dark ? .black : .white))
                                 .cornerRadius(8)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(InteractivePlainButtonStyle())
                             .pointingHandCursor()
                             .disabled(emailInput.trimmingCharacters(in: .whitespaces).isEmpty || isInviting)
                         }
@@ -286,7 +286,7 @@ struct ShareListModalView: View {
                                     .stroke(Color.red.opacity(isLeaveHovered ? 0.3 : 0.15), lineWidth: 1)
                             )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                         .pointingHandCursor()
                         .disabled(isLeaving)
                         .onHover { hovering in
@@ -428,8 +428,12 @@ struct ShareListModalView: View {
                         }
                     }
                     modelContext.delete(list)
-                    _ = PersistenceSafety.save(modelContext)
-                    closeModal()
+                    if PersistenceSafety.save(modelContext, operation: "Leaving shared list") {
+                        closeModal()
+                    } else {
+                        modelContext.rollback()
+                        self.errorMessage = "Your local copy could not be updated. Please try again.".localized
+                    }
                 } else {
                     self.errorMessage = "Failed to leave list".localized
                 }
@@ -485,7 +489,7 @@ private struct MemberRowView: View {
                     .frame(width: 22, height: 22)
                     .contentShape(Circle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .pointingHandCursor()
                 .help("Remove".localized)
                 .onHover { hovering in

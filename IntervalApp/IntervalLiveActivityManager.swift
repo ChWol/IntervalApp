@@ -8,12 +8,16 @@ final class IntervalLiveActivityManager {
     static let shared = IntervalLiveActivityManager()
     private init() {}
 
+    func endAll() async {
+        for activity in Activity<IntervalFocusActivityAttributes>.activities {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+    }
+
     func refresh(context: ModelContext) async {
         let enabled = UserDefaults.standard.object(forKey: "liveActivitiesEnabled") as? Bool ?? true
         guard enabled else {
-            for activity in Activity<IntervalFocusActivityAttributes>.activities {
-                await activity.end(nil, dismissalPolicy: .immediate)
-            }
+            await endAll()
             return
         }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }

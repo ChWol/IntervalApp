@@ -33,6 +33,16 @@ enum WidgetSnapshotStore {
     }
 
 #if !WIDGET_EXTENSION
+    static func clear() {
+        guard let url = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?
+            .appendingPathComponent(filename) else { return }
+        try? FileManager.default.removeItem(at: url)
+        #if os(iOS)
+        WidgetCenter.shared.reloadTimelines(ofKind: "IntervalHomeWidget")
+        #endif
+    }
+
     @MainActor
     static func write(context: ModelContext) {
         let descriptor = FetchDescriptor<TaskItem>(

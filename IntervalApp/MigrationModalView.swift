@@ -87,8 +87,7 @@ struct MigrationModalView: View {
     
     var body: some View {
         ZStack {
-            // Darkened/greyed out backdrop for strong modal focus
-            Color.black.opacity(0.75).ignoresSafeArea()
+            AppVisualTokens.modalScrim(for: colorScheme).ignoresSafeArea()
             
             VStack(alignment: .leading, spacing: 18) {
                 Text(modalTitle)
@@ -135,7 +134,7 @@ struct MigrationModalView: View {
                     
                     // Clicking Skip is available only when nothing is selected.
                     Button("Skip".localized) { onSkip() }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                         .padding(.horizontal, 15)
                         .padding(.vertical, 8)
                         .foregroundColor(hasSelection ? .secondary.opacity(0.3) : .primary)
@@ -151,7 +150,7 @@ struct MigrationModalView: View {
                             let validGoals = yearGoals.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
                             onCommitGoals(validGoals)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                         .padding(.horizontal, 18)
                         .padding(.vertical, 8)
                         .background(hasSelection ? Color.primary : Color.primary.opacity(0.12))
@@ -165,7 +164,7 @@ struct MigrationModalView: View {
                         Button("Migrate".localized) {
                             onMigrate(selectedTaskIds, selectedHabitIds, selectedReverseTaskIds)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(InteractivePlainButtonStyle())
                         .padding(.horizontal, 18)
                         .padding(.vertical, 8)
                         .background(hasSelection ? Color.primary : Color.primary.opacity(0.12))
@@ -190,7 +189,7 @@ struct MigrationModalView: View {
             Button(action: onSkip) {
                 EmptyView()
             }
-            .buttonStyle(.plain)
+            .buttonStyle(InteractivePlainButtonStyle())
             .keyboardShortcut(.escape, modifiers: [])
             .opacity(0)
             .frame(width: 0, height: 0)
@@ -321,7 +320,7 @@ struct MigrationModalView: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(InteractivePlainButtonStyle())
     }
     
     private func emptyHint(_ message: String) -> some View {
@@ -359,7 +358,7 @@ struct MigrationModalView: View {
                     .font(.system(size: 12, weight: .light))
                     .foregroundColor(.secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .padding(.top, 4)
             }
         }

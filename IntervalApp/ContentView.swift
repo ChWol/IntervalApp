@@ -34,6 +34,7 @@ struct ContentView: View {
     @State private var onboardingStepIndex = 0
     @State private var onboardingImportInProgress = false
     @State private var hasCompletedInitialPull = false
+    @State private var persistenceFailureMessage: String?
     
     @State private var hoveredTopButton: String? = nil
     
@@ -88,12 +89,10 @@ struct ContentView: View {
                                 // on the next run-loop turn includes their model changes.
                                 NotificationCenter.default.post(name: .flushPendingEdits, object: nil)
                                 focusedTaskId = nil
-                                DispatchQueue.main.async {
-                                    PersistenceSafety.prepareForBackground(
-                                        save: { PersistenceSafety.save(modelContext, operation: "Saving before backgrounding") },
-                                        scheduleSync: { syncManager.push() }
-                                    )
-                                }
+                                PersistenceSafety.prepareForBackground(
+                                    save: { PersistenceSafety.save(modelContext, operation: "Saving before backgrounding") },
+                                    scheduleSync: { syncManager.push() }
+                                )
                             }
                         }
                 } else {
@@ -138,7 +137,7 @@ struct ContentView: View {
                 Button(action: closeDeepFocus) {
                     EmptyView()
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .keyboardShortcut(.escape, modifiers: [])
                 .opacity(0)
                 .frame(width: 0, height: 0)
@@ -153,7 +152,7 @@ struct ContentView: View {
                         step: step,
                         index: onboardingStepIndex,
                         total: OnboardingStep.all.count,
-                        targetFrame: anchors[step.target].map { proxy[$0] },
+                        targetFrame: (anchors[step.target] ?? fallbackOnboardingAnchor(for: step, in: anchors)).map { proxy[$0] },
                         onBack: { changeOnboardingStep(by: -1) },
                         onNext: { changeOnboardingStep(by: 1) },
                         onSkip: finishOnboarding
@@ -169,6 +168,21 @@ struct ContentView: View {
             Button("OK", role: .cancel) { syncManager.signOutAlert = nil }
         } message: {
             Text(syncManager.signOutAlert ?? "")
+        }
+        .alert("Changes are still pending".localized, isPresented: Binding(
+            get: { persistenceFailureMessage != nil },
+            set: { if !$0 { persistenceFailureMessage = nil } }
+        )) {
+            Button("Try Again".localized) {
+                NotificationCenter.default.post(name: .flushPendingEdits, object: nil)
+                if PersistenceSafety.save(modelContext, operation: "Retrying save") {
+                    persistenceFailureMessage = nil
+                    syncManager.push()
+                }
+            }
+            Button("Keep Working".localized, role: .cancel) { persistenceFailureMessage = nil }
+        } message: {
+            Text(persistenceFailureMessage ?? "")
         }
         .onChange(of: syncManager.userId) { _, _ in
             hasCompletedInitialPull = false
@@ -214,8 +228,10 @@ struct ContentView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .persistenceSaveFailed)) { notification in
-            syncManager.lastError = notification.userInfo?["message"] as? String
+            let message = notification.userInfo?["message"] as? String
                 ?? "Saving changes failed. Your changes are still pending locally."
+            syncManager.lastError = message
+            persistenceFailureMessage = message
         }
     }
     
@@ -229,7 +245,7 @@ struct ContentView: View {
 
             VStack(spacing: 20) {
                 HStack {
-                    Text("DEEP FOCUS")
+                    Text("DEEP FOCUS".localized)
                         .font(.system(size: 10, weight: .light))
                         .tracking(2)
                         .foregroundStyle(.secondary)
@@ -240,7 +256,7 @@ struct ContentView: View {
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .foregroundStyle(.secondary)
                     .pointingHandCursor()
                     .help("Close Deep Focus")
@@ -430,7 +446,7 @@ struct ContentView: View {
                         )
                         .scaleEffect(isHovered ? 1.08 : 1.0)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
                     .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "intervals" : nil } }
                     .help("Switch to Interval Tasks".localized)
@@ -458,7 +474,7 @@ struct ContentView: View {
                         )
                         .scaleEffect(isHovered ? 1.08 : 1.0)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
                     .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "scratchpad" : nil } }
                     .help("Switch to Scratchpad Lists".localized)
@@ -481,7 +497,7 @@ struct ContentView: View {
                             )
                             .scaleEffect(isHovered ? 1.08 : 1.0)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
                     .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "habitStats" : nil } }
                     .help("Habit Statistics".localized)
@@ -509,7 +525,7 @@ struct ContentView: View {
                         )
                         .scaleEffect(isHovered ? 1.08 : 1.0)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
                     .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "settings" : nil } }
                     .help("Settings".localized)
@@ -537,7 +553,7 @@ struct ContentView: View {
                         )
                         .scaleEffect(isHovered ? 1.08 : 1.0)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
                     .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hoveredTopButton = h ? "search" : nil } }
                     .help("Search (⌘F)".localized)
@@ -553,7 +569,7 @@ struct ContentView: View {
                 }) {
                     EmptyView()
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .keyboardShortcut("f", modifiers: .command)
                 .opacity(0)
                 .frame(width: 0, height: 0)
@@ -562,7 +578,7 @@ struct ContentView: View {
                 Button(action: { Task { await syncManager.triggerManualSync() } }) {
                     EmptyView()
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .keyboardShortcut("r", modifiers: .command)
                 .opacity(0)
                 .frame(width: 0, height: 0)
@@ -574,7 +590,7 @@ struct ContentView: View {
                 }) {
                     EmptyView()
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .keyboardShortcut("k", modifiers: .command)
                 .opacity(0)
                 .frame(width: 0, height: 0)
@@ -585,7 +601,7 @@ struct ContentView: View {
                 }) {
                     EmptyView()
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(InteractivePlainButtonStyle())
                 .keyboardShortcut("p", modifiers: .command)
                 .opacity(0)
                 .frame(width: 0, height: 0)
@@ -664,7 +680,7 @@ struct ContentView: View {
                                         .font(.system(size: 11, weight: .light))
                                         .foregroundColor(.secondary)
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(InteractivePlainButtonStyle())
                                 .pointingHandCursor()
                             }
                             
@@ -679,7 +695,7 @@ struct ContentView: View {
                                     .font(.system(size: 11, weight: .light))
                                     .foregroundColor(.secondary)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(InteractivePlainButtonStyle())
                             .pointingHandCursor()
                         }
                         .padding(.top, 4)
@@ -720,7 +736,7 @@ struct ContentView: View {
                                         .font(.system(size: 11, weight: .light))
                                         .foregroundColor(.secondary)
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(InteractivePlainButtonStyle())
                                 .pointingHandCursor()
                             }
                             
@@ -735,7 +751,7 @@ struct ContentView: View {
                                     .font(.system(size: 11, weight: .light))
                                     .foregroundColor(.secondary)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(InteractivePlainButtonStyle())
                             .pointingHandCursor()
                         }
                         .padding(.top, 4)
@@ -781,7 +797,8 @@ struct ContentView: View {
             pendingEmail: pendingEmail,
             signedInEmail: syncManager.userEmail,
             accountIsEmpty: isAccountEmpty,
-            alreadyCompleted: UserDefaults.standard.bool(forKey: "onboardingCompleted.\(userId)")
+            alreadyCompleted: syncManager.onboardingCompletedForAccount ||
+                UserDefaults.standard.bool(forKey: "onboardingCompleted.\(userId)")
         ) {
             currentViewMode = .intervals
             onboardingPage = .welcome
@@ -820,6 +837,7 @@ struct ContentView: View {
     private func finishOnboarding() {
         if let userId = syncManager.userId {
             UserDefaults.standard.set(true, forKey: "onboardingCompleted.\(userId)")
+            syncManager.markOnboardingCompleted()
         }
         if UserDefaults.standard.string(forKey: "onboardingPendingEmail") == syncManager.userEmail?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
             UserDefaults.standard.removeObject(forKey: "onboardingPendingEmail")
@@ -827,6 +845,17 @@ struct ContentView: View {
         onboardingImportInProgress = false
         onboardingPage = nil
         currentViewMode = .intervals
+    }
+
+    private func fallbackOnboardingAnchor(
+        for step: OnboardingStep,
+        in anchors: [String: Anchor<CGRect>]
+    ) -> Anchor<CGRect>? {
+        switch step.target {
+        case "hourComplete", "hourFocus", "hourAdd": return anchors["1 Hour"]
+        case "scratchpadShare": return anchors["scratchpadNewList"]
+        default: return nil
+        }
     }
     
     // MARK: - Actions

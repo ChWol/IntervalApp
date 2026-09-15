@@ -20,6 +20,15 @@ class ScratchpadDragState: ObservableObject {
     static let shared = ScratchpadDragState()
     @Published var draggedItem: ScratchpadItem?
     @Published var draggedList: ScratchpadList?
+    var targetItem: ScratchpadItem?
+    var targetList: ScratchpadList?
+
+    func clear() {
+        draggedItem = nil
+        draggedList = nil
+        targetItem = nil
+        targetList = nil
+    }
 }
 
 // MARK: - Scratchpad Main View
@@ -126,7 +135,7 @@ struct ScratchpadView: View {
                                                 .foregroundColor(isSelected ? .primary : .secondary)
                                         }
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(InteractivePlainButtonStyle())
                                     .pointingHandCursor()
 
                                     if isSelected {
@@ -142,7 +151,7 @@ struct ScratchpadView: View {
                                                     .font(.system(size: 8))
                                                     .foregroundColor(.secondary.opacity(0.6))
                                             }
-                                            .buttonStyle(.plain)
+                                            .buttonStyle(InteractivePlainButtonStyle())
                                             .pointingHandCursor()
                                             .help("Edit list name")
                                         }
@@ -161,7 +170,7 @@ struct ScratchpadView: View {
                                                 .font(.system(size: 8))
                                                 .foregroundColor(.secondary.opacity(0.6))
                                         }
-                                        .buttonStyle(.plain)
+                                        .buttonStyle(InteractivePlainButtonStyle())
                                         .pointingHandCursor()
                                         .help(isSharedList ? "Leave List".localized : "Delete List".localized)
                                     }
@@ -179,6 +188,7 @@ struct ScratchpadView: View {
                             )
                             #if !os(watchOS)
                             .onDrag {
+                                ScratchpadDragState.shared.targetList = nil
                                 ScratchpadDragState.shared.draggedList = list
                                 return NSItemProvider(object: list.id as NSString)
                             }
@@ -207,7 +217,7 @@ struct ScratchpadView: View {
                                         .stroke(isNewListPlusHovered ? Color.primary.opacity(0.4) : Color.secondary.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [3]))
                                 )
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(InteractivePlainButtonStyle())
                             .pointingHandCursor()
                             .onHover { hovering in
                                 isNewListPlusHovered = hovering
@@ -248,7 +258,7 @@ struct ScratchpadView: View {
                                         .font(.system(size: 9))
                                         .foregroundColor(.primary)
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(InteractivePlainButtonStyle())
                                 .pointingHandCursor()
                             }
                             .padding(.horizontal, 10)
@@ -293,7 +303,7 @@ struct ScratchpadView: View {
                                 .fill(Color.primary.opacity(isCreateFirstListHovered ? 0.12 : 0.06))
                         )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
                     .onHover { hovering in
                         isCreateFirstListHovered = hovering
@@ -324,7 +334,7 @@ struct ScratchpadView: View {
                             .padding(4)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
                     .help(isListOwner ? "Share List".localized : "Shared List".localized)
                     .onHover { hovering in
@@ -341,7 +351,7 @@ struct ScratchpadView: View {
                             .padding(4)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
                     .onHover { hovering in
                         isItemPlusHovered = hovering
@@ -385,7 +395,7 @@ struct ScratchpadView: View {
                                     .font(.system(size: 10, weight: .light))
                                     .foregroundColor(.secondary)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(InteractivePlainButtonStyle())
                             .pointingHandCursor()
                         }
                         .padding(.top, 15)
@@ -536,8 +546,7 @@ struct ScratchpadView: View {
         let maxOrder = (activeLists.map { $0.order }.max() ?? -1) + 1
         let newList = ScratchpadList(title: trimmed, order: maxOrder, ownerId: SupabaseSyncManager.shared.userId, ownerEmail: SupabaseSyncManager.shared.userEmail)
         modelContext.insert(newList)
-        _ = PersistenceSafety.save(modelContext)
-        SupabaseSyncManager.shared.push()
+        if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         withAnimation {
             isCreatingList = false
             selectedListId = newList.id
@@ -549,8 +558,7 @@ struct ScratchpadView: View {
         if !trimmed.isEmpty {
             list.title = trimmed
             list.updatedAt = Date()
-            _ = PersistenceSafety.save(modelContext)
-            SupabaseSyncManager.shared.push()
+            if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         }
         editingListTitleId = nil
     }
@@ -562,8 +570,7 @@ struct ScratchpadView: View {
             item.deletedAt = Date()
             item.updatedAt = Date()
         }
-        _ = PersistenceSafety.save(modelContext)
-        SupabaseSyncManager.shared.push()
+        if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         if selectedListId == list.id {
             selectedListId = activeLists.first(where: { $0.id != list.id })?.id
         }
@@ -574,8 +581,7 @@ struct ScratchpadView: View {
         let maxOrder = (openItems.map { $0.order }.max() ?? -1) + 1
         let newItem = ScratchpadItem(listId: currentList.id, text: "", order: maxOrder)
         modelContext.insert(newItem)
-        _ = PersistenceSafety.save(modelContext)
-        SupabaseSyncManager.shared.push()
+        if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         DispatchQueue.main.async {
             focusedTaskId = newItem.id
         }
@@ -588,8 +594,7 @@ struct ScratchpadView: View {
                 item.deletedAt = now
                 item.updatedAt = now
             }
-            _ = PersistenceSafety.save(modelContext)
-            SupabaseSyncManager.shared.push()
+            if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         }
     }
     
@@ -672,7 +677,7 @@ struct ScratchpadItemRowView: View {
                             .foregroundColor(item.completed ? .primary : .secondary)
                             .padding(.top, 3)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                     .pointingHandCursor()
 
                     ZStack(alignment: .topLeading) {
@@ -756,7 +761,7 @@ struct ScratchpadItemRowView: View {
                                         .frame(width: 22, height: 22)
                                         .contentShape(Rectangle())
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(InteractivePlainButtonStyle())
                                 .pointingHandCursor()
                                 .onHover { hovering in
                                     isArrowHovered = hovering
@@ -774,7 +779,7 @@ struct ScratchpadItemRowView: View {
                                     .frame(width: 22, height: 22)
                                     .contentShape(Rectangle())
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(InteractivePlainButtonStyle())
                             .pointingHandCursor()
                             .onHover { hovering in
                                 isXHovered = hovering
@@ -804,12 +809,11 @@ struct ScratchpadItemRowView: View {
             if !isNew && newText != item.text {
                 item.text = newText
                 item.updatedAt = Date()
-                _ = PersistenceSafety.save(modelContext)
-                SupabaseSyncManager.shared.pushDebounced()
+                if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.pushDebounced() }
             }
         }
-        .onChange(of: item.text) { _, newText in
-            if !isCurrentlyFocused { text = newText }
+        .onChange(of: item.text) { oldText, newText in
+            if !isCurrentlyFocused || text == oldText { text = newText }
         }
         .onChange(of: focusedTaskId) { oldId, newId in
             if oldId == myId && newId != myId {
@@ -855,6 +859,7 @@ struct ScratchpadItemRowView: View {
         #if !os(watchOS)
         .onDrag {
             if !isNew {
+                ScratchpadDragState.shared.targetItem = nil
                 ScratchpadDragState.shared.draggedItem = item
                 return NSItemProvider(object: item.id as NSString)
             }
@@ -1013,8 +1018,7 @@ struct ScratchpadItemRowView: View {
             scratchItem.deletedAt = now
             scratchItem.updatedAt = now
         }
-        _ = PersistenceSafety.save(modelContext)
-        SupabaseSyncManager.shared.push()
+        if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         selectedItemIds.removeAll()
     }
 
@@ -1038,8 +1042,7 @@ struct ScratchpadItemRowView: View {
             scratchItem.updatedAt = now
             maxOrder += 1
         }
-        _ = PersistenceSafety.save(modelContext)
-        SupabaseSyncManager.shared.push()
+        if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         selectedItemIds.removeAll()
     }
 
@@ -1057,8 +1060,7 @@ struct ScratchpadItemRowView: View {
             item.completed.toggle()
             item.completedAt = item.completed ? Date() : nil
             item.updatedAt = Date()
-            _ = PersistenceSafety.save(modelContext)
-            SupabaseSyncManager.shared.push()
+            if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         }
     }
 
@@ -1071,8 +1073,7 @@ struct ScratchpadItemRowView: View {
                     let sorted = all.filter { $0.listId == listId && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
                     let newItem = ScratchpadItem(listId: listId, text: trimmed, order: (sorted.last?.order ?? -1) + 1)
                     modelContext.insert(newItem)
-                    _ = PersistenceSafety.save(modelContext)
-                    SupabaseSyncManager.shared.push()
+                    if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
                     text = ""
                 }
             }
@@ -1082,8 +1083,7 @@ struct ScratchpadItemRowView: View {
             } else if item.text != trimmed {
                 item.text = trimmed
                 item.updatedAt = Date()
-                _ = PersistenceSafety.save(modelContext)
-                SupabaseSyncManager.shared.push()
+                if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
             }
         }
     }
@@ -1108,8 +1108,7 @@ struct ScratchpadItemRowView: View {
             it.deletedAt = now
             it.updatedAt = now
         }
-        _ = PersistenceSafety.save(modelContext)
-        SupabaseSyncManager.shared.push()
+        if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         selectedItemIds.removeAll()
     }
 
@@ -1125,8 +1124,7 @@ struct ScratchpadItemRowView: View {
 
                     let nextItem = ScratchpadItem(listId: listId, text: "", order: newItem.order + 1)
                     modelContext.insert(nextItem)
-                    _ = PersistenceSafety.save(modelContext)
-                    SupabaseSyncManager.shared.push()
+                    if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
                     text = ""
                     DispatchQueue.main.async {
                         focusedTaskId = nextItem.id
@@ -1161,8 +1159,7 @@ struct ScratchpadItemRowView: View {
                         it.order = i
                         it.updatedAt = now
                     }
-                    _ = PersistenceSafety.save(modelContext)
-                    SupabaseSyncManager.shared.push()
+                    if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
                     DispatchQueue.main.async {
                         focusedTaskId = newItem.id
                     }
@@ -1200,8 +1197,7 @@ struct ScratchpadItemRowView: View {
             let trailingNewItem = ScratchpadItem(listId: listId, text: "", order: nextOrder)
             modelContext.insert(trailingNewItem)
 
-            _ = PersistenceSafety.save(modelContext)
-            SupabaseSyncManager.shared.push()
+            if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
 
             text = ""
             DispatchQueue.main.async {
@@ -1231,8 +1227,7 @@ struct ScratchpadItemRowView: View {
                 nextOrder += 1
             }
 
-            _ = PersistenceSafety.save(modelContext)
-            SupabaseSyncManager.shared.push()
+            if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
 
             if let lastId = lastCreatedItem?.id {
                 DispatchQueue.main.async {
@@ -1269,7 +1264,7 @@ struct TransferPopoverRow: View {
                     .fill(isHovered ? Color.primary.opacity(colorScheme == .dark ? 0.1 : 0.05) : Color.clear)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(InteractivePlainButtonStyle())
         .pointingHandCursor()
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.1)) { isHovered = hovering }
@@ -1287,24 +1282,8 @@ struct ScratchpadItemDropDelegate: DropDelegate {
 
     func dropEntered(info: DropInfo) {
         guard let draggedItem = ScratchpadDragState.shared.draggedItem else { return }
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-            if draggedItem.id != item.id || draggedItem.listId != item.listId {
-                draggedItem.listId = item.listId
-                let descriptor = FetchDescriptor<ScratchpadItem>()
-                guard let all = try? context.fetch(descriptor) else { return }
-                var sorted = all.filter { $0.listId == item.listId && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id }.sorted { $0.order < $1.order }
-
-                if let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) {
-                    sorted.insert(draggedItem, at: targetIdx)
-                } else {
-                    sorted.append(draggedItem)
-                }
-
-                for (i, it) in sorted.enumerated() {
-                    it.order = i
-                }
-            }
-        }
+        guard draggedItem.id != item.id || draggedItem.listId != item.listId else { return }
+        ScratchpadDragState.shared.targetItem = item
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
@@ -1312,13 +1291,24 @@ struct ScratchpadItemDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        if let draggedItem = ScratchpadDragState.shared.draggedItem {
-            draggedItem.updatedAt = Date()
+        guard let draggedItem = ScratchpadDragState.shared.draggedItem else { return false }
+        let target = ScratchpadDragState.shared.targetItem ?? item
+        let descriptor = FetchDescriptor<ScratchpadItem>()
+        guard let all = try? context.fetch(descriptor) else { return false }
+        let now = Date()
+        draggedItem.listId = target.listId
+        var sorted = all.filter {
+            $0.listId == target.listId && $0.deletedAt == nil && !$0.completed && $0.id != draggedItem.id
+        }.sorted { $0.order < $1.order }
+        let targetIndex = sorted.firstIndex(where: { $0.id == target.id }) ?? sorted.endIndex
+        sorted.insert(draggedItem, at: targetIndex)
+        for (index, candidate) in sorted.enumerated() where candidate.order != index || candidate === draggedItem {
+            candidate.order = index
+            candidate.updatedAt = now
         }
-        _ = PersistenceSafety.save(context)
-        SupabaseSyncManager.shared.push()
+        if PersistenceSafety.save(context) { SupabaseSyncManager.shared.push() }
         withAnimation(.easeInOut(duration: 0.15)) {
-            ScratchpadDragState.shared.draggedItem = nil
+            ScratchpadDragState.shared.clear()
         }
         return true
     }
@@ -1330,23 +1320,8 @@ struct ScratchpadListDropDelegate: DropDelegate {
 
     func dropEntered(info: DropInfo) {
         guard let draggedList = ScratchpadDragState.shared.draggedList else { return }
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-            if draggedList.id != item.id {
-                let descriptor = FetchDescriptor<ScratchpadList>()
-                guard let all = try? context.fetch(descriptor) else { return }
-                var sorted = all.filter { $0.deletedAt == nil && $0.id != draggedList.id }.sorted { $0.order < $1.order }
-
-                if let targetIdx = sorted.firstIndex(where: { $0.id == item.id }) {
-                    sorted.insert(draggedList, at: targetIdx)
-                } else {
-                    sorted.append(draggedList)
-                }
-
-                for (i, l) in sorted.enumerated() {
-                    l.order = i
-                }
-            }
-        }
+        guard draggedList.id != item.id else { return }
+        ScratchpadDragState.shared.targetList = item
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
@@ -1354,13 +1329,21 @@ struct ScratchpadListDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        if let draggedList = ScratchpadDragState.shared.draggedList {
-            draggedList.updatedAt = Date()
+        guard let draggedList = ScratchpadDragState.shared.draggedList else { return false }
+        let target = ScratchpadDragState.shared.targetList ?? item
+        let descriptor = FetchDescriptor<ScratchpadList>()
+        guard let all = try? context.fetch(descriptor) else { return false }
+        var sorted = all.filter { $0.deletedAt == nil && $0.id != draggedList.id }.sorted { $0.order < $1.order }
+        let targetIndex = sorted.firstIndex(where: { $0.id == target.id }) ?? sorted.endIndex
+        sorted.insert(draggedList, at: targetIndex)
+        let now = Date()
+        for (index, candidate) in sorted.enumerated() where candidate.order != index || candidate === draggedList {
+            candidate.order = index
+            candidate.updatedAt = now
         }
-        _ = PersistenceSafety.save(context)
-        SupabaseSyncManager.shared.push()
+        if PersistenceSafety.save(context) { SupabaseSyncManager.shared.push() }
         withAnimation(.easeInOut(duration: 0.15)) {
-            ScratchpadDragState.shared.draggedList = nil
+            ScratchpadDragState.shared.clear()
         }
         return true
     }

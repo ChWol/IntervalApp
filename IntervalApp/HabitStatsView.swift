@@ -77,7 +77,7 @@ struct HabitStatsView: View {
                                 Capsule().fill(selectedHabit?.id == habit.id ? Color.primary : Color.primary.opacity(0.06))
                             )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractivePlainButtonStyle())
                 }
             }
         }
