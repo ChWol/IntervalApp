@@ -844,6 +844,10 @@ struct SettingsView: View {
                 .opacity(0)
             )
         }
+        .onChange(of: showHabits) { _, _ in syncManager.updateAccountSettings(showHabits: showHabits, dayStartHour: dayStartHour, dayStartMinute: dayStartMinute, weekStartDay: weekStartDay) }
+        .onChange(of: dayStartHour) { _, _ in syncManager.updateAccountSettings(showHabits: showHabits, dayStartHour: dayStartHour, dayStartMinute: dayStartMinute, weekStartDay: weekStartDay) }
+        .onChange(of: dayStartMinute) { _, _ in syncManager.updateAccountSettings(showHabits: showHabits, dayStartHour: dayStartHour, dayStartMinute: dayStartMinute, weekStartDay: weekStartDay) }
+        .onChange(of: weekStartDay) { _, _ in syncManager.updateAccountSettings(showHabits: showHabits, dayStartHour: dayStartHour, dayStartMinute: dayStartMinute, weekStartDay: weekStartDay) }
     }
 
     // MARK: - Helpers

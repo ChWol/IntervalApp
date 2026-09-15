@@ -885,6 +885,28 @@ class SupabaseSyncManager: ObservableObject {
         }
         return true
     }
+
+    func updateAccountSettings(showHabits: Bool, dayStartHour: Int, dayStartMinute: Int, weekStartDay: String) {
+        Task { @MainActor in
+            _ = await updateUserMetadata([
+                "settings_show_habits": showHabits ? "true" : "false",
+                "settings_day_start_hour": String(dayStartHour),
+                "settings_day_start_minute": String(dayStartMinute),
+                "settings_week_start_day": weekStartDay
+            ])
+        }
+    }
+
+    private func applyAccountSettings(_ metadata: [String: String]) {
+        guard let show = metadata["settings_show_habits"], let hour = metadata["settings_day_start_hour"],
+              let minute = metadata["settings_day_start_minute"], let week = metadata["settings_week_start_day"],
+              let showValue = Bool(show), let hourValue = Int(hour), let minuteValue = Int(minute),
+              (0..<24).contains(hourValue), [0, 15, 30, 45].contains(minuteValue), ["Monday", "Sunday"].contains(week) else { return }
+        UserDefaults.standard.set(showValue, forKey: "showHabits")
+        UserDefaults.standard.set(hourValue, forKey: "dayStartHour")
+        UserDefaults.standard.set(minuteValue, forKey: "dayStartMinute")
+        UserDefaults.standard.set(week, forKey: "weekStartDay")
+    }
     
     func fetchUserMetadata() async -> [String: String]? {
         guard isAuthenticated, let url = URL(string: "\(supabaseURL)/auth/v1/user") else { return nil }
@@ -1420,6 +1442,7 @@ class SupabaseSyncManager: ObservableObject {
         noteSyncSuccess()
         
         if let metadata = await fetchUserMetadata() {
+            applyAccountSettings(metadata)
             MigrationManager.shared.applyRemoteMarkers(metadata)
             let remoteCompleted = metadata["onboarding_completed"] == "true"
             if remoteCompleted { onboardingCompletionPending = false }

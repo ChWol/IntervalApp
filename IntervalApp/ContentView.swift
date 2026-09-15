@@ -337,7 +337,9 @@ struct ContentView: View {
                                         TaskListView(
                                             title: interval.0,
                                             fontSize: interval.1,
-                                            tasks: allTasks.filter { $0.intervalType == interval.0 && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order },
+                                            tasks: allTasks.filter { $0.intervalType == interval.0 && $0.deletedAt == nil && !$0.completed }.sorted {
+                                                $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order
+                                            },
                                             focusedTaskId: $focusedTaskId,
                                             onDeepFocus: { task in
                                                 DragState.shared.reset()
