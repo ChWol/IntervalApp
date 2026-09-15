@@ -44,6 +44,9 @@ Local safeguards and the live server configuration audit are complete. End-to-en
 - [ ] Add a concise confirmation dialog before removing a collaborator from a shared list.
 - [ ] Add a concise confirmation dialog before leaving a shared list.
 - [ ] Show a clear account-deleted message when login is attempted with credentials for an account that no longer exists.
+- [ ] Show the iPhone Deep Focus affordance only after the task receives a long press.
+- [ ] Investigate slow manual-sync feedback and make reload completion/status feel immediate and trustworthy.
+- [ ] Make Watch authentication handoff/recovery reliable when the paired iPhone is already signed in.
 
 ## 2. Persistence and crash-safety tests
 
