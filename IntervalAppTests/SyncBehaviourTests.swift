@@ -570,7 +570,27 @@ final class SyncBehaviourTests: XCTestCase {
         let keys = Set(deviceA.manager.testingTaskPayload(plain).keys)
         XCTAssertEqual(keys, Set(deviceA.manager.testingTaskPayload(rich).keys))
         XCTAssertTrue(keys.isSuperset(of: ["id", "text", "completed", "created_at", "interval_type",
-                                           "order", "deleted_at", "completed_at", "user_id", "updated_at"]))
+                                           "interval_entered_at", "order", "deleted_at", "completed_at", "user_id", "updated_at"]))
+    }
+
+    func testIntervalEntryTimestampRoundTripsThroughTaskSync() throws {
+        let enteredAt = t0.addingTimeInterval(30)
+        let local = deviceA.createTask("Moved task", at: t0)
+        local.intervalEnteredAt = enteredAt
+        XCTAssertEqual(
+            SyncTimestamp.parse(deviceA.manager.testingTaskPayload(local)["interval_entered_at"] as? String),
+            enteredAt
+        )
+
+        let remote = SupabaseTaskDTO(
+            id: "remote-moved", text: "Remote moved task", completed: false,
+            created_at: SyncTimestamp.format(t0), interval_type: "1 Hour",
+            interval_entered_at: SyncTimestamp.format(enteredAt), order: 0,
+            deleted_at: nil, completed_at: nil, habit_id: nil,
+            user_id: deviceA.manager.testingUserId, updated_at: SyncTimestamp.format(enteredAt)
+        )
+        deviceA.manager.testingMerge(tasks: [remote])
+        XCTAssertEqual(try deviceA.task(id: remote.id)?.intervalEnteredAt, enteredAt)
     }
     
     func testPayloadSendsTimestampsInServerTime() throws {

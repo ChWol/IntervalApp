@@ -69,4 +69,33 @@ final class DataIntegrityRepairTests: XCTestCase {
         XCTAssertEqual(unrelated.updatedAt, unrelatedStamp)
         XCTAssertFalse(DataIntegrityRepair.repair(store.context))
     }
+
+    func testDuplicateScratchpadIdsAreMadeUniqueWithoutDeletingUserContent() throws {
+        let store = try TestStore()
+        let olderList = ScratchpadList(title: "First list", order: 0)
+        let newerList = ScratchpadList(title: "Second list", order: 1)
+        olderList.id = "duplicate-list"
+        newerList.id = "duplicate-list"
+        olderList.updatedAt = TestTime.now
+        newerList.updatedAt = TestTime.offset(60)
+
+        let olderItem = ScratchpadItem(listId: "duplicate-list", text: "First note", order: 0)
+        let newerItem = ScratchpadItem(listId: "duplicate-list", text: "Second note", order: 1)
+        olderItem.id = "duplicate-item"
+        newerItem.id = "duplicate-item"
+        olderItem.updatedAt = TestTime.now
+        newerItem.updatedAt = TestTime.offset(60)
+        [olderList, newerList].forEach(store.context.insert)
+        [olderItem, newerItem].forEach(store.context.insert)
+
+        XCTAssertTrue(DataIntegrityRepair.repair(store.context))
+        let lists = try store.scratchpadLists()
+        let items = try store.scratchpadItems()
+        XCTAssertEqual(lists.count, 2)
+        XCTAssertEqual(Set(lists.map(\.id)).count, 2)
+        XCTAssertEqual(Set(lists.map(\.title)), ["First list", "Second list"])
+        XCTAssertEqual(items.count, 2)
+        XCTAssertEqual(Set(items.map(\.id)).count, 2)
+        XCTAssertEqual(Set(items.map(\.text)), ["First note", "Second note"])
+    }
 }

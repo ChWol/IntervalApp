@@ -428,12 +428,11 @@ struct ShareListModalView: View {
                         }
                     }
                     modelContext.delete(list)
-                    if PersistenceSafety.save(modelContext, operation: "Leaving shared list") {
-                        closeModal()
-                    } else {
-                        modelContext.rollback()
-                        self.errorMessage = "Your local copy could not be updated. Please try again.".localized
-                    }
+                    // The server operation has already succeeded. Keep the local deletion
+                    // pending if disk persistence fails so the global retry alert can save it;
+                    // rolling back here would resurrect a list the account no longer belongs to.
+                    _ = PersistenceSafety.save(modelContext, operation: "Leaving shared list")
+                    closeModal()
                 } else {
                     self.errorMessage = "Failed to leave list".localized
                 }
