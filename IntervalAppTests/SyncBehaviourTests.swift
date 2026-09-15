@@ -58,6 +58,23 @@ final class SyncBehaviourTests: XCTestCase {
         XCTAssertEqual(server.upsertCount, afterFirst,
                        "Polling must not re-upload rows that have not changed")
     }
+
+    func testPostponedHabitRoundTripsThroughPayloadAndMerge() throws {
+        let habit = deviceA.store.addHabit("Read", postponedDate: t0, id: "h-postponed")
+        habit.updatedAt = t0
+        let payload = deviceA.manager.testingHabitPayload(habit)
+        XCTAssertNotNil(payload["postponed_date"] as? String)
+        deviceA.manager.testingMarkSynced(habit)
+
+        let remote = SupabaseHabitDTO(id: habit.id, text: habit.text, frequency: habit.frequency,
+                                      streak: habit.streak, last_completed_date: nil,
+                                      postponed_date: SyncTimestamp.format(t0), completion_history: "[]",
+                                      order: habit.order, deleted_at: nil, user_id: deviceA.manager.testingUserId,
+                                      updated_at: SyncTimestamp.format(t0.addingTimeInterval(60)))
+        _ = deviceA.manager.testingMerge(habits: [remote])
+        XCTAssertEqual(try deviceA.habit(id: habit.id)?.postponedDate?.timeIntervalSince1970 ?? 0,
+                       t0.timeIntervalSince1970, accuracy: 0.01)
+    }
     
     // MARK: - The data-loss regression
     

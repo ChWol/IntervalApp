@@ -59,6 +59,7 @@ struct HabitBackupDTO: Codable {
     let streak: Int
     let order: Int
     let lastCompletedDate: String?
+    let postponedDate: String?
     let updatedAt: String?
     let deletedAt: String?
 }
@@ -127,6 +128,7 @@ final class ExportManager {
                 streak: h.streak,
                 order: h.order,
                 lastCompletedDate: h.lastCompletedDate.map { Self.isoFormatter.string(from: $0) },
+                postponedDate: h.postponedDate.map { Self.isoFormatter.string(from: $0) },
                 updatedAt: Self.isoFormatter.string(from: h.updatedAt),
                 deletedAt: h.deletedAt.map { Self.isoFormatter.string(from: $0) }
             )

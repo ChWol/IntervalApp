@@ -43,7 +43,8 @@ enum HabitTaskLink {
         
         var order = startingOrder
         var created: [TaskItem] = []
-        for habit in habits where !alreadyListed.contains(habit.id) {
+        var seenInputIds = Set<String>()
+        for habit in habits where seenInputIds.insert(habit.id).inserted && !alreadyListed.contains(habit.id) {
             let text = habit.text.trimmingCharacters(in: .whitespaces)
             guard !text.isEmpty else { continue }
             let task = TaskItem(text: text, intervalType: hourInterval, order: order, habitId: habit.id)

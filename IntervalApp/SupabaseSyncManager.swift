@@ -96,6 +96,7 @@ struct SupabaseHabitDTO: Decodable {
     let frequency: String?
     let streak: Int?
     let last_completed_date: String?
+    let postponed_date: String?
     let completion_history: String?
     let order: Int?
     let deleted_at: String?
@@ -247,6 +248,7 @@ class SupabaseSyncManager: ObservableObject {
     /// column.  Keep syncing the rest of the habit row when that schema is
     /// encountered and transparently start sending history after migration.
     private var habitsSupportCompletionHistory = true
+    private var habitsSupportPostponedDate = true
     /// A lightweight one-time backfill lets a client that previously talked to
     /// an old schema publish its local history immediately after the SQL
     /// migration, even when the habit's other fields are already synced.
@@ -1149,6 +1151,7 @@ class SupabaseSyncManager: ObservableObject {
             "frequency": habit.frequency,
             "streak": habit.streak,
             "last_completed_date": habit.lastCompletedDate.map { SyncTimestamp.format($0) } ?? NSNull(),
+            "postponed_date": habit.postponedDate.map { SyncTimestamp.format($0) } ?? NSNull(),
             "order": habit.order,
             "deleted_at": habit.deletedAt.map { SyncTimestamp.format($0) } ?? NSNull(),
             "user_id": uid,
@@ -1157,6 +1160,7 @@ class SupabaseSyncManager: ObservableObject {
         if habitsSupportCompletionHistory {
             payload["completion_history"] = habit.completionHistoryJSON
         }
+        if !habitsSupportPostponedDate { payload.removeValue(forKey: "postponed_date") }
         return payload
     }
     
@@ -1377,6 +1381,7 @@ class SupabaseSyncManager: ObservableObject {
                     assign(dto.frequency ?? existing.frequency, to: existing, \.frequency)
                     assign(dto.streak ?? existing.streak, to: existing, \.streak)
                     assign(SyncTimestamp.parse(dto.last_completed_date), to: existing, \.lastCompletedDate)
+                    assign(SyncTimestamp.parse(dto.postponed_date), to: existing, \.postponedDate)
                     assign(dto.completion_history ?? existing.completionHistoryJSON, to: existing, \.completionHistoryJSON)
                     assign(dto.order ?? existing.order, to: existing, \.order)
                     assign(SyncTimestamp.parse(dto.deleted_at), to: existing, \.deletedAt)
@@ -1400,6 +1405,7 @@ class SupabaseSyncManager: ObservableObject {
                 habit.id = dto.id
                 habit.streak = dto.streak ?? 0
                 habit.lastCompletedDate = SyncTimestamp.parse(dto.last_completed_date)
+                habit.postponedDate = SyncTimestamp.parse(dto.postponed_date)
                 habit.completionHistoryJSON = dto.completion_history ?? "[]"
                 habit.deletedAt = SyncTimestamp.parse(dto.deleted_at)
                 habit.updatedAt = remoteStamp ?? Date()
@@ -1729,6 +1735,13 @@ class SupabaseSyncManager: ObservableObject {
                 let stripped = payload.map { row in row.filter { $0.key != "completion_history" } }
                 return await upsert(table: table, payload: stripped)
             }
+            if table == SyncTable.habits, habitsSupportPostponedDate,
+               Self.mentionsMissingPostponedDateColumn(body) {
+                print("[Supabase] habits.postponed_date is missing; postponement remains device-local. Add supabase/add_habit_postponed_date.sql to sync it.")
+                habitsSupportPostponedDate = false
+                let stripped = payload.map { row in row.filter { $0.key != "postponed_date" } }
+                return await upsert(table: table, payload: stripped)
+            }
         }
         
         return validate(response: response, data: data, action: "Upsert \(table)")
@@ -1751,6 +1764,12 @@ class SupabaseSyncManager: ObservableObject {
             || lowered.contains("42703")
             || lowered.contains("could not find")
             || lowered.contains("does not exist")
+    }
+
+    static func mentionsMissingPostponedDateColumn(_ body: String) -> Bool {
+        let lowered = body.lowercased()
+        guard lowered.contains("postponed_date") else { return false }
+        return lowered.contains("pgrst204") || lowered.contains("42703") || lowered.contains("could not find") || lowered.contains("does not exist")
     }
     
     private func deleteRows(table: String, ids: [String]) async -> Bool {
@@ -2095,6 +2114,11 @@ extension SupabaseSyncManager {
     var testingSupportsHabitCompletionHistoryColumn: Bool {
         get { habitsSupportCompletionHistory }
         set { habitsSupportCompletionHistory = newValue }
+    }
+
+    var testingSupportsHabitPostponedDateColumn: Bool {
+        get { habitsSupportPostponedDate }
+        set { habitsSupportPostponedDate = newValue }
     }
     
     var testingUserId: String? { userId }

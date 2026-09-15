@@ -70,6 +70,18 @@ public struct ImportedHabit: Identifiable {
     public let streak: Int
     public let order: Int
     public let lastCompletedDate: Date?
+    public let postponedDate: Date?
+
+    public init(id: String, text: String, frequency: String, streak: Int, order: Int,
+                lastCompletedDate: Date?, postponedDate: Date? = nil) {
+        self.id = id
+        self.text = text
+        self.frequency = frequency
+        self.streak = streak
+        self.order = order
+        self.lastCompletedDate = lastCompletedDate
+        self.postponedDate = postponedDate
+    }
 }
 
 public struct ImportAnalysis {
@@ -398,7 +410,8 @@ public final class ImportManager: Sendable {
             let habits = backup.habits.filter { $0.deletedAt == nil }.map {
                 ImportedHabit(id: $0.id, text: $0.text, frequency: $0.frequency,
                               streak: $0.streak, order: $0.order,
-                              lastCompletedDate: SyncTimestamp.parse($0.lastCompletedDate))
+                              lastCompletedDate: SyncTimestamp.parse($0.lastCompletedDate),
+                              postponedDate: SyncTimestamp.parse($0.postponedDate))
             }
             return ImportAnalysis(intervalTasks: intervalTasks, scratchpadLists: scratchpadLists,
                                   habits: habits, detectedSource: .intervalBackup)
@@ -533,6 +546,7 @@ public final class ImportManager: Sendable {
             item.id = habit.id
             item.streak = habit.streak
             item.lastCompletedDate = habit.lastCompletedDate
+            item.postponedDate = habit.postponedDate
             if let date = habit.lastCompletedDate { item.setCompletionDates([date]) }
             item.updatedAt = now
             context.insert(item)
