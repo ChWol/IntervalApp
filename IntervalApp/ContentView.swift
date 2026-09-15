@@ -162,6 +162,14 @@ struct ContentView: View {
             }
             .allowsHitTesting(onboardingPage == .tour)
         }
+        .alert("Sign out paused".localized, isPresented: Binding(
+            get: { syncManager.signOutAlert != nil },
+            set: { if !$0 { syncManager.signOutAlert = nil } }
+        )) {
+            Button("OK", role: .cancel) { syncManager.signOutAlert = nil }
+        } message: {
+            Text(syncManager.signOutAlert ?? "")
+        }
         .onChange(of: syncManager.userId) { _, _ in
             hasCompletedInitialPull = false
             onboardingPage = nil
@@ -582,27 +590,6 @@ struct ContentView: View {
                 .opacity(0)
                 .frame(width: 0, height: 0)
                 #endif
-                
-                if let err = syncManager.lastError {
-                    HStack(spacing: 8) {
-                        Text(err)
-                            .font(.system(size: 10, weight: .light))
-                            .foregroundColor(.red)
-                            .lineLimit(2)
-                        Button(action: { syncManager.lastError = nil }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 10))
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.red.opacity(0.08))
-                    )
-                }
                 
                 Spacer()
             }

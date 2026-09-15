@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "format": "Interval_Backup",
+  "exportedAt": "2026-09-14T10:00:00Z",
+  "tasks": [],
+  "habits": [
+    { "id": "test1-habit", "text": "Account A morning habit", "frequency": "Daily", "streak": 4, "order": 0, "lastCompletedDate": "2026-09-13T07:00:00Z", "updatedAt": "2026-09-14T09:10:00Z", "deletedAt": null },
+    { "id": "test1-weekly-habit", "text": "Account A weekly review", "frequency": "Weekly", "streak": 2, "order": 1, "lastCompletedDate": null, "updatedAt": "2026-09-14T09:10:00Z", "deletedAt": null }
+  ],
+  "scratchpadLists": [],
+  "scratchpadItems": []
+}

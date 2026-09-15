@@ -9,6 +9,7 @@ struct AuthView: View {
     }
     
     @StateObject private var syncManager = SupabaseSyncManager.shared
+    @ObservedObject private var localization = LocalizationManager.shared
     @State private var email = ""
     @State private var password = ""
     @State private var authMode: AuthMode = .signIn
@@ -20,7 +21,6 @@ struct AuthView: View {
     @State private var isBackHovered = false
     @State private var isEyeHovered = false
     @State private var isKeyHovered = false
-    @State private var savedAccounts: [(email: String, password: String)] = []
     
     @Environment(\.colorScheme) private var colorScheme
     
@@ -60,29 +60,6 @@ struct AuthView: View {
                             
                             Spacer()
                             
-                            if authMode == .signIn && !savedAccounts.isEmpty && (email.isEmpty || password.isEmpty) {
-                                Button(action: {
-                                    if let first = savedAccounts.first {
-                                        withAnimation(.easeInOut(duration: 0.15)) {
-                                            email = first.email
-                                            password = first.password
-                                        }
-                                    }
-                                }) {
-                                    HStack(spacing: 3) {
-                                        Image(systemName: "key.fill")
-                                            .font(.system(size: 8))
-                                        Text("AutoFill".localized)
-                                            .font(.system(size: 9, weight: .light))
-                                    }
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.primary.opacity(0.06)))
-                                }
-                                .buttonStyle(.plain)
-                                .pointingHandCursor()
-                            }
                         }
                         
                         TextField("", text: $email)
@@ -101,13 +78,6 @@ struct AuthView: View {
                                     .frame(height: 0.5),
                                 alignment: .bottom
                             )
-                            .onChange(of: email) { _, newEmail in
-                                if authMode == .signIn && password.isEmpty {
-                                    if let savedPass = KeychainManager.shared.getSavedPassword(for: newEmail) {
-                                        password = savedPass
-                                    }
-                                }
-                            }
                     }
                     
                     // Password Field (Only for Sign In / Sign Up)
@@ -357,13 +327,27 @@ struct AuthView: View {
                 Spacer()
             }
             .padding(40)
-        }
-        .onAppear {
-            savedAccounts = KeychainManager.shared.getSavedCredentials()
-            if authMode == .signIn && email.isEmpty, let first = savedAccounts.first {
-                email = first.email
-                password = first.password
+
+            Menu {
+                ForEach(AppLanguage.allCases) { language in
+                    Button {
+                        localization.currentLanguage = language
+                    } label: {
+                        if localization.currentLanguage == language {
+                            Label(language.displayName, systemImage: "checkmark")
+                        } else {
+                            Text(language.displayName)
+                        }
+                    }
+                }
+            } label: {
+                Label(localization.currentLanguage.displayName, systemImage: "globe")
+                    .font(.system(size: 11, weight: .light))
+                    .foregroundStyle(.secondary)
             }
+            .menuStyle(.borderlessButton)
+            .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         }
     }
     
@@ -407,14 +391,8 @@ struct AuthView: View {
             switch authMode {
             case .signIn:
                 await syncManager.signIn(email: email, password: password)
-                if syncManager.isAuthenticated {
-                    KeychainManager.shared.saveCredential(email: email, password: password)
-                }
             case .signUp:
                 let result = await syncManager.signUp(email: email, password: password)
-                if result.success || result.requiresConfirmation {
-                    KeychainManager.shared.saveCredential(email: email, password: password)
-                }
                 if result.requiresConfirmation {
                     successMessage = "Account created! Check your email to confirm, then sign in.".localized
                 }

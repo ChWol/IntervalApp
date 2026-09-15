@@ -839,6 +839,54 @@ class LocalizationManager: ObservableObject {
             .spanish: "Volver a iniciar sesión", .portuguese: "Voltar para o login", .italian: "Torna ad accedi",
             .arabic: "العودة لتسجيل الدخول", .chinese: "返回登录", .japanese: "サインインに戻る", .korean: "로그인으로 돌아가기"
         ],
+        "Sign in to sync your devices": [
+            .english: "Sign in to sync your devices", .german: "Anmelden, um deine Geräte zu synchronisieren",
+            .french: "Connectez-vous pour synchroniser vos appareils", .spanish: "Inicia sesión para sincronizar tus dispositivos",
+            .portuguese: "Inicie sessão para sincronizar os seus dispositivos", .italian: "Accedi per sincronizzare i tuoi dispositivi",
+            .arabic: "سجّل الدخول لمزامنة أجهزتك", .chinese: "登录以同步你的设备",
+            .japanese: "ログインしてデバイスを同期", .korean: "로그인하여 기기를 동기화하세요"
+        ],
+        "Sign out paused": [
+            .english: "Sign out paused", .german: "Abmeldung angehalten", .french: "Déconnexion interrompue",
+            .spanish: "Cierre de sesión en pausa", .portuguese: "Terminar sessão em pausa", .italian: "Disconnessione in pausa",
+            .arabic: "تم إيقاف تسجيل الخروج مؤقتاً", .chinese: "退出登录已暂停", .japanese: "ログアウトを一時停止しました", .korean: "로그아웃이 일시 중지됨"
+        ],
+        "Your changes are safe on this device. Let sync finish, then try signing out again.": [
+            .english: "Your changes are safe on this device. Let sync finish, then try signing out again.",
+            .german: "Deine Änderungen sind auf diesem Gerät sicher. Warte, bis die Synchronisierung abgeschlossen ist, und versuche es erneut.",
+            .french: "Vos modifications sont conservées sur cet appareil. Attendez la fin de la synchronisation, puis réessayez de vous déconnecter.",
+            .spanish: "Tus cambios están a salvo en este dispositivo. Espera a que termine la sincronización y vuelve a cerrar sesión.",
+            .portuguese: "As suas alterações estão seguras neste dispositivo. Aguarde a sincronização e tente terminar sessão novamente.",
+            .italian: "Le modifiche sono al sicuro su questo dispositivo. Attendi la sincronizzazione, poi riprova a disconnetterti.",
+            .arabic: "تغييراتك محفوظة على هذا الجهاز. انتظر اكتمال المزامنة ثم حاول تسجيل الخروج مجدداً.",
+            .chinese: "你的更改已安全保存在此设备上。等待同步完成后再尝试退出登录。",
+            .japanese: "変更はこのデバイスに安全に保存されています。同期が完了してからもう一度ログアウトしてください。",
+            .korean: "변경 사항은 이 기기에 안전하게 저장되어 있습니다. 동기화가 끝난 후 다시 로그아웃하세요."
+        ],
+        "Your changes are safe on this device. Connect to the internet and try signing out again after they sync.": [
+            .english: "Your changes are safe on this device. Connect to the internet and try signing out again after they sync.",
+            .german: "Deine Änderungen sind auf diesem Gerät sicher. Stelle eine Internetverbindung her und melde dich nach der Synchronisierung erneut ab.",
+            .french: "Vos modifications sont conservées sur cet appareil. Reconnectez-vous à Internet, puis réessayez après la synchronisation.",
+            .spanish: "Tus cambios están a salvo en este dispositivo. Conéctate a Internet y vuelve a cerrar sesión cuando se sincronicen.",
+            .portuguese: "As suas alterações estão seguras neste dispositivo. Ligue-se à Internet e tente terminar sessão após a sincronização.",
+            .italian: "Le modifiche sono al sicuro su questo dispositivo. Connettiti a Internet e riprova dopo la sincronizzazione.",
+            .arabic: "تغييراتك محفوظة على هذا الجهاز. اتصل بالإنترنت وحاول تسجيل الخروج بعد مزامنتها.",
+            .chinese: "你的更改已安全保存在此设备上。连接互联网，等待同步后再退出登录。",
+            .japanese: "変更はこのデバイスに安全に保存されています。インターネットに接続し、同期後にもう一度ログアウトしてください。",
+            .korean: "변경 사항은 이 기기에 안전하게 저장되어 있습니다. 인터넷에 연결하고 동기화한 후 다시 로그아웃하세요."
+        ],
+        "Your changes are safe on this device. Please try signing out again.": [
+            .english: "Your changes are safe on this device. Please try signing out again.",
+            .german: "Deine Änderungen sind auf diesem Gerät sicher. Versuche die Abmeldung erneut.",
+            .french: "Vos modifications sont conservées sur cet appareil. Réessayez de vous déconnecter.",
+            .spanish: "Tus cambios están a salvo en este dispositivo. Vuelve a intentar cerrar sesión.",
+            .portuguese: "As suas alterações estão seguras neste dispositivo. Tente terminar sessão novamente.",
+            .italian: "Le modifiche sono al sicuro su questo dispositivo. Riprova a disconnetterti.",
+            .arabic: "تغييراتك محفوظة على هذا الجهاز. حاول تسجيل الخروج مجدداً.",
+            .chinese: "你的更改已安全保存在此设备上。请再次尝试退出登录。",
+            .japanese: "変更はこのデバイスに安全に保存されています。もう一度ログアウトしてください。",
+            .korean: "변경 사항은 이 기기에 안전하게 저장되어 있습니다. 다시 로그아웃하세요."
+        ],
         "Password must be at least 6 characters": [
             .english: "Password must be at least 6 characters", .german: "Passwort muss mindestens 6 Zeichen lang sein", .french: "Le mot de passe doit comporter au moins 6 caractères",
             .spanish: "La contraseña debe tener al menos 6 caracteres", .portuguese: "A senha deve ter pelo menos 6 caracteres", .italian: "La password deve contenere almeno 6 caratteri",

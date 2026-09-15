@@ -28,6 +28,54 @@ private final class ScriptedTransport: HTTPDataTransport {
 }
 
 @MainActor
+private final class BlockingSyncTransport: HTTPDataTransport {
+    private(set) var requests: [URLRequest] = []
+    private var firstRequestSeen = false
+    private var firstRequestWaiter: CheckedContinuation<Void, Never>?
+    private var firstRequestRelease: CheckedContinuation<Void, Never>?
+    private var queuedCycleWaiter: CheckedContinuation<Void, Never>?
+
+    func waitForFirstRequest() async {
+        if firstRequestSeen { return }
+        await withCheckedContinuation { firstRequestWaiter = $0 }
+    }
+
+    func releaseFirstRequest() {
+        firstRequestRelease?.resume()
+        firstRequestRelease = nil
+    }
+
+    func waitForQueuedCycle() async {
+        if requests.count >= 11 { return }
+        await withCheckedContinuation { queuedCycleWaiter = $0 }
+    }
+
+    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        requests.append(request)
+        if !firstRequestSeen {
+            firstRequestSeen = true
+            firstRequestWaiter?.resume()
+            firstRequestWaiter = nil
+            await withCheckedContinuation { firstRequestRelease = $0 }
+        }
+        if requests.count >= 11 {
+            queuedCycleWaiter?.resume()
+            queuedCycleWaiter = nil
+        }
+        let body: Data
+        if request.url?.path.contains("/auth/v1/user") == true {
+            body = Data("{\"user_metadata\":{}}".utf8)
+        } else if request.httpMethod == "GET" {
+            body = Data("[]".utf8)
+        } else {
+            body = Data()
+        }
+        let status = request.httpMethod == "POST" ? 201 : 200
+        return (body, HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!)
+    }
+}
+
+@MainActor
 final class SyncTransportFailureTests: XCTestCase {
     private let ok = ScriptedTransport.Step.response(201, Data())
 
@@ -110,6 +158,47 @@ final class SyncTransportFailureTests: XCTestCase {
         XCTAssertTrue(recovered)
         XCTAssertEqual(task.syncedAt, task.updatedAt)
         XCTAssertEqual(try store.tasks().count, 1)
+    }
+
+    func testFailedPullKeepsOfflineEditForNextFullSyncCycle() async throws {
+        let store = try TestStore()
+        let task = store.addTask("Edited offline", updatedAt: TestTime.now)
+        let transport = ScriptedTransport([
+            .failure(.notConnectedToInternet),
+            .response(200, Data("[]".utf8)),
+            .response(200, Data("[]".utf8)),
+            .response(200, Data("[]".utf8)),
+            .response(200, Data("[]".utf8)),
+            .response(200, Data("{\"user_metadata\":{}}".utf8)),
+            .response(201, Data())
+        ])
+        let manager = SupabaseSyncManager.makeForTesting(context: store.context, transport: transport)
+
+        let first = await manager.testingRunSyncCycle()
+        XCTAssertFalse(first)
+        XCTAssertNil(task.syncedAt)
+        let second = await manager.testingRunSyncCycle()
+        XCTAssertTrue(second)
+        XCTAssertEqual(task.syncedAt, task.updatedAt)
+        XCTAssertEqual(transport.requests.filter { $0.httpMethod == "POST" }.count, 1)
+    }
+
+    func testOverlappingSyncRequestRunsAfterCurrentCycleFinishes() async throws {
+        let store = try TestStore()
+        let task = store.addTask("Mac edit awaiting upload", updatedAt: TestTime.now)
+        let transport = BlockingSyncTransport()
+        let manager = SupabaseSyncManager.makeForTesting(context: store.context, transport: transport)
+
+        let firstCycle = Task { await manager.testingRunSyncCycle() }
+        await transport.waitForFirstRequest()
+        let overlapping = await manager.testingRunSyncCycle()
+        XCTAssertFalse(overlapping, "An in-flight pull must not be reported as a completed sync")
+        transport.releaseFirstRequest()
+        let firstResult = await firstCycle.value
+        XCTAssertTrue(firstResult)
+        await transport.waitForQueuedCycle()
+        XCTAssertEqual(task.syncedAt, task.updatedAt)
+        XCTAssertEqual(transport.requests.filter { $0.httpMethod == "POST" }.count, 1)
     }
 
     func testFailedPreflightSavePreventsUploadAndKeepsTaskPending() async throws {

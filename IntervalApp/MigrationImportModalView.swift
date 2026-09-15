@@ -21,6 +21,7 @@ struct MigrationImportModalView: View {
     // Parsed Data for Kanban review
     @State private var parsedTasks: [ImportedTask] = []
     @State private var parsedScratchpadLists: [ImportedScratchpadList] = []
+    @State private var parsedHabits: [ImportedHabit] = []
     @State private var step: ImportStep = .upload
     @State private var isFileImporterPresented = false
     
@@ -303,7 +304,7 @@ struct MigrationImportModalView: View {
                     Image(systemName: "checkmark.circle")
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
-                    Text("\(totalTasks) \("Interval Tasks".localized) • \(totalLists) \("Scratchpad Lists".localized)")
+                Text("\(totalTasks) \("Interval Tasks".localized) • \(parsedHabits.count) \("Habits".localized) • \(totalLists) \("Scratchpad Lists".localized)")
                         .font(.system(size: 12, weight: .light))
                         .foregroundColor(.primary)
                 }
@@ -590,6 +591,7 @@ struct MigrationImportModalView: View {
                     self.isParsing = false
                     self.parsedTasks = analysis.intervalTasks
                     self.parsedScratchpadLists = analysis.scratchpadLists
+                    self.parsedHabits = analysis.habits
                     self.selectedSource = analysis.detectedSource
                     
                     if analysis.totalCount == 0 {
@@ -616,6 +618,7 @@ struct MigrationImportModalView: View {
         let succeeded = ImportManager.shared.commitImport(
             tasks: parsedTasks,
             scratchpadLists: parsedScratchpadLists,
+            habits: parsedHabits,
             context: modelContext
         )
         guard succeeded else {

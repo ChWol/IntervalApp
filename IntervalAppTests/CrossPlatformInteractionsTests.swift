@@ -63,6 +63,30 @@ final class CrossPlatformInteractionsTests: XCTestCase {
     }
     
     // MARK: - Export / Import Validation
+
+    func testRobustnessBackupImportsHabitsAlongsideTasksAndLists() throws {
+        let fixture = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("test-fixtures/robustness-test1.json")
+        let analysis = try ImportManager.shared.parseFile(at: fixture)
+        XCTAssertEqual(analysis.habits.map(\.text), ["Account A morning habit", "Account A weekly review"])
+        XCTAssertEqual(analysis.intervalTasks.count, 3, "Deleted backup rows are excluded from normal import")
+        XCTAssertTrue(ImportManager.shared.commitImport(
+            tasks: analysis.intervalTasks,
+            scratchpadLists: analysis.scratchpadLists,
+            habits: analysis.habits,
+            context: store.context
+        ))
+        XCTAssertEqual(Set(try store.habits().map(\.text)), Set(["Account A morning habit", "Account A weekly review"]))
+        XCTAssertEqual(try store.tasks().count, 3)
+        XCTAssertEqual(try store.scratchpadLists().count, 1)
+
+        let addOn = fixture.deletingLastPathComponent().appendingPathComponent("robustness-test1-habits.json")
+        let habitOnly = try ImportManager.shared.parseFile(at: addOn)
+        XCTAssertEqual(habitOnly.totalCount, 2)
+        XCTAssertTrue(ImportManager.shared.commitImport(tasks: [], scratchpadLists: [], habits: habitOnly.habits, context: store.context))
+        XCTAssertEqual(try store.habits().count, 2, "Repeating the habit import must not duplicate either habit")
+    }
     
     func testCorruptedImportDataIsRejectedWithoutModifyingExistingStore() throws {
         store.addTask("Existing Safe Task", interval: "1 Day", id: "safe-1")

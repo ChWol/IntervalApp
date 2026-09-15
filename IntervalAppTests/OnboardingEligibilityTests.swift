@@ -13,7 +13,7 @@ final class OnboardingEligibilityTests: XCTestCase {
             if language != .english && language != .german {
                 XCTAssertEqual(OnboardingTranslations.translations[language]?.count, OnboardingTranslations.keys.count, "Incomplete tour: \(language)")
             }
-            for key in OnboardingTranslations.keys + welcomeKeys {
+            for key in OnboardingTranslations.keys + welcomeKeys + ["Sign in to sync your devices", "Sign out paused"] {
                 XCTAssertTrue(manager.hasTranslation(for: key, language: language), "Missing \(language) translation: \(key)")
             }
         }

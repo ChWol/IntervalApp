@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import SwiftData
 import Combine
+import Network
 
 extension Notification.Name {
     static let onboardingRegistrationReady = Notification.Name("onboardingRegistrationReady")
@@ -188,6 +189,7 @@ class SupabaseSyncManager: ObservableObject {
     @Published var userEmail: String? = nil
     @Published var authError: String? = nil
     @Published var lastError: String? = nil
+    @Published var signOutAlert: String? = nil
     @Published var isLoading: Bool = false
     @Published var isSyncing: Bool = false
     @Published var lastSyncedAt: Date? = nil
@@ -217,6 +219,9 @@ class SupabaseSyncManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var debounceTimer: AnyCancellable?
     private var isSyncLoopRunning = false
+    private var isSyncCycleRunning = false
+    private var pendingSyncCycleRequested = false
+    private var networkMonitor: NWPathMonitor?
     
     private var isPushing = false
     private var isPulling = false
@@ -554,8 +559,9 @@ class SupabaseSyncManager: ObservableObject {
         // Never treat an already-running operation as confirmation that remote
         // persistence succeeded. Purging under an active pull also lets that pull
         // write stale rows into the newly emptied context.
-        guard !isPushing, !isPulling else {
+        guard !isPushing, !isPulling, !isSyncCycleRunning else {
             lastError = "Couldn't sign out while synchronization is still finishing. Please try again in a moment."
+            signOutAlert = "Your changes are safe on this device. Let sync finish, then try signing out again.".localized
             return
         }
         
@@ -579,11 +585,13 @@ class SupabaseSyncManager: ObservableObject {
             syncSucceeded: pushSucceeded
         ) else {
             lastError = "Couldn't sign out because some changes are not synced yet. Please try again when connected."
+            signOutAlert = "Your changes are safe on this device. Connect to the internet and try signing out again after they sync.".localized
             return
         }
 
         guard finalizeLocalSignOut() else {
             lastError = "Couldn't sign out because the local cache could not be safely cleared. Please try again."
+            signOutAlert = "Your changes are safe on this device. Please try signing out again.".localized
             return
         }
     }
@@ -602,6 +610,8 @@ class SupabaseSyncManager: ObservableObject {
         isAuthenticated = false
         isSyncLoopRunning = false
         cancellables.removeAll()
+        networkMonitor?.cancel()
+        networkMonitor = nil
         refreshTask?.cancel()
         refreshTask = nil
         missingTaskIds.removeAll()
@@ -825,6 +835,16 @@ class SupabaseSyncManager: ObservableObject {
         cancellables.removeAll()
         isSyncLoopRunning = true
         armLegacyBinPurgeIfNeeded(context: context)
+        let monitor = NWPathMonitor()
+        networkMonitor = monitor
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor in
+                guard let self, self.isAuthenticated else { return }
+                _ = await self.runSyncCycle(force: true)
+            }
+        }
+        monitor.start(queue: DispatchQueue(label: "IntervalApp.sync.network"))
         
         // Pull on app foreground, and flush pending edits before the app is suspended.
         #if os(macOS)
@@ -873,7 +893,19 @@ class SupabaseSyncManager: ObservableObject {
     @discardableResult
     private func runSyncCycle(force: Bool) async -> Bool {
         guard isAuthenticated else { return false }
+        if isSyncCycleRunning {
+            pendingSyncCycleRequested = true
+            return false
+        }
         if !force && !backoff.allowsAttempt() { return false }
+        isSyncCycleRunning = true
+        defer {
+            isSyncCycleRunning = false
+            if pendingSyncCycleRequested {
+                pendingSyncCycleRequested = false
+                Task { @MainActor in _ = await runSyncCycle(force: true) }
+            }
+        }
         
         let pulled = await pullFromSupabase()
         guard pulled else { return false }
@@ -927,7 +959,7 @@ class SupabaseSyncManager: ObservableObject {
     private func pushToSupabase() async -> Bool {
         if isPushing {
             pendingPushRequested = true
-            return true
+            return false
         }
         guard isAuthenticated, let context = modelContext, let uid = userId else { return false }
         
@@ -1171,7 +1203,7 @@ class SupabaseSyncManager: ObservableObject {
     private func pullFromSupabase() async -> Bool {
         if isPulling {
             pendingPullRequested = true
-            return true
+            return false
         }
         guard isAuthenticated, let context = modelContext, let uid = userId else { return false }
         
@@ -2023,6 +2055,7 @@ extension SupabaseSyncManager {
     }
 
     func testingPush() async -> Bool { await pushToSupabase() }
+    func testingRunSyncCycle() async -> Bool { await runSyncCycle(force: true) }
 
     func testingFetchTasks() async -> [SupabaseTaskDTO]? {
         guard let uid = userId else { return nil }

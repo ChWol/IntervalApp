@@ -63,12 +63,29 @@ public struct ImportedScratchpadItem: Identifiable, Hashable {
     }
 }
 
+public struct ImportedHabit: Identifiable {
+    public let id: String
+    public let text: String
+    public let frequency: String
+    public let streak: Int
+    public let order: Int
+    public let lastCompletedDate: Date?
+}
+
 public struct ImportAnalysis {
     public var intervalTasks: [ImportedTask]
     public var scratchpadLists: [ImportedScratchpadList]
+    public var habits: [ImportedHabit]
     public var detectedSource: ImportSource
     public var totalCount: Int {
-        intervalTasks.count + scratchpadLists.reduce(0) { $0 + $1.items.count }
+        intervalTasks.count + habits.count + scratchpadLists.reduce(0) { $0 + $1.items.count }
+    }
+
+    public init(intervalTasks: [ImportedTask], scratchpadLists: [ImportedScratchpadList], habits: [ImportedHabit] = [], detectedSource: ImportSource) {
+        self.intervalTasks = intervalTasks
+        self.scratchpadLists = scratchpadLists
+        self.habits = habits
+        self.detectedSource = detectedSource
     }
 }
 
@@ -378,7 +395,13 @@ public final class ImportManager: Sendable {
                 ))
             }
             
-            return ImportAnalysis(intervalTasks: intervalTasks, scratchpadLists: scratchpadLists, detectedSource: .intervalBackup)
+            let habits = backup.habits.filter { $0.deletedAt == nil }.map {
+                ImportedHabit(id: $0.id, text: $0.text, frequency: $0.frequency,
+                              streak: $0.streak, order: $0.order,
+                              lastCompletedDate: SyncTimestamp.parse($0.lastCompletedDate))
+            }
+            return ImportAnalysis(intervalTasks: intervalTasks, scratchpadLists: scratchpadLists,
+                                  habits: habits, detectedSource: .intervalBackup)
         }
         
         var intervalTasks: [ImportedTask] = []
@@ -496,12 +519,25 @@ public final class ImportManager: Sendable {
     public func commitImport(
         tasks: [ImportedTask],
         scratchpadLists: [ImportedScratchpadList],
+        habits: [ImportedHabit] = [],
         context: ModelContext
     ) -> Bool {
         // Commit any existing user edits first so rollback below can affect only
         // this import. A failed import must not leave a partial batch in memory.
         guard PersistenceSafety.save(context, operation: "Preparing data import") else { return false }
         let now = Date()
+
+        var existingHabitIds = Set(((try? context.fetch(FetchDescriptor<HabitItem>())) ?? []).map(\.id))
+        for habit in habits where !existingHabitIds.contains(habit.id) && !habit.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let item = HabitItem(text: habit.text, frequency: habit.frequency, order: habit.order)
+            item.id = habit.id
+            item.streak = habit.streak
+            item.lastCompletedDate = habit.lastCompletedDate
+            if let date = habit.lastCompletedDate { item.setCompletionDates([date]) }
+            item.updatedAt = now
+            context.insert(item)
+            existingHabitIds.insert(habit.id)
+        }
         
         // 1. Insert Interval Tasks
         let existingTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
