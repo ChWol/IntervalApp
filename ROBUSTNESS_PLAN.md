@@ -37,6 +37,9 @@ Local safeguards and the live server configuration audit are complete. End-to-en
 - [ ] Persist and synchronize habit postponement consistently between iPhone and Mac.
 - [ ] Localize every sign-in button and related authentication action on the login screen.
 - [ ] Restyle the login language picker in the app's neutral minimalist palette instead of the default blue accent.
+- [ ] Localize the registration screen's account-creation title and register action in all ten languages.
+- [ ] Make the import preview display the complete task set consistently before confirmation.
+- [ ] Make import-preview task dragging visibly respond and commit the intended ordering/move.
 
 ## 2. Persistence and crash-safety tests
 
