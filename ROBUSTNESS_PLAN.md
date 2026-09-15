@@ -33,6 +33,10 @@ Local safeguards and the live server configuration audit are complete. End-to-en
 - [ ] Reconcile ordering after independent edits on multiple devices so the same account presents a deterministic order everywhere.
 - [ ] Decide which Settings values are account-level and synchronize those values across devices; keep device-only preferences explicitly local.
 - [ ] Replace the failed-logout message with a clear localized explanation that unsaved changes are safe on this device but must sync after reconnecting before logout can complete. Add translations for all ten supported languages.
+- [ ] Make habit postponement reliable on iPhone, with an accessible long-press interaction where appropriate.
+- [ ] Persist and synchronize habit postponement consistently between iPhone and Mac.
+- [ ] Localize every sign-in button and related authentication action on the login screen.
+- [ ] Restyle the login language picker in the app's neutral minimalist palette instead of the default blue accent.
 
 ## 2. Persistence and crash-safety tests
 
