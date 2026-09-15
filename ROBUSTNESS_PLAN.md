@@ -43,6 +43,7 @@ Local safeguards and the live server configuration audit are complete. End-to-en
 - [ ] Require a deliberate typed confirmation token derived from the account identity before account deletion.
 - [ ] Add a concise confirmation dialog before removing a collaborator from a shared list.
 - [ ] Add a concise confirmation dialog before leaving a shared list.
+- [ ] Show a clear account-deleted message when login is attempted with credentials for an account that no longer exists.
 
 ## 2. Persistence and crash-safety tests
 
