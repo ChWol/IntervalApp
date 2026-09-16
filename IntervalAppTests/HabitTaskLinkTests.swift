@@ -26,6 +26,29 @@ final class HabitTaskLinkTests: XCTestCase {
         XCTAssertEqual(created.first?.habitId, habit.id)
     }
 
+    func testSameHabitImportedOnTwoDevicesInSameHourUsesSameTaskId() {
+        let firstCopy = HabitItem(text: "Meditate")
+        firstCopy.id = "shared-habit"
+        let secondCopy = HabitItem(text: "Meditate")
+        secondCopy.id = "shared-habit"
+
+        let first = HabitTaskLink.makeHourTasks(for: [firstCopy], existingHourTasks: [], startingOrder: 0, now: now)
+        let second = HabitTaskLink.makeHourTasks(for: [secondCopy], existingHourTasks: [], startingOrder: 0, now: now.addingTimeInterval(30))
+
+        XCTAssertEqual(first.count, 1)
+        XCTAssertEqual(second.count, 1)
+        XCTAssertEqual(first[0].id, second[0].id)
+    }
+
+    func testRepeatedImportInSameHourDoesNotRecreateRemovedTask() {
+        let habit = store.addHabit("Meditate", id: "shared-habit")
+        let first = HabitTaskLink.makeHourTasks(for: [habit], existingHourTasks: [], startingOrder: 0, now: now)
+        first[0].deletedAt = now
+
+        let repeated = HabitTaskLink.makeHourTasks(for: [habit], existingHourTasks: first, startingOrder: 1, now: now)
+        XCTAssertTrue(repeated.isEmpty)
+    }
+
     func testSelectableHabitsDeduplicatesRepeatedHabitRows() {
         let habit = store.addHabit("Meditate", id: "habit-once")
         let selectable = HabitTaskLink.selectableHabits(

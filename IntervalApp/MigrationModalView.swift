@@ -1,5 +1,8 @@
 #if !os(watchOS)
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 struct MigrationModalView: View {
     let migration: Migration
@@ -15,6 +18,9 @@ struct MigrationModalView: View {
     @State private var selectedReverseTaskIds: Set<String> = []
     @State private var yearGoals: [String] = ["", "", ""]
     @Environment(\.colorScheme) private var colorScheme
+    #if os(macOS)
+    @State private var escapeMonitor: Any?
+    #endif
     
     private var isYearReset: Bool {
         migration.source == "1 Year" && migration.dest == "1 Year"
@@ -184,8 +190,8 @@ struct MigrationModalView: View {
             .frame(maxWidth: isHourMigration ? 620 : 520)
             .padding(20)
 
-            // Escape always dismisses the transition, even when a selection
-            // disables the visible Skip button.
+            #if !os(macOS)
+            // External keyboards on iPad and iPhone use the SwiftUI shortcut.
             Button(action: onSkip) {
                 EmptyView()
             }
@@ -193,10 +199,22 @@ struct MigrationModalView: View {
             .keyboardShortcut(.escape, modifiers: [])
             .opacity(0)
             .frame(width: 0, height: 0)
+            #endif
         }
         #if os(macOS)
-        .onExitCommand {
-            onSkip()
+        .onAppear {
+            if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
+            escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                guard event.keyCode == 53, !event.modifierFlags.contains(.command) else { return event }
+                onSkip()
+                return nil
+            }
+        }
+        .onDisappear {
+            if let escapeMonitor {
+                NSEvent.removeMonitor(escapeMonitor)
+                self.escapeMonitor = nil
+            }
         }
         #endif
         .onAppear {

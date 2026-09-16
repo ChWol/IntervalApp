@@ -4,6 +4,13 @@ import Foundation
 /// Ticking either side ticks the other, and streaks are counted exactly once per period.
 enum HabitTaskLink {
     static let hourInterval = "1 Hour"
+
+    /// Both devices must name the same hour's generated task identically. Otherwise
+    /// simultaneous transitions create different rows that sync cannot recognize as one.
+    static func hourTaskId(habitId: String, now: Date) -> String {
+        let hour = Int(now.timeIntervalSince1970 / 3600)
+        return "habit-hour:\(habitId):\(hour)"
+    }
     
     // MARK: - Selection
     
@@ -40,14 +47,18 @@ enum HabitTaskLink {
                 .filter { $0.deletedAt == nil && !$0.completed }
                 .compactMap { $0.habitId }
         )
+        let existingIds = Set(existingHourTasks.map(\.id))
         
         var order = startingOrder
         var created: [TaskItem] = []
         var seenInputIds = Set<String>()
         for habit in habits where seenInputIds.insert(habit.id).inserted && !alreadyListed.contains(habit.id) {
+            let taskId = hourTaskId(habitId: habit.id, now: now)
+            guard !existingIds.contains(taskId) else { continue }
             let text = habit.text.trimmingCharacters(in: .whitespaces)
             guard !text.isEmpty else { continue }
             let task = TaskItem(text: text, intervalType: hourInterval, order: order, habitId: habit.id)
+            task.id = taskId
             task.updatedAt = now
             created.append(task)
             alreadyListed.insert(habit.id)

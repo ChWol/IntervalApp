@@ -641,6 +641,7 @@ struct ContentView: View {
                     ),
                     reverseTasks: TaskAgingHelper.findLingeringTasks(for: migration, in: allTasks),
                     onMigrate: { selectedTaskIds, selectedHabitIds, selectedReverseTaskIds in
+                        guard migrationManager.currentMigration?.id == migration.id else { return }
                         migrationManager.executeMigration(
                             migration: migration,
                             selectedTaskIds: selectedTaskIds,
@@ -652,6 +653,7 @@ struct ContentView: View {
                         migrationManager.commitYearGoals(goals)
                     },
                     onSkip: {
+                        guard migrationManager.currentMigration?.id == migration.id else { return }
                         migrationManager.skipMigration()
                     }
                 )
