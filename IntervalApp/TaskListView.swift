@@ -216,15 +216,33 @@ func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listT
     
     let descriptor = FetchDescriptor<TaskItem>()
     guard let allTasks = try? context.fetch(descriptor) else { return false }
+    let now = Date()
+    let stableId = HabitTaskLink.hourTaskId(habitId: habit.id, now: now)
+    if let existing = allTasks.first(where: {
+        $0.id == stableId && $0.intervalType == HabitTaskLink.hourInterval
+            && $0.deletedAt == nil && !$0.completed
+    }) {
+        if existing.habitId == nil {
+            existing.habitId = habit.id
+            existing.syncedAt = nil
+            if PersistenceSafety.save(context) { SupabaseSyncManager.shared.push() }
+        }
+        return false
+    }
     
     // If the habit is already present in 1 Hour as an active task, do NOT insert or duplicate
     let alreadyExists = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
     guard !alreadyExists else { return false }
     
     var sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
-    let now = Date()
     
     let newTask = TaskItem(text: habit.text, intervalType: HabitTaskLink.hourInterval, order: 0, habitId: habit.id)
+    // A completed copy may deliberately be added again; otherwise a drag and an
+    // hourly transition must identify this occurrence as the same task.
+    if !allTasks.contains(where: { $0.id == stableId }) {
+        newTask.id = stableId
+    }
+    newTask.createdAt = now
     newTask.updatedAt = now
     context.insert(newTask)
     HabitInsertionRegistry.remember(newTask, for: habit.id, in: context)
@@ -244,6 +262,7 @@ func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listT
         t.updatedAt = now
         t.syncedAt = nil
     }
+    _ = DataIntegrityRepair.repairDuplicateHourHabitTasks(allTasks + [newTask], now: now)
     
     guard PersistenceSafety.save(context) else { return false }
     SupabaseSyncManager.shared.push()

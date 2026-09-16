@@ -53,30 +53,7 @@ enum DataIntegrityRepair {
             }
         }
 
-        // A single habit drag must produce one active hour task. Earlier builds
-        // could deliver the same drop through overlapping row and slot targets.
-        // Retain the oldest copy and soft-delete only identical burst copies;
-        // differing user-edited text or older tasks remain untouched.
-        let activeLinkedHourTasks = tasks.filter {
-            $0.habitId != nil && $0.intervalType == HabitTaskLink.hourInterval
-                && $0.deletedAt == nil && !$0.completed
-        }
-        let byHabit = Dictionary(grouping: activeLinkedHourTasks, by: { $0.habitId! })
-        let repairTime = Date()
-        for copies in byHabit.values where copies.count > 1 {
-            let ordered = copies.sorted {
-                $0.createdAt == $1.createdAt ? $0.id < $1.id : $0.createdAt < $1.createdAt
-            }
-            guard let keeper = ordered.first else { continue }
-            for duplicate in ordered.dropFirst()
-            where duplicate.text == keeper.text
-                && duplicate.createdAt.timeIntervalSince(keeper.createdAt) <= 600 {
-                duplicate.deletedAt = repairTime
-                duplicate.updatedAt = repairTime
-                duplicate.syncedAt = nil
-                changed = true
-            }
-        }
+        if repairDuplicateHourHabitTasks(tasks) { changed = true }
 
         for item in items {
             if item.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -119,6 +96,36 @@ enum DataIntegrityRepair {
             }
         }
 
+        return changed
+    }
+
+    /// Collapse exact generated copies at the mutation boundary and after pulls,
+    /// while leaving distinctly edited tasks available for review.
+    @discardableResult
+    static func repairDuplicateHourHabitTasks(_ tasks: [TaskItem], now: Date = Date()) -> Bool {
+        let activeLinkedHourTasks = tasks.filter {
+            $0.habitId != nil && $0.intervalType == HabitTaskLink.hourInterval
+                && $0.deletedAt == nil && !$0.completed
+        }
+        let byHabitAndText = Dictionary(grouping: activeLinkedHourTasks, by: { "\($0.habitId!)\u{0}\($0.text)" })
+        var changed = false
+        for copies in byHabitAndText.values where copies.count > 1 {
+            let ordered = copies.sorted {
+                $0.createdAt == $1.createdAt ? $0.id < $1.id : $0.createdAt < $1.createdAt
+            }
+            guard let keeper = ordered.first else { continue }
+            for duplicate in ordered.dropFirst() {
+                // SwiftData permits duplicate application ids. Keep the live
+                // row's server identity; a deleted copy must not overwrite it.
+                if duplicate.id == keeper.id { duplicate.id = UUID().uuidString }
+                duplicate.deletedAt = now
+                // Keep the tombstone newer than a server row whose clock was
+                // ahead, or the next pull could reopen this exact copy.
+                duplicate.updatedAt = max(now, duplicate.updatedAt.addingTimeInterval(0.001))
+                duplicate.syncedAt = nil
+                changed = true
+            }
+        }
         return changed
     }
 

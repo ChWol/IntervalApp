@@ -105,6 +105,28 @@ final class HabitDragAndDropTests: XCTestCase {
         XCTAssertEqual(hourTasks.count, 1, "Must not duplicate an active habit task in 1 Hour")
     }
 
+    func testDragUsesSameHourIdentityAsTransition() throws {
+        let habit = store.addHabit("Journal", id: "h-j")
+        XCTAssertTrue(insertHabitAsTask(habit: habit, at: .top, listTitle: "1 Hour", context: store.context))
+        let dragged = try XCTUnwrap(store.tasks().first { $0.habitId == habit.id })
+        XCTAssertEqual(dragged.id, HabitTaskLink.hourTaskId(habitId: habit.id, now: dragged.createdAt))
+        XCTAssertTrue(HabitTaskLink.makeHourTasks(
+            for: [habit], existingHourTasks: try store.tasks(), startingOrder: 1, now: dragged.createdAt
+        ).isEmpty)
+    }
+
+    func testDragRelinksGeneratedTaskWhoseServerOmittedHabitId() throws {
+        let habit = store.addHabit("Journal", id: "h-j")
+        let taskId = HabitTaskLink.hourTaskId(habitId: habit.id, now: Date())
+        store.addTask("Journal", interval: "1 Hour", id: taskId)
+        try store.save()
+
+        XCTAssertFalse(insertHabitAsTask(habit: habit, at: .top, listTitle: "1 Hour", context: store.context))
+        let tasks = try store.tasks()
+        XCTAssertEqual(tasks.count, 1)
+        XCTAssertEqual(tasks.first?.habitId, habit.id)
+    }
+
     func testStartingTaskDragClearsAbandonedHabitDrag() throws {
         let habit = store.addHabit("Journal", id: "habit")
         let task = store.addTask("Real task", interval: "1 Day", order: 0, id: "task")

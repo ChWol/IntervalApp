@@ -515,6 +515,21 @@ final class SyncBehaviourTests: XCTestCase {
         let repeated = HabitTaskLink.makeHourTasks(for: [habit], existingHourTasks: [restored], startingOrder: 1, now: t0)
         XCTAssertTrue(repeated.isEmpty)
     }
+
+    func testPullCollapsesExactActiveHourHabitCopiesBeforeDisplayingThem() throws {
+        let habit = deviceA.createHabit("Stretch", at: t0, id: "habit-stretch")
+        for index in 0..<4 {
+            let task = deviceA.createTask("Stretch", interval: HabitTaskLink.hourInterval,
+                                          order: index, at: t0.addingTimeInterval(Double(index) * 3600))
+            task.habitId = habit.id
+        }
+        deviceA.push(to: server, at: t0)
+
+        try deviceB.pull(from: server)
+        let copies = try deviceB.tasks().filter { $0.habitId == habit.id }
+        XCTAssertEqual(copies.count, 4, "Repair must preserve rows for sync and recovery")
+        XCTAssertEqual(copies.filter { $0.deletedAt == nil && !$0.completed }.count, 1)
+    }
     
     func testMissingHabitColumnIsRecognisedFromTheServerError() {
         XCTAssertTrue(SupabaseSyncManager.mentionsMissingHabitIdColumn(

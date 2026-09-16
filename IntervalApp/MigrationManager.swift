@@ -448,6 +448,7 @@ class MigrationManager: ObservableObject {
         }
         
         // 3. Habits to Hour Tasks
+        var newHourHabitTasks: [TaskItem] = []
         if migration.dest == HabitTaskLink.hourInterval && !selectedHabitIds.isEmpty {
             let chosenHabits = allHabits.filter { selectedHabitIds.contains($0.id) }
             let hourHabitTasks = HabitTaskLink.makeHourTasks(
@@ -459,7 +460,9 @@ class MigrationManager: ObservableObject {
             for newTask in hourHabitTasks {
                 context.insert(newTask)
             }
+            newHourHabitTasks = hourHabitTasks
         }
+        _ = DataIntegrityRepair.repairDuplicateHourHabitTasks(allTasks + newHourHabitTasks, now: now)
         
         guard PersistenceSafety.save(context, operation: "Saving interval transition") else {
             context.rollback()

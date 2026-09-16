@@ -70,6 +70,51 @@ final class DataIntegrityRepairTests: XCTestCase {
         XCTAssertFalse(DataIntegrityRepair.repair(store.context))
     }
 
+    func testRepairCollapsesOlderExactHabitCopiesButPreservesEditedTask() throws {
+        let store = try TestStore()
+        let original = store.addTask("Stretch", interval: "1 Hour", habitId: "habit")
+        let duplicate = store.addTask("Stretch", interval: "1 Hour", habitId: "habit")
+        let edited = store.addTask("Stretch gently", interval: "1 Hour", habitId: "habit")
+        original.createdAt = TestTime.now
+        duplicate.createdAt = TestTime.offset(3600)
+        edited.createdAt = TestTime.offset(7200)
+        try store.save()
+
+        XCTAssertTrue(DataIntegrityRepair.repairDuplicateHourHabitTasks(try store.tasks(), now: TestTime.offset(10800)))
+        XCTAssertNil(original.deletedAt)
+        XCTAssertNotNil(duplicate.deletedAt)
+        XCTAssertNil(edited.deletedAt)
+    }
+
+    func testRepairPreservesLiveServerIdWhenDuplicateRowsShareIt() throws {
+        let store = try TestStore()
+        let keeper = store.addTask("Stretch", interval: "1 Hour", habitId: "habit", id: "shared-id")
+        let duplicate = store.addTask("Stretch", interval: "1 Hour", habitId: "habit", id: "shared-id")
+        keeper.createdAt = TestTime.now
+        duplicate.createdAt = TestTime.offset(1)
+        try store.save()
+
+        XCTAssertTrue(DataIntegrityRepair.repairDuplicateHourHabitTasks(try store.tasks()))
+        XCTAssertEqual(keeper.id, "shared-id")
+        XCTAssertNil(keeper.deletedAt)
+        XCTAssertNotEqual(duplicate.id, keeper.id)
+        XCTAssertNotNil(duplicate.deletedAt)
+    }
+
+    func testRepairTombstoneOutranksFutureStampedDuplicate() throws {
+        let store = try TestStore()
+        let original = store.addTask("Stretch", interval: "1 Hour", habitId: "habit")
+        let duplicate = store.addTask("Stretch", interval: "1 Hour", habitId: "habit")
+        original.createdAt = TestTime.now
+        duplicate.createdAt = TestTime.offset(1)
+        duplicate.updatedAt = TestTime.offset(3600)
+        try store.save()
+
+        XCTAssertTrue(DataIntegrityRepair.repairDuplicateHourHabitTasks(try store.tasks(), now: TestTime.now))
+        XCTAssertGreaterThan(duplicate.updatedAt, TestTime.offset(3600))
+        XCTAssertNotNil(duplicate.deletedAt)
+    }
+
     func testDuplicateScratchpadIdsAreMadeUniqueWithoutDeletingUserContent() throws {
         let store = try TestStore()
         let olderList = ScratchpadList(title: "First list", order: 0)

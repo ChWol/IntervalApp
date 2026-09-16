@@ -85,6 +85,7 @@ enum HabitTaskLink {
         for task in candidates {
             if let habit = habits.first(where: { hourTaskId(habitId: $0.id, now: task.createdAt) == task.id }) {
                 task.habitId = habit.id
+                task.syncedAt = nil
                 changed = true
             }
         }
