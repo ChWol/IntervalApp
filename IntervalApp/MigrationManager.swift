@@ -36,6 +36,9 @@ class MigrationManager: ObservableObject {
     private var accountId: String?
     private var pendingMarkerKey: String?
     private var pendingMarkerValue: String?
+    /// A transition action can be delivered again while its dismissal animates.
+    /// Never commit the same displayed transition more than once.
+    private var committedMigrationIds: [UUID] = []
     private var announceMigration: (Migration) -> Void = { migration in
         SoundManager.playTransitionChime()
         NotificationManager.shared.sendMigrationNotification(for: migration)
@@ -399,6 +402,8 @@ class MigrationManager: ObservableObject {
                           selectedTaskIds: Set<String>,
                           selectedHabitIds: Set<String> = [],
                           selectedReverseTaskIds: Set<String> = []) {
+        guard !committedMigrationIds.contains(migration.id) else { return }
+        if let currentMigration, currentMigration.id != migration.id { return }
         guard let context = modelContext else {
             currentMigration = nil
             return
@@ -460,6 +465,8 @@ class MigrationManager: ObservableObject {
             context.rollback()
             return
         }
+        committedMigrationIds.append(migration.id)
+        if committedMigrationIds.count > 32 { committedMigrationIds.removeFirst() }
         if let (key, value) = markerToCommit {
             setMarker(value, for: key)
             pendingMarkerKey = nil

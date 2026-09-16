@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 /// Rules connecting habits to the hour tasks created from them during an hourly migration.
 /// Ticking either side ticks the other, and streaks are counted exactly once per period.
@@ -9,7 +10,13 @@ enum HabitTaskLink {
     /// simultaneous transitions create different rows that sync cannot recognize as one.
     static func hourTaskId(habitId: String, now: Date) -> String {
         let hour = Int(now.timeIntervalSince1970 / 3600)
-        return "habit-hour:\(habitId):\(hour)"
+        var bytes = Array(Insecure.SHA1.hash(data: Data("interval:habit-hour:\(habitId):\(hour)".utf8)).prefix(16))
+        bytes[6] = (bytes[6] & 0x0f) | 0x50
+        bytes[8] = (bytes[8] & 0x3f) | 0x80
+        return UUID(uuid: (
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]
+        )).uuidString
     }
     
     // MARK: - Selection
@@ -59,12 +66,29 @@ enum HabitTaskLink {
             guard !text.isEmpty else { continue }
             let task = TaskItem(text: text, intervalType: hourInterval, order: order, habitId: habit.id)
             task.id = taskId
+            task.createdAt = now
             task.updatedAt = now
             created.append(task)
             alreadyListed.insert(habit.id)
             order += 1
         }
         return created
+    }
+
+    /// Older server schemas omit habit_id. The generated UUID still lets us
+    /// restore the link after a fresh login without guessing from task text.
+    @discardableResult
+    static func recoverGeneratedLinks(tasks: [TaskItem], habits: [HabitItem]) -> Bool {
+        let candidates = tasks.filter { $0.habitId == nil && $0.intervalType == hourInterval }
+        guard !candidates.isEmpty else { return false }
+        var changed = false
+        for task in candidates {
+            if let habit = habits.first(where: { hourTaskId(habitId: $0.id, now: task.createdAt) == task.id }) {
+                task.habitId = habit.id
+                changed = true
+            }
+        }
+        return changed
     }
     
     // MARK: - Completion Mirroring

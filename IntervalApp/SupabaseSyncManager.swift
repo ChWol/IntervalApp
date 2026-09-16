@@ -1426,6 +1426,7 @@ class SupabaseSyncManager: ObservableObject {
         _ = mergeRemoteHabits(remoteHabits, context: context, uid: uid)
         let localTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
         let localHabits = (try? context.fetch(FetchDescriptor<HabitItem>())) ?? []
+        _ = HabitTaskLink.recoverGeneratedLinks(tasks: localTasks, habits: localHabits)
         _ = HabitTaskLink.reconcileCompletion(tasks: localTasks, habits: localHabits)
         _ = mergeRemoteScratchpadLists(remoteScratchpadLists, context: context, uid: uid)
         let authorizedRemoteListIds = Set(remoteScratchpadLists.compactMap { dto in
@@ -2362,6 +2363,7 @@ extension SupabaseSyncManager {
         if mergeRemoteHabits(habits, context: context, uid: uid) { needsFollowup = true }
         let localTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
         let localHabits = (try? context.fetch(FetchDescriptor<HabitItem>())) ?? []
+        if HabitTaskLink.recoverGeneratedLinks(tasks: localTasks, habits: localHabits) { needsFollowup = true }
         if HabitTaskLink.reconcileCompletion(tasks: localTasks, habits: localHabits) { needsFollowup = true }
         return persist(context) ? needsFollowup : false
     }

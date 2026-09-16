@@ -499,6 +499,22 @@ final class SyncBehaviourTests: XCTestCase {
         
         XCTAssertEqual(try deviceA.task(id: task.id)?.habitId, habit.id)
     }
+
+    func testGeneratedHourHabitTaskRecoversLinkAfterLoginWithoutHabitColumn() throws {
+        let habit = deviceA.createHabit("Stretch", at: t0, id: "habit-stretch")
+        let generated = try XCTUnwrap(HabitTaskLink.makeHourTasks(
+            for: [habit], existingHourTasks: [], startingOrder: 0, now: t0
+        ).first)
+        deviceA.store.context.insert(generated)
+        deviceA.push(to: server, at: t0)
+        server.removeColumn(table: SyncTable.tasks, key: "habit_id")
+
+        try deviceB.pull(from: server)
+        let restored = try XCTUnwrap(deviceB.task(id: generated.id))
+        XCTAssertEqual(restored.habitId, habit.id)
+        let repeated = HabitTaskLink.makeHourTasks(for: [habit], existingHourTasks: [restored], startingOrder: 1, now: t0)
+        XCTAssertTrue(repeated.isEmpty)
+    }
     
     func testMissingHabitColumnIsRecognisedFromTheServerError() {
         XCTAssertTrue(SupabaseSyncManager.mentionsMissingHabitIdColumn(

@@ -62,6 +62,27 @@ final class MigrationManagerTests: XCTestCase {
         let linked = try store.tasks().filter { $0.habitId == habit.id && $0.deletedAt == nil }
         XCTAssertEqual(linked.count, 1)
     }
+
+    func testSameHourTransitionActionDeliveredFourTimesCreatesOneHabitTask() throws {
+        let habit = store.addHabit("Meditate", id: "habit-a")
+        try store.save()
+        let migration = Migration(source: "1 Day", dest: HabitTaskLink.hourInterval)
+        manager.currentMigration = migration
+
+        manager.executeMigration(migration: migration, selectedTaskIds: [], selectedHabitIds: [habit.id])
+        // The original dialog must remain consumed even if its callback is delivered
+        // after that task has left the hour list.
+        let inserted = try XCTUnwrap(store.tasks().first { $0.habitId == habit.id })
+        inserted.intervalType = "1 Day"
+        try store.save()
+        for _ in 0..<3 {
+            manager.executeMigration(migration: migration, selectedTaskIds: [], selectedHabitIds: [habit.id])
+        }
+
+        let tasks = try store.tasks().filter { $0.habitId == habit.id && $0.deletedAt == nil }
+        XCTAssertEqual(tasks.count, 1)
+        XCTAssertNil(manager.currentMigration)
+    }
     
     func testSkipMigrationClearsCurrentMigration() {
         manager.currentMigration = Migration(source: "1 Week", dest: "1 Day")

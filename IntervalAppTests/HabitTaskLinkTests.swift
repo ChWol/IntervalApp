@@ -38,6 +38,8 @@ final class HabitTaskLinkTests: XCTestCase {
         XCTAssertEqual(first.count, 1)
         XCTAssertEqual(second.count, 1)
         XCTAssertEqual(first[0].id, second[0].id)
+        XCTAssertNotNil(UUID(uuidString: first[0].id))
+        XCTAssertNotEqual(first[0].id, HabitTaskLink.hourTaskId(habitId: firstCopy.id, now: now.addingTimeInterval(3600)))
     }
 
     func testRepeatedImportInSameHourDoesNotRecreateRemovedTask() {
