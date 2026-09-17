@@ -127,6 +127,8 @@ struct TaskListView: View {
                 .foregroundColor(Color(white: colorScheme == .dark ? 0.15 : 0.9)),
             alignment: .bottom
         )
+        .onDrop(of: [UTType.data, UTType.plainText, UTType.text],
+                delegate: TaskListBodyDropDelegate(listTitle: title, context: modelContext))
     }
     
     private var habitInsertionPlaceholder: some View {
@@ -336,6 +338,33 @@ enum TaskDragMutation {
 
 #if !os(watchOS)
 // MARK: - List Drop Delegates
+
+/// Catches drops in spacing between rows and around the animated insertion card.
+struct TaskListBodyDropDelegate: DropDelegate {
+    let listTitle: String
+    let context: ModelContext
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DragState.shared.noteDragActivity()
+        HabitDragState.shared.noteDragActivity()
+        if HabitDragState.shared.draggedHabit != nil {
+            return DropProposal(operation: listTitle == HabitTaskLink.hourInterval ? .move : .forbidden)
+        }
+        return DropProposal(operation: DragState.shared.draggedTask == nil ? .forbidden : .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        let index: Int
+        if DragState.shared.targetIntervalType == listTitle, let target = DragState.shared.targetIndex {
+            index = target
+        } else {
+            index = ((try? context.fetch(FetchDescriptor<TaskItem>())) ?? []).filter {
+                $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed
+            }.count
+        }
+        return TaskListInsertionDropDelegate.commitDrop(to: listTitle, at: index, context: context)
+    }
+}
 
 /// The full-height insertion card is itself a drop target. Without this,
 /// SwiftUI can end the drag over the visible card instead of the row below it,

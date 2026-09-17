@@ -683,6 +683,16 @@ class DragState: ObservableObject {
         }
     }
 
+    private func resetAfterNativeDropWindow() {
+        let generation = dragGeneration
+        // AppKit can finish the mouse gesture well before SwiftUI dispatches
+        // performDrop, especially when a placeholder changes the row layout.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self, self.dragGeneration == generation else { return }
+            self.reset()
+        }
+    }
+
     func noteDragActivity() {
         targetActivityGeneration += 1
         #if os(iOS)
@@ -726,7 +736,7 @@ class DragState: ObservableObject {
                 
                 if event.type == .leftMouseUp {
                     DispatchQueue.main.async {
-                        self.resetAfterDropWindow()
+                        self.resetAfterNativeDropWindow()
                     }
                 } else if event.type == .leftMouseDragged {
                     if let window = event.window {
@@ -859,6 +869,7 @@ struct TaskDropDelegate: DropDelegate {
         }
         
         guard let draggedItem = DragState.shared.draggedTask else { return false }
+        updateTaskTarget(info: info)
         let changed = TaskDragMutation.commit(
             draggedItem,
             to: item.intervalType,

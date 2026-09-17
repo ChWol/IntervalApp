@@ -1,6 +1,9 @@
 #if !os(watchOS)
 import SwiftUI
 import SwiftData
+#if os(macOS)
+import AppKit
+#endif
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -35,6 +38,9 @@ struct ContentView: View {
     @State private var onboardingImportInProgress = false
     @State private var hasCompletedInitialPull = false
     @State private var persistenceFailureMessage: String?
+    #if os(macOS)
+    @State private var migrationEscapeMonitor: Any?
+    #endif
     
     @State private var hoveredTopButton: String? = nil
     
@@ -162,6 +168,13 @@ struct ContentView: View {
             }
             .allowsHitTesting(onboardingPage == .tour)
         }
+        #if os(macOS)
+        .onAppear { updateMigrationEscapeMonitor() }
+        .onChange(of: migrationManager.currentMigration?.id) { _, _ in
+            updateMigrationEscapeMonitor()
+        }
+        .onDisappear { removeMigrationEscapeMonitor() }
+        #endif
         .alert("Sign out paused".localized, isPresented: Binding(
             get: { syncManager.signOutAlert != nil },
             set: { if !$0 { syncManager.signOutAlert = nil } }
@@ -924,5 +937,27 @@ struct ContentView: View {
             }
         }
     }
+
+    #if os(macOS)
+    private func updateMigrationEscapeMonitor() {
+        removeMigrationEscapeMonitor()
+        guard migrationManager.currentMigration != nil else { return }
+        migrationEscapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.keyCode == 53, event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty else {
+                return event
+            }
+            guard let migration = migrationManager.currentMigration else { return event }
+            migrationManager.skipMigration(expectedMigrationId: migration.id)
+            return nil
+        }
+    }
+
+    private func removeMigrationEscapeMonitor() {
+        if let migrationEscapeMonitor {
+            NSEvent.removeMonitor(migrationEscapeMonitor)
+            self.migrationEscapeMonitor = nil
+        }
+    }
+    #endif
 }
 #endif
