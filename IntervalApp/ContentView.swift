@@ -79,6 +79,7 @@ struct ContentView: View {
                         }
                         .onChange(of: scenePhase) { _, newPhase in
                             if newPhase == .active {
+                                migrationManager.checkMigrations()
                                 Task {
                                     await syncManager.triggerManualSync()
                                     migrationManager.checkMigrations()
@@ -631,7 +632,8 @@ struct ContentView: View {
                     .zIndex(150)
             }
             
-            if let migration = migrationManager.currentMigration {
+            if let migration = migrationManager.currentMigration,
+               migrationManager.isCurrentMigrationFresh() {
                 MigrationModalView(
                     migration: migration,
                     tasks: allTasks.filter { $0.intervalType == migration.source && !$0.completed && $0.deletedAt == nil },
@@ -654,7 +656,7 @@ struct ContentView: View {
                     },
                     onSkip: {
                         guard migrationManager.currentMigration?.id == migration.id else { return }
-                        migrationManager.skipMigration()
+                        migrationManager.skipMigration(expectedMigrationId: migration.id)
                     }
                 )
                 .id(migration.id)

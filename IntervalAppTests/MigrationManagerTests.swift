@@ -91,6 +91,46 @@ final class MigrationManagerTests: XCTestCase {
         manager.skipMigration()
         XCTAssertNil(manager.currentMigration)
     }
+
+    func testStaleHourTransitionIsRejectedBeforeItCanInsertHabit() throws {
+        let habit = store.addHabit("Meditate", id: "stale-habit")
+        let stale = Migration(source: "1 Day", dest: HabitTaskLink.hourInterval)
+        manager.currentMigration = stale
+        manager.setPendingMarkerForTesting(key: "lastHandledHourMarker_v2", value: "2000-01-01-00")
+
+        XCTAssertFalse(manager.isCurrentMigrationFresh())
+        manager.executeMigration(migration: stale, selectedTaskIds: [], selectedHabitIds: [habit.id])
+
+        XCTAssertTrue(try store.tasks().filter { $0.habitId == habit.id }.isEmpty)
+        XCTAssertNotEqual(manager.currentMigration?.id, stale.id)
+    }
+
+    func testMigrationRestoresPreviousHourHabitLinkInsteadOfInsertingAgain() throws {
+        let habit = store.addHabit("Meditate", id: "restored-habit")
+        let previousHour = Date().addingTimeInterval(-3600)
+        let restored = store.addTask("Meditate", interval: HabitTaskLink.hourInterval,
+                                     id: HabitTaskLink.hourTaskId(habitId: habit.id, now: previousHour))
+        restored.createdAt = previousHour
+        try store.save()
+
+        manager.executeMigration(migration: Migration(source: "1 Day", dest: HabitTaskLink.hourInterval),
+                                 selectedTaskIds: [], selectedHabitIds: [habit.id])
+
+        XCTAssertEqual(try store.tasks().filter {
+            $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed
+        }.count, 1)
+        XCTAssertEqual(restored.habitId, habit.id)
+    }
+
+    func testEscapeCallbackForOldTransitionCannotSkipReplacement() {
+        let stale = Migration(source: "1 Day", dest: HabitTaskLink.hourInterval)
+        let replacement = Migration(source: "1 Week", dest: "1 Day")
+        manager.currentMigration = replacement
+
+        manager.skipMigration(expectedMigrationId: stale.id)
+
+        XCTAssertEqual(manager.currentMigration?.id, replacement.id)
+    }
     
     func testApplyRemoteMarkersDismissesAlreadyHandledMigration() {
         let hourKey = "lastHandledHourMarker_v2"

@@ -36,6 +36,23 @@ class MigrationManager: ObservableObject {
     private var accountId: String?
     private var pendingMarkerKey: String?
     private var pendingMarkerValue: String?
+
+    private func markerForCurrentPeriod(_ key: String, at date: Date) -> String? {
+        switch key {
+        case StoreKey.lastHandledHour: return Self.hourFormatter.string(from: date)
+        case StoreKey.lastHandledDay: return Self.dayFormatter.string(from: date)
+        case StoreKey.lastHandledWeek: return Self.weekFormatter.string(from: date)
+        case StoreKey.lastHandledMonth: return Self.monthFormatter.string(from: date)
+        case StoreKey.lastHandledYear: return Self.yearFormatter.string(from: date)
+        default: return nil
+        }
+    }
+
+    func isCurrentMigrationFresh(at date: Date = Date()) -> Bool {
+        guard currentMigration != nil else { return false }
+        guard let key = pendingMarkerKey, let value = pendingMarkerValue else { return true }
+        return markerForCurrentPeriod(key, at: date) == value
+    }
     /// A transition action can be delivered again while its dismissal animates.
     /// Never commit the same displayed transition more than once.
     private var committedMigrationIds: [UUID] = []
@@ -287,6 +304,11 @@ class MigrationManager: ObservableObject {
     }
     
     func checkMigrations() {
+        if currentMigration != nil && !isCurrentMigrationFresh() {
+            currentMigration = nil
+            pendingMarkerKey = nil
+            pendingMarkerValue = nil
+        }
         guard currentMigration == nil else { return }
         guard let _ = modelContext else { return }
         
@@ -403,6 +425,11 @@ class MigrationManager: ObservableObject {
                           selectedHabitIds: Set<String> = [],
                           selectedReverseTaskIds: Set<String> = []) {
         guard !committedMigrationIds.contains(migration.id) else { return }
+        let wasPresented = currentMigration != nil
+        if wasPresented {
+            checkMigrations()
+        }
+        if wasPresented && currentMigration?.id != migration.id { return }
         if let currentMigration, currentMigration.id != migration.id { return }
         guard let context = modelContext else {
             currentMigration = nil
@@ -416,6 +443,7 @@ class MigrationManager: ObservableObject {
         
         let allTasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
         let allHabits = (try? context.fetch(FetchDescriptor<HabitItem>())) ?? []
+        _ = HabitTaskLink.recoverGeneratedLinks(tasks: allTasks, habits: allHabits)
         let active = allTasks.filter { !$0.completed && $0.deletedAt == nil }
         
         var maxOrder = (active.filter { $0.intervalType == migration.dest }.map { $0.order }.max() ?? -1) + 1
@@ -490,7 +518,10 @@ class MigrationManager: ObservableObject {
         }
     }
     
-    func skipMigration() {
+    func skipMigration(expectedMigrationId: UUID? = nil) {
+        if currentMigration != nil { checkMigrations() }
+        if let expectedMigrationId, currentMigration?.id != expectedMigrationId { return }
+        guard currentMigration != nil else { return }
         // Commit the pending marker now that the user has skipped
         let hadPendingMarker = pendingMarkerKey != nil
         if let key = pendingMarkerKey, let value = pendingMarkerValue {
@@ -616,6 +647,11 @@ class MigrationManager: ObservableObject {
     func attachForTesting(context: ModelContext) {
         modelContext = context
         announceMigration = { _ in }
+    }
+
+    func setPendingMarkerForTesting(key: String, value: String) {
+        pendingMarkerKey = key
+        pendingMarkerValue = value
     }
     
     func testingPerformBoundaryRollover(for targetInterval: String) {

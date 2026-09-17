@@ -216,15 +216,18 @@ func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listT
     
     let descriptor = FetchDescriptor<TaskItem>()
     guard let allTasks = try? context.fetch(descriptor) else { return false }
+    let restoredLink = HabitTaskLink.recoverGeneratedLinks(tasks: allTasks, habits: [habit])
     let now = Date()
     let stableId = HabitTaskLink.hourTaskId(habitId: habit.id, now: now)
     if let existing = allTasks.first(where: {
         $0.id == stableId && $0.intervalType == HabitTaskLink.hourInterval
             && $0.deletedAt == nil && !$0.completed
     }) {
-        if existing.habitId == nil {
-            existing.habitId = habit.id
-            existing.syncedAt = nil
+        if existing.habitId == nil || restoredLink {
+            if existing.habitId == nil {
+                existing.habitId = habit.id
+                existing.syncedAt = nil
+            }
             if PersistenceSafety.save(context) { SupabaseSyncManager.shared.push() }
         }
         return false
@@ -232,7 +235,10 @@ func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listT
     
     // If the habit is already present in 1 Hour as an active task, do NOT insert or duplicate
     let alreadyExists = allTasks.contains { $0.habitId == habit.id && $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }
-    guard !alreadyExists else { return false }
+    guard !alreadyExists else {
+        if restoredLink && PersistenceSafety.save(context) { SupabaseSyncManager.shared.push() }
+        return false
+    }
     
     var sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
     

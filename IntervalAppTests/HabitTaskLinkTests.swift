@@ -51,6 +51,21 @@ final class HabitTaskLinkTests: XCTestCase {
         XCTAssertTrue(repeated.isEmpty)
     }
 
+    func testPreviousHourGeneratedTaskWithoutServerHabitIdBlocksAnotherActiveCopy() {
+        let habit = store.addHabit("Meditate", id: "shared-habit")
+        let previousHour = now.addingTimeInterval(-3600)
+        let restored = store.addTask("Meditate", interval: HabitTaskLink.hourInterval,
+                                     id: HabitTaskLink.hourTaskId(habitId: habit.id, now: previousHour))
+        restored.createdAt = previousHour
+
+        let created = HabitTaskLink.makeHourTasks(for: [habit], existingHourTasks: [restored],
+                                                  startingOrder: 1, now: now)
+
+        XCTAssertTrue(created.isEmpty)
+        XCTAssertNil(restored.habitId, "The task builder must leave persistence to its caller")
+        XCTAssertTrue(HabitTaskLink.selectableHabits(from: [habit], hourTasks: [restored], now: now).isEmpty)
+    }
+
     func testSelectableHabitsDeduplicatesRepeatedHabitRows() {
         let habit = store.addHabit("Meditate", id: "habit-once")
         let selectable = HabitTaskLink.selectableHabits(

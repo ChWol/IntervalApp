@@ -127,6 +127,19 @@ final class HabitDragAndDropTests: XCTestCase {
         XCTAssertEqual(tasks.first?.habitId, habit.id)
     }
 
+    func testDragDoesNotDuplicatePreviousHourGeneratedTaskWithoutServerHabitId() throws {
+        let habit = store.addHabit("Journal", id: "h-j")
+        let previousHour = Date().addingTimeInterval(-3600)
+        let restored = store.addTask("Journal", interval: "1 Hour",
+                                     id: HabitTaskLink.hourTaskId(habitId: habit.id, now: previousHour))
+        restored.createdAt = previousHour
+        try store.save()
+
+        XCTAssertFalse(insertHabitAsTask(habit: habit, at: .top, listTitle: "1 Hour", context: store.context))
+        XCTAssertEqual(try store.tasks().filter { $0.intervalType == "1 Hour" && $0.deletedAt == nil }.count, 1)
+        XCTAssertEqual(restored.habitId, habit.id)
+    }
+
     func testStartingTaskDragClearsAbandonedHabitDrag() throws {
         let habit = store.addHabit("Journal", id: "habit")
         let task = store.addTask("Real task", interval: "1 Day", order: 0, id: "task")

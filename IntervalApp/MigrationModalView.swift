@@ -190,8 +190,8 @@ struct MigrationModalView: View {
             .frame(maxWidth: isHourMigration ? 620 : 520)
             .padding(20)
 
-            #if !os(macOS)
-            // External keyboards on iPad and iPhone use the SwiftUI shortcut.
+            // Keep Escape available even when the visible Skip button is disabled
+            // by a selection. The shortcut dismisses the entire transition.
             Button(action: onSkip) {
                 EmptyView()
             }
@@ -199,8 +199,10 @@ struct MigrationModalView: View {
             .keyboardShortcut(.escape, modifiers: [])
             .opacity(0)
             .frame(width: 0, height: 0)
-            #endif
         }
+        #if os(macOS)
+        .onExitCommand(perform: onSkip)
+        #endif
         #if os(macOS)
         .onAppear {
             if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }

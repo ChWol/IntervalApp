@@ -24,11 +24,16 @@ enum HabitTaskLink {
     /// Habits that can still be pulled into the coming hour: not deleted, not already done
     /// for the current period, and not already sitting in the hour list.
     static func selectableHabits(from habits: [HabitItem], hourTasks: [TaskItem], now: Date = Date()) -> [HabitItem] {
-        let alreadyListed = Set(
+        var alreadyListed = Set(
             hourTasks
                 .filter { $0.deletedAt == nil && !$0.completed }
                 .compactMap { $0.habitId }
         )
+        for task in hourTasks where task.deletedAt == nil && !task.completed && task.habitId == nil {
+            for habit in habits where hourTaskId(habitId: habit.id, now: task.createdAt) == task.id {
+                alreadyListed.insert(habit.id)
+            }
+        }
         var seenHabitIds = Set<String>()
         return habits
             .filter { $0.deletedAt == nil }
@@ -54,6 +59,13 @@ enum HabitTaskLink {
                 .filter { $0.deletedAt == nil && !$0.completed }
                 .compactMap { $0.habitId }
         )
+        // A server without habit_id can return an older generated hour task
+        // unlinked. Its deterministic ID still identifies the owning habit.
+        for task in existingHourTasks where task.deletedAt == nil && !task.completed && task.habitId == nil {
+            for habit in habits where hourTaskId(habitId: habit.id, now: task.createdAt) == task.id {
+                alreadyListed.insert(habit.id)
+            }
+        }
         let existingIds = Set(existingHourTasks.map(\.id))
         
         var order = startingOrder
