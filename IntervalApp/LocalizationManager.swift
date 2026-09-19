@@ -540,7 +540,7 @@ class LocalizationManager: ObservableObject {
             .arabic: "العرض", .chinese: "显示", .japanese: "表示", .korean: "화면 표시"
         ],
         "Show Habits Bar": [
-            .english: "Show Habits Bar", .german: "Habits-Leiste anzeigen", .french: "Afficher la barre d'habitudes",
+            .english: "Show Habits Bar", .german: "Gewohnheitenleiste anzeigen", .french: "Afficher la barre d'habitudes",
             .spanish: "Mostrar barra de hábitos", .portuguese: "Mostrar barra de hábitos", .italian: "Mostra barra delle abitudini",
             .arabic: "إظهار شريط العادات", .chinese: "显示习惯栏", .japanese: "習慣バーを表示", .korean: "습관 바 표시"
         ],
@@ -683,7 +683,7 @@ class LocalizationManager: ObservableObject {
         ],
         "Search tasks, habits, lists...": [
             .english: "Search tasks, habits, lists...",
-            .german: "Aufgaben, Habits, Listen durchsuchen...",
+            .german: "Aufgaben, Gewohnheiten und Listen durchsuchen...",
             .french: "Rechercher tâches, habitudes, listes...",
             .spanish: "Buscar tareas, hábitos, listas...",
             .portuguese: "Buscar tarefas, hábitos, listas...",
@@ -707,7 +707,7 @@ class LocalizationManager: ObservableObject {
         ],
         "Type to search across all intervals, habits & lists": [
             .english: "Type to search across all intervals, habits & lists",
-            .german: "Tippen, um alle Intervalle, Habits & Listen zu durchsuchen",
+            .german: "Tippen, um alle Intervalle, Gewohnheiten und Listen zu durchsuchen",
             .french: "Tapez pour rechercher dans tous les intervalles, habitudes et listes",
             .spanish: "Escribe para buscar en todos los intervalos, hábitos y listas",
             .portuguese: "Digite para pesquisar em todos os intervalos, hábitos e listas",

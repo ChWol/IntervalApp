@@ -80,6 +80,10 @@ final class UIInteractionsAndButtonsTests: XCTestCase {
         XCTAssertEqual("Empty Bin".localized, "Papierkorb leeren")
         XCTAssertEqual("COMPLETED".localized, "ERLEDIGT")
         XCTAssertEqual("HABITS".localized, "GEWOHNHEITEN")
+        XCTAssertEqual("Search tasks, habits, lists...".localized, "Aufgaben, Gewohnheiten und Listen durchsuchen...")
+        XCTAssertEqual("Type to search across all intervals, habits & lists".localized,
+                       "Tippen, um alle Intervalle, Gewohnheiten und Listen zu durchsuchen")
+        XCTAssertEqual("Show Habits Bar".localized, "Gewohnheitenleiste anzeigen")
         XCTAssertEqual("1 Hour".localized, "1 Stunde")
         XCTAssertEqual("1 Day".localized, "1 Tag")
         XCTAssertEqual("1 Week".localized, "1 Woche")
