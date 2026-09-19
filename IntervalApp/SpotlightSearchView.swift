@@ -2,6 +2,12 @@
 import SwiftUI
 import SwiftData
 
+extension Notification.Name {
+    /// Sent by the macOS Edit-menu Find command so it works even while a
+    /// custom AppKit text field is the first responder.
+    static let presentIntervalSearch = Notification.Name("presentIntervalSearch")
+}
+
 enum SearchTargetDestination: Hashable {
     case interval(intervalType: String)
     case habit

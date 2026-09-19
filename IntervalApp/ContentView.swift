@@ -236,6 +236,13 @@ struct ContentView: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .presentIntervalSearch)) { _ in
+            guard syncManager.isAuthenticated else { return }
+            focusedTaskId = nil
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isSearchPresented = true
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .promptPasswordUpdate)) { _ in
             withAnimation(.easeInOut(duration: 0.2)) {
                 showUpdatePasswordModal = true
@@ -577,19 +584,6 @@ struct ContentView: View {
                     
                 }
                 
-                // Hidden shortcut triggers for search (⌘F and ⌘K)
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        isSearchPresented.toggle()
-                    }
-                }) {
-                    EmptyView()
-                }
-                .buttonStyle(InteractivePlainButtonStyle())
-                .keyboardShortcut("f", modifiers: .command)
-                .opacity(0)
-                .frame(width: 0, height: 0)
-
                 // Cmd-R remains a quiet desktop command; iPhone uses pull-to-refresh.
                 Button(action: { Task { await syncManager.triggerManualSync() } }) {
                     EmptyView()

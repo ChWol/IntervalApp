@@ -76,6 +76,15 @@ struct IntervalApp: App {
         #if os(macOS)
         .windowStyle(HiddenTitleBarWindowStyle())
         .commands {
+            // View-local, zero-size shortcut buttons are not reliably routed
+            // while an AppKit-backed task field is first responder. Put Find
+            // in the native Edit menu instead, then notify the active view.
+            CommandGroup(after: .pasteboard) {
+                Button("Search".localized) {
+                    NotificationCenter.default.post(name: .presentIntervalSearch, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: .command)
+            }
             CommandGroup(replacing: .printItem) {
                 Button("Print / Save as PDF...".localized) {
                     PrintManager.printIntervals(context: IntervalApp.sharedModelContainer.mainContext)
