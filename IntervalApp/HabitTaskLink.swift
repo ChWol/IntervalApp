@@ -71,7 +71,12 @@ enum HabitTaskLink {
         var order = startingOrder
         var created: [TaskItem] = []
         var seenInputIds = Set<String>()
-        for habit in habits where seenInputIds.insert(habit.id).inserted && !alreadyListed.contains(habit.id) {
+        // Selection can outlive a UI update (for example, a habit is postponed
+        // while an hourly transition is open). Recheck the current state here so
+        // a stale selection can never create an hour task for today.
+        for habit in habits where seenInputIds.insert(habit.id).inserted
+            && !alreadyListed.contains(habit.id)
+            && !habit.isPostponed(at: now) {
             let taskId = hourTaskId(habitId: habit.id, now: now)
             guard !existingIds.contains(taskId) else { continue }
             let text = habit.text.trimmingCharacters(in: .whitespaces)

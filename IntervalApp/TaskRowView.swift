@@ -864,7 +864,16 @@ struct TaskDropDelegate: DropDelegate {
                 return false
             }
             
-            let targetIdx = HabitDragState.shared.targetIndex ?? 0
+            // `performDrop` is not guaranteed to be preceded by
+            // `dropUpdated`, so compute the row-relative slot again here.
+            // This prevents a previous header target (index 0) from winning
+            // over the location where the habit was actually released.
+            let sorted = allTasks.filter {
+                $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed
+            }.sorted { $0.order < $1.order }
+            let rowIndex = sorted.firstIndex(where: { $0.id == item.id }) ?? sorted.count
+            let isBottomHalf = info.location.y > (sectionFontSize * 1.5 / 2.0)
+            let targetIdx = min(sorted.count, rowIndex + (isBottomHalf ? 1 : 0))
             return commitHabitDrop(habit, at: targetIdx, listTitle: HabitTaskLink.hourInterval, context: context)
         }
         

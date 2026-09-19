@@ -215,11 +215,14 @@ private enum HabitInsertionRegistry {
 func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listTitle: String, context: ModelContext) -> Bool {
     guard listTitle == HabitTaskLink.hourInterval,
           !HabitInsertionRegistry.hasActiveTask(for: habit.id, in: context) else { return false }
+    let now = Date()
+    // The drag payload may have started before the user postponed the habit.
+    // Never turn that stale payload into an active hour task.
+    guard !habit.isPostponed(at: now) else { return false }
     
     let descriptor = FetchDescriptor<TaskItem>()
     guard let allTasks = try? context.fetch(descriptor) else { return false }
     let restoredLink = HabitTaskLink.recoverGeneratedLinks(tasks: allTasks, habits: [habit])
-    let now = Date()
     let stableId = HabitTaskLink.hourTaskId(habitId: habit.id, now: now)
     if let existing = allTasks.first(where: {
         $0.id == stableId && $0.intervalType == HabitTaskLink.hourInterval
@@ -354,6 +357,17 @@ struct TaskListBodyDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
+        if HabitDragState.shared.draggedHabit != nil {
+            guard listTitle == HabitTaskLink.hourInterval else { return false }
+            // A row or visible insertion slot has already calculated this
+            // position. Keep it through the parent list's final callback
+            // instead of falling back to the header/top position.
+            let activeCount = ((try? context.fetch(FetchDescriptor<TaskItem>())) ?? []).filter {
+                $0.intervalType == listTitle && $0.deletedAt == nil && !$0.completed
+            }.count
+            let index = HabitDragState.shared.targetIndex ?? activeCount
+            return TaskListInsertionDropDelegate.commitDrop(to: listTitle, at: index, context: context)
+        }
         let index: Int
         if DragState.shared.targetIntervalType == listTitle, let target = DragState.shared.targetIndex {
             index = target

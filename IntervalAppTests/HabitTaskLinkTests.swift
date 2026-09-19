@@ -120,6 +120,16 @@ final class HabitTaskLinkTests: XCTestCase {
         let created = HabitTaskLink.makeHourTasks(for: [blank], existingHourTasks: [], startingOrder: 0, now: now)
         XCTAssertTrue(created.isEmpty)
     }
+
+    func testMakeHourTasksRejectsASelectionThatWasPostponedBeforeCommit() {
+        let habit = store.addHabit("Meditate", postponedDate: now, id: "postponed")
+
+        let created = HabitTaskLink.makeHourTasks(
+            for: [habit], existingHourTasks: [], startingOrder: 0, now: now
+        )
+
+        XCTAssertTrue(created.isEmpty, "A postponed habit must not be added to 1 Hour from a stale selection")
+    }
     
     // MARK: - Completion mirroring
     

@@ -105,6 +105,14 @@ final class HabitDragAndDropTests: XCTestCase {
         XCTAssertEqual(hourTasks.count, 1, "Must not duplicate an active habit task in 1 Hour")
     }
 
+    func testPostponedHabitCannotBeInsertedByAnInFlightDrag() throws {
+        let habit = store.addHabit("Journal", postponedDate: Date(), id: "h-postponed")
+        try store.save()
+
+        XCTAssertFalse(insertHabitAsTask(habit: habit, at: .atIndex(0), listTitle: "1 Hour", context: store.context))
+        XCTAssertTrue(try store.tasks().isEmpty)
+    }
+
     func testDragUsesSameHourIdentityAsTransition() throws {
         let habit = store.addHabit("Journal", id: "h-j")
         XCTAssertTrue(insertHabitAsTask(habit: habit, at: .top, listTitle: "1 Hour", context: store.context))
