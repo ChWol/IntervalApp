@@ -91,5 +91,9 @@ final class UIInteractionsAndButtonsTests: XCTestCase {
         XCTAssertEqual("1 Year".localized, "1 Jahr")
         XCTAssertEqual("Clear All".localized, "Alle löschen")
         XCTAssertEqual("Show All".localized, "Alle anzeigen")
+        XCTAssertEqual("Rename habit".localized, "Gewohnheit umbenennen")
+        XCTAssertEqual("Rename".localized, "Umbenennen")
+        XCTAssertEqual("Save".localized, "Speichern")
+        XCTAssertEqual("Name".localized, "Name")
     }
 }

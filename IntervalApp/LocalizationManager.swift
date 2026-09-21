@@ -239,6 +239,26 @@ class LocalizationManager: ObservableObject {
             .spanish: "Mostrar más", .portuguese: "Mostrar mais", .italian: "Mostra altro",
             .arabic: "عرض المزيد", .chinese: "展开更多", .japanese: "さらに表示", .korean: "더 보기"
         ],
+        "Rename habit": [
+            .english: "Rename habit", .german: "Gewohnheit umbenennen", .french: "Renommer l’habitude",
+            .spanish: "Cambiar nombre del hábito", .portuguese: "Renomear hábito", .italian: "Rinomina abitudine",
+            .arabic: "إعادة تسمية العادة", .chinese: "重命名习惯", .japanese: "習慣の名前を変更", .korean: "습관 이름 변경"
+        ],
+        "Rename": [
+            .english: "Rename", .german: "Umbenennen", .french: "Renommer",
+            .spanish: "Cambiar nombre", .portuguese: "Renomear", .italian: "Rinomina",
+            .arabic: "إعادة تسمية", .chinese: "重命名", .japanese: "名前を変更", .korean: "이름 변경"
+        ],
+        "Save": [
+            .english: "Save", .german: "Speichern", .french: "Enregistrer",
+            .spanish: "Guardar", .portuguese: "Guardar", .italian: "Salva",
+            .arabic: "حفظ", .chinese: "保存", .japanese: "保存", .korean: "저장"
+        ],
+        "Name": [
+            .english: "Name", .german: "Name", .french: "Nom",
+            .spanish: "Nombre", .portuguese: "Nome", .italian: "Nome",
+            .arabic: "الاسم", .chinese: "名称", .japanese: "名前", .korean: "이름"
+        ],
         "TRANSFER TO TASK": [
             .english: "TRANSFER TO TASK", .german: "IN AUFGABE UMWANDELN", .french: "TRANSFÉRER EN TÂCHE",
             .spanish: "TRANSFERIR A TAREA", .portuguese: "TRANSFERIR PARA TAREFA", .italian: "TRASFERISCI IN ATTIVITÀ",
