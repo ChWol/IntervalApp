@@ -229,6 +229,11 @@ class LocalizationManager: ObservableObject {
             .spanish: "Mostrar menos", .portuguese: "Mostrar menos", .italian: "Mostra meno",
             .arabic: "عرض أقل", .chinese: "收起", .japanese: "折りたたむ", .korean: "간략히 보기"
         ],
+        "Show All": [
+            .english: "Show All", .german: "Alle anzeigen", .french: "Tout afficher",
+            .spanish: "Mostrar todo", .portuguese: "Mostrar tudo", .italian: "Mostra tutto",
+            .arabic: "عرض الكل", .chinese: "显示全部", .japanese: "すべて表示", .korean: "모두 보기"
+        ],
         "Show More": [
             .english: "Show More", .german: "Mehr anzeigen", .french: "Afficher plus",
             .spanish: "Mostrar más", .portuguese: "Mostrar mais", .italian: "Mostra altro",

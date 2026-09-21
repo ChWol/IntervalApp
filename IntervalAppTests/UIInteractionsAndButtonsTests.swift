@@ -90,5 +90,6 @@ final class UIInteractionsAndButtonsTests: XCTestCase {
         XCTAssertEqual("1 Month".localized, "1 Monat")
         XCTAssertEqual("1 Year".localized, "1 Jahr")
         XCTAssertEqual("Clear All".localized, "Alle löschen")
+        XCTAssertEqual("Show All".localized, "Alle anzeigen")
     }
 }
