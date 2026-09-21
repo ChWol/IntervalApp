@@ -421,6 +421,8 @@ struct HabitChipView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var dragState = HabitDragState.shared
     @State private var lastPostponeMutation: Date = .distantPast
+    @State private var showingRename = false
+    @State private var draftName = ""
     
     private var isDragged: Bool {
         dragState.draggedHabit?.id == habit.id
@@ -507,11 +509,37 @@ struct HabitChipView: View {
             hoveredHabitId = hovering ? habit.id : nil
         }
         #if os(iOS)
-        .gesture(LongPressGesture(minimumDuration: 0.55).onEnded { _ in
-            guard !isDone else { return }
-            togglePostpone()
-        })
+        .contextMenu {
+            if !isDone {
+                Button(isPostponed ? "Unpostpone for today".localized : "Postpone for today".localized,
+                       systemImage: isPostponed ? "arrow.uturn.backward" : "clock") { togglePostpone() }
+            }
+            Button("Rename".localized, systemImage: "pencil") {
+                draftName = habit.text
+                showingRename = true
+            }
+        }
+        .alert("Rename habit".localized, isPresented: $showingRename) {
+            TextField("Name".localized, text: $draftName)
+            Button("Cancel".localized, role: .cancel) { }
+            Button("Save".localized) { renameHabit() }
+        }
         #endif
+    }
+
+    private func renameHabit() {
+        let name = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, name != habit.text else { return }
+        let previous = habit.text
+        let previousUpdatedAt = habit.updatedAt
+        habit.text = name
+        habit.updatedAt = Date()
+        guard PersistenceSafety.save(modelContext, operation: "Renaming habit") else {
+            habit.text = previous
+            habit.updatedAt = previousUpdatedAt
+            return
+        }
+        SupabaseSyncManager.shared.push()
     }
     
     private func togglePostpone() {

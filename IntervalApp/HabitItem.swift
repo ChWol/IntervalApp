@@ -50,6 +50,43 @@ final class HabitItem {
               let json = String(data: data, encoding: .utf8) else { return }
         completionHistoryJSON = json
     }
+
+    /// Consecutive completed scheduled periods ending in this or the preceding period.
+    func currentStreak(at date: Date = Date(), calendar: Calendar = .current) -> Int {
+        let history = completionDates + (lastCompletedDate.map { [$0] } ?? [])
+        let days = Set(history.filter { $0 <= date }.map {
+            calendar.startOfDay(for: Self.intervalDayDate(for: $0, calendar: calendar))
+        })
+        guard !days.isEmpty else { return 0 }
+        let today = calendar.startOfDay(for: Self.intervalDayDate(for: date, calendar: calendar))
+        if isWeekly, let weekday = targetWeekday {
+            let cycle = Self.mostRecentWeekdayDate(targetWeekday: weekday, beforeOrOn: date, calendar: calendar)
+            var count = 0
+            var start = cycle
+            if !days.contains(where: { $0 >= start && $0 <= today }) {
+                guard let previous = calendar.date(byAdding: .day, value: -7, to: start) else { return 0 }
+                start = previous
+            }
+            while days.contains(where: { $0 >= start && $0 < (calendar.date(byAdding: .day, value: 7, to: start) ?? start) }) {
+                count += 1
+                guard let previous = calendar.date(byAdding: .day, value: -7, to: start) else { break }
+                start = previous
+            }
+            return count
+        }
+        var day = today
+        if !days.contains(day) {
+            guard let yesterday = calendar.date(byAdding: .day, value: -1, to: day) else { return 0 }
+            day = yesterday
+        }
+        var count = 0
+        while days.contains(day) {
+            count += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
+            day = previous
+        }
+        return count
+    }
     
     /// Whether the habit is currently postponed/snoozed for a given date.
     func isPostponed(at date: Date = Date()) -> Bool {

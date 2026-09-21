@@ -127,14 +127,6 @@ struct TaskRowView: View {
                         }
                     }
             )
-            .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.55)
-                    .onEnded { _ in
-                        guard !isNew, let onDeepFocus else { return }
-                        focusedTaskId = nil
-                        onDeepFocus(task)
-                    }
-            )
             #endif
         }
         .onChange(of: focusedTaskId) { oldId, newId in
@@ -160,6 +152,16 @@ struct TaskRowView: View {
             }
         }
         .id(isNew ? "NEW_\(listTitle)" : task.id)
+        #if os(iOS)
+        .contextMenu {
+            if !isNew, let onDeepFocus {
+                Button("Focus Mode".localized, systemImage: "scope") {
+                    focusedTaskId = nil
+                    onDeepFocus(task)
+                }
+            }
+        }
+        #endif
         // Keep the original local data provider used by the working native
         // drag interaction on macOS and iPhone.
         .onDrag {

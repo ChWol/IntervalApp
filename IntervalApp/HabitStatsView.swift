@@ -85,7 +85,7 @@ struct HabitStatsView: View {
 
     private func summary(for habit: HabitItem) -> some View {
         HStack(spacing: 0) {
-            stat(value: "\(habit.streak)", label: "CURRENT STREAK".localized)
+            stat(value: "\(habit.currentStreak())", label: "CURRENT STREAK".localized)
             Divider().frame(height: 34).opacity(0.35)
             stat(value: "\(completionsThisYear(for: habit))", label: "THIS YEAR".localized)
             Divider().frame(height: 34).opacity(0.35)
