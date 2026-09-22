@@ -85,7 +85,7 @@ struct ContentView: View {
                         }
                         .onChange(of: scenePhase) { _, newPhase in
                             if newPhase == .active {
-                                migrationManager.checkMigrations()
+                                migrationManager.pauseUntilRemoteReconciled()
                                 Task {
                                     await syncManager.triggerManualSync()
                                     migrationManager.checkMigrations()

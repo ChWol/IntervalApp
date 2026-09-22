@@ -34,6 +34,13 @@ class MigrationManager: ObservableObject {
     /// Local transition markers must never bleed between accounts on a shared device.
     /// Tests deliberately leave this nil so their isolated defaults keys stay unchanged.
     private var accountId: String?
+    /// A cached device must not roll over tasks until server rows and transition markers
+    /// have both been fetched. Otherwise its old ordering gets a fresh timestamp.
+    private var remoteStateReady = true
+
+    func pauseUntilRemoteReconciled() {
+        if accountId != nil { remoteStateReady = false }
+    }
     private var pendingMarkerKey: String?
     private var pendingMarkerValue: String?
 
@@ -200,6 +207,7 @@ class MigrationManager: ObservableObject {
 
     /// Retries marker publication on every normal sync until Supabase confirms it.
     func publishPendingMarkers() async {
+        guard remoteStateReady else { return }
         let pendingKey = scopedKey(StoreKey.markersNeedSync)
         guard UserDefaults.standard.bool(forKey: pendingKey) else { return }
         if await SupabaseSyncManager.shared.updateUserMetadata(markerPayload()) {
@@ -210,6 +218,7 @@ class MigrationManager: ObservableObject {
     func startMonitoring(context: ModelContext) {
         self.modelContext = context
         self.accountId = SupabaseSyncManager.shared.userId
+        remoteStateReady = accountId == nil
         cancellables.removeAll()
         migrateLegacyMarkersToCurrentAccountIfNeeded()
         
@@ -235,18 +244,15 @@ class MigrationManager: ObservableObject {
             .store(in: &cancellables)
         
         // 2. React when Supabase sync finishes pulling fresh remote tasks/habits
-        NotificationCenter.default.publisher(for: .syncPullDidComplete)
+        NotificationCenter.default.publisher(for: .syncMigrationMarkersDidComplete)
             .sink { [weak self] _ in
+                self?.remoteStateReady = true
                 self?.checkMigrations()
             }
             .store(in: &cancellables)
             
         // 3. System calendar and clock notifications
         #if os(macOS)
-        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
-            .sink { [weak self] _ in self?.checkMigrations() }
-            .store(in: &cancellables)
-        
         NotificationCenter.default.publisher(for: NSWorkspace.didWakeNotification)
             .sink { [weak self] _ in self?.checkMigrations() }
             .store(in: &cancellables)
@@ -259,10 +265,6 @@ class MigrationManager: ObservableObject {
             .sink { [weak self] _ in self?.checkMigrations() }
             .store(in: &cancellables)
         #elseif os(iOS)
-        NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
-            .sink { [weak self] _ in self?.checkMigrations() }
-            .store(in: &cancellables)
-        
         NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)
             .sink { [weak self] _ in self?.checkMigrations() }
             .store(in: &cancellables)
@@ -304,6 +306,7 @@ class MigrationManager: ObservableObject {
     }
     
     func checkMigrations() {
+        guard remoteStateReady else { return }
         if currentMigration != nil && !isCurrentMigrationFresh() {
             currentMigration = nil
             pendingMarkerKey = nil

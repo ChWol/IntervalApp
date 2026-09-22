@@ -34,6 +34,7 @@ struct URLSessionTransport: HTTPDataTransport {
 
 extension Notification.Name {
     static let syncPullDidComplete = Notification.Name("syncPullDidComplete")
+    static let syncMigrationMarkersDidComplete = Notification.Name("syncMigrationMarkersDidComplete")
     static let taskTextDidGrow = Notification.Name("taskTextDidGrow")
     static let focusNextTask = Notification.Name("focusNextTask")
 }
@@ -1449,6 +1450,7 @@ class SupabaseSyncManager: ObservableObject {
             let remoteCompleted = metadata["onboarding_completed"] == "true"
             if remoteCompleted { onboardingCompletionPending = false }
             onboardingCompletedForAccount = remoteCompleted || onboardingCompletionPending
+            NotificationCenter.default.post(name: .syncMigrationMarkersDidComplete, object: nil)
         }
         
         NotificationCenter.default.post(name: .syncPullDidComplete, object: nil)
