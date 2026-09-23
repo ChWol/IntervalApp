@@ -157,7 +157,10 @@ enum HabitTaskLink {
     /// Ticking a habit ticks the hour tasks created from it.
     @discardableResult
     static func applyHabitCompletionToTasks(_ habit: HabitItem, tasks: [TaskItem], now: Date = Date()) -> Bool {
-        let linked = tasks.filter { $0.habitId == habit.id && $0.deletedAt == nil }
+        let linked = tasks.filter {
+            $0.habitId == habit.id && $0.deletedAt == nil
+                && isCurrentOccurrence($0, at: now)
+        }
         guard !linked.isEmpty else { return false }
         
         let shouldBeCompleted = habit.isCompleted(at: now)
@@ -178,9 +181,13 @@ enum HabitTaskLink {
                                       by: { $0.habitId! })
         var changed = false
 
-        for (habitId, linkedTasks) in groupedTasks {
-            guard let habit = habitsById[habitId],
-                  let newestTask = linkedTasks.max(by: { $0.updatedAt < $1.updatedAt }) else { continue }
+        for (habitId, allLinkedTasks) in groupedTasks {
+            guard let habit = habitsById[habitId] else { continue }
+            let latestEvent = max(habit.updatedAt, allLinkedTasks.map(\.updatedAt).max() ?? habit.updatedAt)
+            // A completed task from a prior interval day is a historical
+            // occurrence, not the task for this habit's latest edit.
+            let linkedTasks = allLinkedTasks.filter { isCurrentOccurrence($0, at: latestEvent) }
+            guard let newestTask = linkedTasks.max(by: { $0.updatedAt < $1.updatedAt }) else { continue }
 
             if newestTask.updatedAt > habit.updatedAt {
                 if setHabitCompleted(newestTask.completed, on: habit, now: newestTask.updatedAt) { changed = true }
@@ -193,6 +200,31 @@ enum HabitTaskLink {
                     if setTaskCompleted(completed, on: task, now: habit.updatedAt) { changed = true }
                 }
             }
+        }
+        return changed
+    }
+
+    private static func isCurrentOccurrence(_ task: TaskItem, at date: Date) -> Bool {
+        !task.completed || sameIntervalDay(task.completedAt ?? task.updatedAt, date)
+    }
+
+    private static func sameIntervalDay(_ lhs: Date, _ rhs: Date) -> Bool {
+        let calendar = Calendar.current
+        return calendar.isDate(HabitItem.intervalDayDate(for: lhs, calendar: calendar),
+                               inSameDayAs: HabitItem.intervalDayDate(for: rhs, calendar: calendar))
+    }
+
+    /// A postponed habit cannot keep an active generated task on another device.
+    @discardableResult
+    static func removePostponedHourTasks(tasks: [TaskItem], habits: [HabitItem], now: Date = Date()) -> Bool {
+        let postponedIDs = Set(habits.filter { $0.deletedAt == nil && $0.isPostponed(at: now) }.map(\.id))
+        var changed = false
+        for task in tasks where task.intervalType == hourInterval && !task.completed
+            && task.deletedAt == nil && task.habitId.map(postponedIDs.contains) == true {
+            task.deletedAt = now
+            task.updatedAt = max(now, task.updatedAt.addingTimeInterval(0.001))
+            task.syncedAt = nil
+            changed = true
         }
         return changed
     }

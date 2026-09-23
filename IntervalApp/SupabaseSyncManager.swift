@@ -111,6 +111,47 @@ struct SupabaseHabitDTO: Decodable, SupabaseRowDTO {
     let deleted_at: String?
     let user_id: String?
     let updated_at: String?
+    /// A missing server column and an explicit NULL mean different things.
+    let hasPostponedDateColumn: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case id, text, frequency, streak, last_completed_date, postponed_date
+        case completion_history, order, deleted_at, user_id, updated_at
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        text = try values.decodeIfPresent(String.self, forKey: .text)
+        frequency = try values.decodeIfPresent(String.self, forKey: .frequency)
+        streak = try values.decodeIfPresent(Int.self, forKey: .streak)
+        last_completed_date = try values.decodeIfPresent(String.self, forKey: .last_completed_date)
+        postponed_date = try values.decodeIfPresent(String.self, forKey: .postponed_date)
+        hasPostponedDateColumn = values.contains(.postponed_date)
+        completion_history = try values.decodeIfPresent(String.self, forKey: .completion_history)
+        order = try values.decodeIfPresent(Int.self, forKey: .order)
+        deleted_at = try values.decodeIfPresent(String.self, forKey: .deleted_at)
+        user_id = try values.decodeIfPresent(String.self, forKey: .user_id)
+        updated_at = try values.decodeIfPresent(String.self, forKey: .updated_at)
+    }
+
+    init(id: String, text: String?, frequency: String?, streak: Int?,
+         last_completed_date: String?, postponed_date: String?, completion_history: String?,
+         order: Int?, deleted_at: String?, user_id: String?, updated_at: String?,
+         hasPostponedDateColumn: Bool = true) {
+        self.id = id
+        self.text = text
+        self.frequency = frequency
+        self.streak = streak
+        self.last_completed_date = last_completed_date
+        self.postponed_date = postponed_date
+        self.completion_history = completion_history
+        self.order = order
+        self.deleted_at = deleted_at
+        self.user_id = user_id
+        self.updated_at = updated_at
+        self.hasPostponedDateColumn = hasPostponedDateColumn
+    }
 }
 
 struct SupabaseScratchpadListDTO: Decodable, SupabaseRowDTO {
@@ -1429,6 +1470,7 @@ class SupabaseSyncManager: ObservableObject {
         let localHabits = (try? context.fetch(FetchDescriptor<HabitItem>())) ?? []
         _ = HabitTaskLink.recoverGeneratedLinks(tasks: localTasks, habits: localHabits)
         _ = DataIntegrityRepair.repairDuplicateHourHabitTasks(localTasks)
+        _ = HabitTaskLink.removePostponedHourTasks(tasks: localTasks, habits: localHabits)
         _ = HabitTaskLink.reconcileCompletion(tasks: localTasks, habits: localHabits)
         _ = mergeRemoteScratchpadLists(remoteScratchpadLists, context: context, uid: uid)
         let authorizedRemoteListIds = Set(remoteScratchpadLists.compactMap { dto in
@@ -1585,7 +1627,9 @@ class SupabaseSyncManager: ObservableObject {
                     assign(dto.frequency ?? existing.frequency, to: existing, \.frequency)
                     assign(dto.streak ?? existing.streak, to: existing, \.streak)
                     assign(SyncTimestamp.parse(dto.last_completed_date), to: existing, \.lastCompletedDate)
-                    assign(SyncTimestamp.parse(dto.postponed_date), to: existing, \.postponedDate)
+                    if dto.hasPostponedDateColumn {
+                        assign(SyncTimestamp.parse(dto.postponed_date), to: existing, \.postponedDate)
+                    }
                     assign(dto.completion_history ?? existing.completionHistoryJSON, to: existing, \.completionHistoryJSON)
                     assign(dto.order ?? existing.order, to: existing, \.order)
                     assign(SyncTimestamp.parse(dto.deleted_at), to: existing, \.deletedAt)
