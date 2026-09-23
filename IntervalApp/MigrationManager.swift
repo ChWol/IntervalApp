@@ -593,11 +593,14 @@ class MigrationManager: ObservableObject {
         let subordinateIntervals = [HabitTaskLink.hourInterval]
         
         // Collect tasks to roll over (excluding habit-linked tasks)
-        let tasksToRollOver = active.filter { subordinateIntervals.contains($0.intervalType) && $0.habitId == nil }
+        let tasksToRollOver = active
+            .filter { subordinateIntervals.contains($0.intervalType) && $0.habitId == nil }
+            .sorted { $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order }
         
         if !tasksToRollOver.isEmpty {
             // Shift existing tasks in the 1 Day list DOWN so rolled-over 1 Hour tasks appear on top
-            let existingTargetTasks = active.filter { $0.intervalType == targetInterval }.sorted { $0.order < $1.order }
+            let existingTargetTasks = active.filter { $0.intervalType == targetInterval }
+                .sorted { $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order }
             let rollOverCount = tasksToRollOver.count
             for existingTask in existingTargetTasks {
                 existingTask.order += rollOverCount

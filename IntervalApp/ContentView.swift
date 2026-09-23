@@ -67,9 +67,9 @@ struct ContentView: View {
                         .blur(radius: deepFocusTaskId == nil ? 0 : 8)
                         .allowsHitTesting(deepFocusTaskId == nil && (onboardingPage == nil || showImportModal))
                         .onAppear {
-                            if DataIntegrityRepair.repair(modelContext) {
-                                _ = PersistenceSafety.save(modelContext, operation: "Repairing local data")
-                            }
+                            // The sync cycle repairs after its first complete pull.
+                            // Repairing a dormant cache here can give stale rows a
+                            // fresh timestamp before newer device edits arrive.
                             syncManager.start(context: modelContext)
                             migrationManager.startMonitoring(context: modelContext)
                         }

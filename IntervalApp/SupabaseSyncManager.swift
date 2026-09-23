@@ -219,7 +219,6 @@ class SupabaseSyncManager: ObservableObject {
         static let tokenExpiry = "sb_token_expiry"
         static let serverTimeOffset = "sb_server_time_offset"
         static let tombstones = "sb_tombstones"
-        static let binReconciled = "sb_bin_reconciled"
     }
 
     private enum TokenAccount {
@@ -323,12 +322,6 @@ class SupabaseSyncManager: ObservableObject {
     private var missingHabitIds = Set<String>()
     private var missingScratchpadListIds = Set<String>()
     private var missingScratchpadItemIds = Set<String>()
-    
-    /// Builds before per-row sync tracking hard-deleted rows locally without recording a
-    /// tombstone, leaving orphaned soft-deleted rows on the server. They are cleared out once,
-    /// on the first successful pull after the upgrade, and only for stores that already hold
-    /// data — on a fresh install those same rows are the user's real recycle bin.
-    private var legacyBinPurgeArmed = false
     
     private let transport: HTTPDataTransport
     
@@ -635,8 +628,11 @@ class SupabaseSyncManager: ObservableObject {
         // 3. Flush any pending unsynced changes to Supabase before purging local data
         var pushSucceeded = true
         if isAuthenticated {
-            pushSucceeded = await pushToSupabase()
-            _ = await flushTombstones()
+            // A returning device with an active sync loop must reconcile before
+            // any logout upload. Standalone contexts can still flush edits.
+            pushSucceeded = isSyncLoopRunning
+                ? await runSyncCycle(force: true)
+                : await pushToSupabase()
         }
         
         // 4. Do not finish logout if any pending data failed to reach the server.
@@ -1007,7 +1003,6 @@ class SupabaseSyncManager: ObservableObject {
         cancellables.removeAll()
         isSyncLoopRunning = true
         let generation = sessionGeneration
-        armLegacyBinPurgeIfNeeded(context: context)
         let monitor = NWPathMonitor()
         networkMonitor = monitor
         monitor.pathUpdateHandler = { [weak self] path in
@@ -1483,7 +1478,6 @@ class SupabaseSyncManager: ObservableObject {
             backoff.recordFailure()
             return false
         }
-        completeLegacyBinPurge()
         noteSyncSuccess()
         
         if let metadata = await fetchUserMetadata() {
@@ -1562,11 +1556,6 @@ class SupabaseSyncManager: ObservableObject {
                     break
                 }
             } else {
-                if dto.deleted_at != nil && legacyBinPurgeArmed {
-                    orphanRemoteIds.append(dto.id)
-                    continue
-                }
-                
                 let task = TaskItem(text: text, intervalType: DataIntegrityRepair.safeInterval(dto.interval_type), order: dto.order ?? 0)
                 task.id = dto.id
                 task.completed = dto.completed ?? false
@@ -1644,11 +1633,6 @@ class SupabaseSyncManager: ObservableObject {
                     break
                 }
             } else {
-                if dto.deleted_at != nil && legacyBinPurgeArmed {
-                    orphanRemoteIds.append(dto.id)
-                    continue
-                }
-                
                 let habit = HabitItem(text: text, frequency: dto.frequency ?? "Daily", order: dto.order ?? 0)
                 habit.id = dto.id
                 habit.streak = dto.streak ?? 0
@@ -1900,24 +1884,6 @@ class SupabaseSyncManager: ObservableObject {
         guard root[keyPath: keyPath] != value else { return false }
         root[keyPath: keyPath] = value
         return true
-    }
-    
-    private func armLegacyBinPurgeIfNeeded(context: ModelContext) {
-        guard !UserDefaults.standard.bool(forKey: StoreKey.binReconciled) else { return }
-        var descriptor = FetchDescriptor<TaskItem>()
-        descriptor.fetchLimit = 1
-        let hasLocalData = ((try? context.fetch(descriptor)) ?? []).isEmpty == false
-        if hasLocalData {
-            legacyBinPurgeArmed = true
-        } else {
-            UserDefaults.standard.set(true, forKey: StoreKey.binReconciled)
-        }
-    }
-    
-    private func completeLegacyBinPurge() {
-        guard legacyBinPurgeArmed else { return }
-        legacyBinPurgeArmed = false
-        UserDefaults.standard.set(true, forKey: StoreKey.binReconciled)
     }
     
     // MARK: - Tombstones
@@ -2423,10 +2389,6 @@ extension SupabaseSyncManager {
         let authorizedListIds = Set(lists.compactMap { $0.user_id == nil ? nil : $0.id })
         if mergeRemoteScratchpadItems(items, authorizedListIds: authorizedListIds, context: context, uid: uid) { needsFollowup = true }
         return persist(context) ? needsFollowup : false
-    }
-    
-    func testingArmLegacyBinPurge() {
-        legacyBinPurgeArmed = true
     }
     
     /// The rows a push would send, after local housekeeping.
