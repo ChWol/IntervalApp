@@ -615,7 +615,8 @@ class MigrationManager: ObservableObject {
         }
         
         // Also clean up any lingering temporary habit tasks from yesterday in 1 Hour
-        for task in allTasks where task.habitId != nil && !task.completed && task.deletedAt == nil {
+        for task in allTasks where task.intervalType == HabitTaskLink.hourInterval
+            && task.habitId != nil && !task.completed && task.deletedAt == nil {
             task.deletedAt = now
             task.updatedAt = now
             didModify = true
@@ -636,7 +637,8 @@ class MigrationManager: ObservableObject {
         let all = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
         let now = Date()
         var didClean = false
-        for task in all where task.habitId != nil && !task.completed && task.deletedAt == nil {
+        for task in all where task.intervalType == HabitTaskLink.hourInterval
+            && task.habitId != nil && !task.completed && task.deletedAt == nil {
             task.deletedAt = now
             task.updatedAt = now
             didClean = true

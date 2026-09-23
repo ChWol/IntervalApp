@@ -312,7 +312,7 @@ enum TaskDragMutation {
         }.sorted { $0.order < $1.order }
         destination.insert(dragged, at: min(max(index, 0), destination.count))
         dragged.intervalType = interval
-        dragged.intervalEnteredAt = now
+        if intervalChanged { dragged.intervalEnteredAt = now }
 
         var affected = destination
         if sourceInterval != interval {
