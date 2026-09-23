@@ -548,11 +548,40 @@ struct HabitChipView: View {
         lastPostponeMutation = now
         let previousDate = habit.postponedDate
         let previousUpdatedAt = habit.updatedAt
+        // Resolve the hour tasks before changing the habit so a failed fetch
+        // cannot leave a postponed habit with a live task in the hour list.
+        guard let allTasks = try? modelContext.fetch(FetchDescriptor<TaskItem>()) else { return }
         withAnimation(.easeInOut(duration: 0.2)) {
             habit.togglePostponeForToday()
+            // A habit already selected for this hour must leave the hour when
+            // postponed. Tombstone the generated task so sync cannot revive it.
+            let linkedTasks = habit.isPostponedToday
+                ? allTasks.filter {
+                    ($0.habitId == habit.id ||
+                     ($0.habitId == nil && $0.id == HabitTaskLink.hourTaskId(habitId: habit.id, now: $0.createdAt)))
+                        && $0.intervalType == HabitTaskLink.hourInterval
+                        && $0.deletedAt == nil && !$0.completed
+                }
+                : []
+            let previousTaskValues = linkedTasks.map { ($0, $0.habitId, $0.deletedAt, $0.updatedAt, $0.syncedAt) }
+            for task in linkedTasks {
+                task.habitId = habit.id
+                task.deletedAt = now
+                task.updatedAt = max(now, task.updatedAt.addingTimeInterval(0.001))
+                task.syncedAt = nil
+            }
+            if habit.isPostponedToday && dragState.draggedHabit?.id == habit.id {
+                dragState.reset()
+            }
             guard PersistenceSafety.save(modelContext, operation: "Saving habit postponement") else {
                 habit.postponedDate = previousDate
                 habit.updatedAt = previousUpdatedAt
+                for (task, habitId, deletedAt, updatedAt, syncedAt) in previousTaskValues {
+                    task.habitId = habitId
+                    task.deletedAt = deletedAt
+                    task.updatedAt = updatedAt
+                    task.syncedAt = syncedAt
+                }
                 return
             }
             SupabaseSyncManager.shared.push()

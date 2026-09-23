@@ -785,7 +785,8 @@ struct TaskDropDelegate: DropDelegate {
                 if !alreadyInHour {
                     let sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
                     let itemIdx = sorted.firstIndex(where: { $0.id == item.id }) ?? 0
-                    HabitDragState.shared.targetHour(at: itemIdx)
+                    let bottomHalf = info.location.y > max(24, sectionFontSize * 1.2) / 2
+                    HabitDragState.shared.targetHour(at: min(sorted.count, itemIdx + (bottomHalf ? 1 : 0)))
                 }
             }
             return
@@ -818,7 +819,7 @@ struct TaskDropDelegate: DropDelegate {
             let sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
             if let itemIdx = sorted.firstIndex(where: { $0.id == item.id }) {
                 // If cursor is in the lower half of this task row, place placeholder below it (index + 1)
-                let isBottomHalf = info.location.y > (sectionFontSize * 1.5 / 2.0)
+                let isBottomHalf = info.location.y > max(24, sectionFontSize * 1.2) / 2
                 let candidateIdx = isBottomHalf ? itemIdx + 1 : itemIdx
                 HabitDragState.shared.targetHour(at: candidateIdx)
             }
@@ -874,7 +875,7 @@ struct TaskDropDelegate: DropDelegate {
                 $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed
             }.sorted { $0.order < $1.order }
             let rowIndex = sorted.firstIndex(where: { $0.id == item.id }) ?? sorted.count
-            let isBottomHalf = info.location.y > (sectionFontSize * 1.5 / 2.0)
+            let isBottomHalf = info.location.y > max(24, sectionFontSize * 1.2) / 2
             let targetIdx = min(sorted.count, rowIndex + (isBottomHalf ? 1 : 0))
             return commitHabitDrop(habit, at: targetIdx, listTitle: HabitTaskLink.hourInterval, context: context)
         }

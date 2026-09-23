@@ -247,7 +247,14 @@ func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listT
     
     var sorted = allTasks.filter { $0.intervalType == HabitTaskLink.hourInterval && $0.deletedAt == nil && !$0.completed }.sorted { $0.order < $1.order }
     
-    let newTask = TaskItem(text: habit.text, intervalType: HabitTaskLink.hourInterval, order: 0, habitId: habit.id)
+    let insertionIndex: Int
+    switch position {
+    case .top: insertionIndex = 0
+    case .bottom: insertionIndex = sorted.count
+    case .atIndex(let idx): insertionIndex = min(max(0, idx), sorted.count)
+    }
+    let newTask = TaskItem(text: habit.text, intervalType: HabitTaskLink.hourInterval,
+                           order: insertionIndex, habitId: habit.id)
     // A completed copy may deliberately be added again; otherwise a drag and an
     // hourly transition must identify this occurrence as the same task.
     if !allTasks.contains(where: { $0.id == stableId }) {
@@ -255,24 +262,14 @@ func insertHabitAsTask(habit: HabitItem, at position: HabitInsertPosition, listT
     }
     newTask.createdAt = now
     newTask.updatedAt = now
-    context.insert(newTask)
-    HabitInsertionRegistry.remember(newTask, for: habit.id, in: context)
-    
-    switch position {
-    case .top:
-        sorted.insert(newTask, at: 0)
-    case .bottom:
-        sorted.append(newTask)
-    case .atIndex(let idx):
-        let clamped = min(max(0, idx), sorted.count)
-        sorted.insert(newTask, at: clamped)
-    }
-    
+    sorted.insert(newTask, at: insertionIndex)
     for (i, t) in sorted.enumerated() where t.order != i {
         t.order = i
         t.updatedAt = now
         t.syncedAt = nil
     }
+    context.insert(newTask)
+    HabitInsertionRegistry.remember(newTask, for: habit.id, in: context)
     _ = DataIntegrityRepair.repairDuplicateHourHabitTasks(allTasks + [newTask], now: now)
     
     guard PersistenceSafety.save(context) else { return false }
