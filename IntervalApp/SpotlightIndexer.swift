@@ -16,6 +16,14 @@ extension Notification.Name {
 @MainActor
 final class SpotlightIndexer {
     static let shared = SpotlightIndexer()
+#if os(macOS)
+    private static let appThumbnailData: Data? = {
+        let appIcon = NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
+        guard let tiff = appIcon.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff) else { return nil }
+        return bitmap.representation(using: .png, properties: [:])
+    }()
+#endif
     private let index = CSSearchableIndex(name: "Interval")
     private var pendingWork: DispatchWorkItem?
     private var pendingOpenTarget: (kind: String, id: String)?
@@ -123,13 +131,9 @@ final class SpotlightIndexer {
         attributes.keywords = keywords + title.split(separator: " ").map(String.init)
         attributes.url = URL(string: "interval://spotlight/\(id.replacingOccurrences(of: ":", with: "/"))")
 #if os(macOS)
-        // Core Spotlight otherwise presents these text records with a generic
-        // document glyph. Use the installed product's real app icon as its item thumbnail.
-        let appIcon = NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
-        if let tiff = appIcon.tiffRepresentation,
-           let bitmap = NSBitmapImageRep(data: tiff) {
-            attributes.thumbnailData = bitmap.representation(using: .png, properties: [:])
-        }
+        // Cache the PNG once. Re-decoding and encoding the bundle icon for each
+        // record makes large macOS Spotlight re-indexes needlessly CPU and memory heavy.
+        attributes.thumbnailData = Self.appThumbnailData
 #endif
         // Use the running product's bundle identity so Spotlight associates
         // indexed records with the app that created them (including Debug builds).
