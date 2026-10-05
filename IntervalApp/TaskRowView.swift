@@ -13,6 +13,7 @@ struct TaskRowView: View {
     
     @Binding var focusedTaskId: String?
     var showsOnboardingTargets: Bool = false
+    var highlightedSearchResultId: String? = nil
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
@@ -152,6 +153,7 @@ struct TaskRowView: View {
             }
         }
         .id(isNew ? "NEW_\(listTitle)" : task.id)
+        .searchResultHighlight(highlightedSearchResultId == task.id)
         #if os(iOS)
         .contextMenu {
             if !isNew, let onDeepFocus {

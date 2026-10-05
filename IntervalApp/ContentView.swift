@@ -5,6 +5,15 @@ import SwiftData
 import AppKit
 #endif
 
+private struct SearchRevealTarget: Equatable {
+    let id: String
+    let isHabit: Bool
+    let isList: Bool
+    let isCompleted: Bool
+    let isDeleted: Bool
+    let token = UUID()
+}
+
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
@@ -30,6 +39,9 @@ struct ContentView: View {
     @State private var deepFocusBreathing = false
     @State private var currentViewMode: ViewMode = .intervals
     @State private var isSearchPresented = false
+    @State private var searchRevealTarget: SearchRevealTarget?
+    @State private var highlightedSearchResultId: String?
+    @State private var searchHighlightRequest = UUID()
     @State private var scratchpadSelectedListId: String? = nil
     @State private var showUpdatePasswordModal = false
     @State private var showImportModal = false
@@ -221,20 +233,17 @@ struct ContentView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .spotlightOpenItem)) { notification in
-            guard let kind = notification.userInfo?["kind"] as? String,
+            guard !handlePendingSpotlightOpenTarget(),
+                  let kind = notification.userInfo?["kind"] as? String,
                   let id = notification.userInfo?["id"] as? String else { return }
-            withAnimation(.easeInOut(duration: 0.2)) {
-                if kind == "task" {
-                    currentViewMode = .intervals
-                    focusedTaskId = id
-                } else if kind == "list" || kind == "scratch" {
-                    currentViewMode = .scratchpad
-                    scratchpadSelectedListId = kind == "list" ? id : nil
-                    focusedTaskId = kind == "scratch" ? id : nil
-                } else {
-                    currentViewMode = .intervals
-                }
-            }
+            let task = allTasks.first(where: { $0.id == id })
+            let scratchpadItem = kind == "scratch"
+                ? (try? modelContext.fetch(FetchDescriptor<ScratchpadItem>()))?.first(where: { $0.id == id })
+                : nil
+            navigateToSpotlightTarget(kind: kind, id: id, task: task, scratchpadListId: scratchpadItem?.listId)
+        }
+        .onAppear {
+            handlePendingSpotlightOpenTarget()
         }
         .onReceive(NotificationCenter.default.publisher(for: .presentIntervalSearch)) { _ in
             guard syncManager.isAuthenticated else { return }
@@ -348,10 +357,10 @@ struct ContentView: View {
                         ScrollView(.vertical, showsIndicators: false) {
                             VStack(alignment: .leading, spacing: 40) {
                                 if currentViewMode == .scratchpad {
-                                    ScratchpadView(focusedTaskId: $focusedTaskId, selectedListId: $scratchpadSelectedListId)
+                                    ScratchpadView(focusedTaskId: $focusedTaskId, selectedListId: $scratchpadSelectedListId, highlightedSearchResultId: highlightedSearchResultId)
                                 } else {
                                     if showHabits {
-                                        HabitsBarView()
+                                        HabitsBarView(highlightedSearchResultId: highlightedSearchResultId)
                                     }
                                     
                                     ForEach(intervals, id: \.0) { interval in
@@ -362,6 +371,7 @@ struct ContentView: View {
                                                 $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order
                                             },
                                             focusedTaskId: $focusedTaskId,
+                                            highlightedSearchResultId: highlightedSearchResultId,
                                             onDeepFocus: { task in
                                                 DragState.shared.reset()
                                                 HabitDragState.shared.reset()
@@ -395,6 +405,20 @@ struct ContentView: View {
                             if let id = newId {
                                 withAnimation(.easeInOut(duration: 0.25)) {
                                     scrollProxy.scrollTo(id, anchor: nil)
+                                }
+                            }
+                        }
+                        .onChange(of: searchRevealTarget) { _, target in
+                            guard let target, !target.isHabit, !target.isList else { return }
+                            if currentViewMode == .intervals {
+                                isCompletedExpanded = target.isCompleted
+                                isDeletedExpanded = target.isDeleted
+                                if target.isCompleted { showAllCompleted = true }
+                                if target.isDeleted { showAllDeleted = true }
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                                withAnimation(.easeInOut(duration: 0.35)) {
+                                    scrollProxy.scrollTo(target.id, anchor: .center)
                                 }
                             }
                         }
@@ -682,7 +706,7 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 15) {
                         let displayed = showAllCompleted ? completedTasks : Array(completedTasks.prefix(10))
                         ForEach(displayed) { task in
-                            BinRowView(task: task, fontSize: 14.0)
+                            BinRowView(task: task, fontSize: 14.0, highlightedSearchResultId: highlightedSearchResultId)
                         }
                         HStack {
                             if completedTasks.count > 10 {
@@ -738,7 +762,7 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 15) {
                         let displayed = showAllDeleted ? deletedTasks : Array(deletedTasks.prefix(10))
                         ForEach(displayed) { task in
-                            BinRowView(task: task, fontSize: 14.0)
+                            BinRowView(task: task, fontSize: 14.0, highlightedSearchResultId: highlightedSearchResultId)
                         }
                         HStack {
                             if deletedTasks.count > 10 {
@@ -874,19 +898,67 @@ struct ContentView: View {
     // MARK: - Actions
     
     private func handleSearchSelection(_ item: SearchResultItem) {
+        let isHabit: Bool
+        if case .habit = item.destination { isHabit = true } else { isHabit = false }
+        revealSearchResult(id: item.targetId, isHabit: isHabit, isList: false, isCompleted: item.isCompleted, isDeleted: item.isDeleted)
         withAnimation(.easeInOut(duration: 0.2)) {
             switch item.destination {
             case .interval:
                 currentViewMode = .intervals
-                focusedTaskId = item.targetId
+                focusedTaskId = nil
             case .habit:
                 currentViewMode = .intervals
                 focusedTaskId = nil
             case .scratchpad(let listId):
                 scratchpadSelectedListId = listId
                 currentViewMode = .scratchpad
-                focusedTaskId = item.targetId
+                focusedTaskId = nil
             }
+        }
+    }
+
+    @discardableResult
+    private func handlePendingSpotlightOpenTarget() -> Bool {
+        guard let target = SpotlightIndexer.shared.consumePendingOpenTarget() else { return false }
+        let task = allTasks.first(where: { $0.id == target.id })
+        let scratchpadItem = target.kind == "scratch"
+            ? (try? modelContext.fetch(FetchDescriptor<ScratchpadItem>()))?.first(where: { $0.id == target.id })
+            : nil
+        navigateToSpotlightTarget(kind: target.kind, id: target.id, task: task, scratchpadListId: scratchpadItem?.listId)
+        return true
+    }
+
+    private func navigateToSpotlightTarget(kind: String, id: String, task: TaskItem?, scratchpadListId: String?) {
+        let isHabit = kind == "habit"
+        revealSearchResult(id: id, isHabit: isHabit, isList: kind == "list", isCompleted: task?.completed ?? false, isDeleted: task?.deletedAt != nil)
+        withAnimation(.easeInOut(duration: 0.2)) {
+            if kind == "task" || isHabit {
+                currentViewMode = .intervals
+            } else if kind == "list" || kind == "scratch" {
+                currentViewMode = .scratchpad
+                scratchpadSelectedListId = kind == "list" ? id : scratchpadListId
+            }
+            focusedTaskId = nil
+        }
+    }
+
+    private func revealSearchResult(id: String, isHabit: Bool, isList: Bool = false, isCompleted: Bool, isDeleted: Bool) {
+        searchRevealTarget = SearchRevealTarget(id: id, isHabit: isHabit, isList: isList, isCompleted: isCompleted, isDeleted: isDeleted)
+        let request = UUID()
+        searchHighlightRequest = request
+        let activateHighlight = {
+            highlightedSearchResultId = id
+            DispatchQueue.main.asyncAfter(deadline: .now() + SearchResultHighlightTiming.activeDuration) {
+                if searchHighlightRequest == request {
+                    highlightedSearchResultId = nil
+                }
+            }
+        }
+        if highlightedSearchResultId == id {
+            highlightedSearchResultId = nil
+            DispatchQueue.main.async(execute: activateHighlight)
+        } else {
+            activateHighlight()
         }
     }
     

@@ -5,6 +5,7 @@ import SwiftData
 struct BinRowView: View {
     @Bindable var task: TaskItem
     let fontSize: CGFloat
+    var highlightedSearchResultId: String? = nil
     
     @Environment(\.modelContext) private var modelContext
     @State private var isHovering = false
@@ -51,6 +52,8 @@ struct BinRowView: View {
                 isHovering = hovering
             }
         }
+        .id(task.id)
+        .searchResultHighlight(highlightedSearchResultId == task.id)
     }
     
     private func restoreTask() {

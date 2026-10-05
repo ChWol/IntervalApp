@@ -44,6 +44,7 @@ struct ScratchpadView: View {
 
     @Binding var focusedTaskId: String?
     @Binding var selectedListId: String?
+    var highlightedSearchResultId: String? = nil
     @State private var isCreatingList: Bool = false
     @State private var newListName: String = ""
 
@@ -93,6 +94,7 @@ struct ScratchpadView: View {
         VStack(alignment: .leading, spacing: 20) {
             // MARK: - List Selector Bar (Chips & New List Button)
             HStack(spacing: 0) {
+                ScrollViewReader { listProxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
                         ForEach(activeLists) { list in
@@ -186,6 +188,8 @@ struct ScratchpadView: View {
                                 Capsule()
                                     .stroke(Color.primary.opacity(isSelected ? 0.2 : 0.08), lineWidth: 1)
                             )
+                            .id(list.id)
+                            .searchResultHighlight(highlightedSearchResultId == list.id)
                             #if !os(watchOS)
                             .onDrag {
                                 ScratchpadDragState.shared.targetList = nil
@@ -271,6 +275,16 @@ struct ScratchpadView: View {
                     }
                     .padding(.horizontal, 2)
                     .padding(.trailing, 120)
+                }
+                .onChange(of: highlightedSearchResultId) { _, id in
+                    guard let id, activeLists.contains(where: { $0.id == id }) else { return }
+                    withAnimation(.easeInOut(duration: 0.35)) { listProxy.scrollTo(id, anchor: .center) }
+                }
+                .onAppear {
+                    if let id = highlightedSearchResultId, activeLists.contains(where: { $0.id == id }) {
+                        DispatchQueue.main.async { listProxy.scrollTo(id, anchor: .center) }
+                    }
+                }
                 }
             }
             .padding(.top, 24)
@@ -368,6 +382,7 @@ struct ScratchpadView: View {
                             listId: currentList.id,
                             currentListId: currentList.id,
                             focusedTaskId: $focusedTaskId,
+                            highlightedSearchResultId: highlightedSearchResultId,
                             selectedItemIds: $selectedItemIds,
                             lastClickedItemId: $lastClickedItemId,
                             allItemsInList: openItems
@@ -407,6 +422,7 @@ struct ScratchpadView: View {
                                 listId: currentList.id,
                                 currentListId: currentList.id,
                                 focusedTaskId: $focusedTaskId,
+                                highlightedSearchResultId: highlightedSearchResultId,
                                 selectedItemIds: $selectedItemIds,
                                 lastClickedItemId: $lastClickedItemId,
                                 allItemsInList: completedItems
@@ -630,6 +646,7 @@ struct ScratchpadItemRowView: View {
     var listId: String
     var currentListId: String
     @Binding var focusedTaskId: String?
+    var highlightedSearchResultId: String? = nil
     @Binding var selectedItemIds: Set<String>
     @Binding var lastClickedItemId: String?
     var allItemsInList: [ScratchpadItem]
@@ -868,6 +885,7 @@ struct ScratchpadItemRowView: View {
         .onDrop(of: [.data], delegate: ScratchpadItemDropDelegate(item: item, context: modelContext))
         #endif
         .id(myId)
+        .searchResultHighlight(highlightedSearchResultId == myId)
     }
 
     // MARK: - Transfer Popover Content

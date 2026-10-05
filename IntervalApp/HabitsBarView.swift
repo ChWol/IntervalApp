@@ -90,6 +90,7 @@ struct WeekdayOption: Identifiable {
 // MARK: - Habits Bar View
 
 struct HabitsBarView: View {
+    var highlightedSearchResultId: String? = nil
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \HabitItem.order) private var habits: [HabitItem]
@@ -144,6 +145,7 @@ struct HabitsBarView: View {
                         ForEach(sortedHabits) { habit in
                             let chip = HabitChipView(habit: habit, hoveredHabitId: $hoveredHabitId)
                                 .id(habit.id)
+                                .searchResultHighlight(highlightedSearchResultId == habit.id)
                             #if !os(watchOS)
                             chip
                                 .onDrag {
@@ -292,6 +294,15 @@ struct HabitsBarView: View {
                         Text("No habits added yet. Click + New Habit to set daily or weekly routines.".localized)
                             .font(.system(size: 12, weight: .light))
                             .foregroundColor(.gray)
+                    }
+                }
+                .onChange(of: highlightedSearchResultId) { _, id in
+                    guard let id else { return }
+                    withAnimation(.easeInOut(duration: 0.35)) { proxy.scrollTo(id, anchor: .center) }
+                }
+                .onAppear {
+                    if let id = highlightedSearchResultId {
+                        DispatchQueue.main.async { proxy.scrollTo(id, anchor: .center) }
                     }
                 }
             }
@@ -508,7 +519,7 @@ struct HabitChipView: View {
         .onHover { hovering in
             hoveredHabitId = hovering ? habit.id : nil
         }
-        #if os(iOS)
+        #if os(iOS) || os(macOS)
         .contextMenu {
             if !isDone {
                 Button(isPostponed ? "Unpostpone for today".localized : "Postpone for today".localized,

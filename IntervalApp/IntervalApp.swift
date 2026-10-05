@@ -4,6 +4,10 @@ import SwiftData
 #if os(macOS)
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Task { @MainActor in
+            await NotificationManager.shared.refreshAuthorizationStatus()
+            NotificationManager.shared.scheduleUpcomingBoundaryNotifications()
+        }
         if IntervalApp.modelBootstrap.startupError == nil {
             MenuBarManager.shared.setup(container: IntervalApp.sharedModelContainer)
         }
@@ -15,6 +19,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 SupabaseSyncManager.shared.handleIncomingURL(url)
             }
         }
+    }
+
+    func application(
+        _ application: NSApplication,
+        continue userActivity: NSUserActivity,
+        restorationHandler: @escaping ([any NSUserActivityRestoring]) -> Void
+    ) -> Bool {
+        SpotlightIndexer.shared.handleSearchableItemActivity(userActivity)
     }
 }
 #endif

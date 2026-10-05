@@ -8,6 +8,7 @@ struct TaskListView: View {
     let fontSize: CGFloat
     let tasks: [TaskItem]
     @Binding var focusedTaskId: String?
+    var highlightedSearchResultId: String? = nil
     var onDeepFocus: ((TaskItem) -> Void)? = nil
     
     @Environment(\.modelContext) private var modelContext
@@ -93,7 +94,7 @@ struct TaskListView: View {
                                 delegate: TaskListInsertionDropDelegate(listTitle: title, index: index, context: modelContext))
                 }
                 
-                TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title, onDeepFocus: onDeepFocus, focusedTaskId: $focusedTaskId, showsOnboardingTargets: title == "1 Hour" && index == 0)
+                TaskRowView(task: task, fontSize: fontSize, isNew: false, listTitle: title, onDeepFocus: onDeepFocus, focusedTaskId: $focusedTaskId, showsOnboardingTargets: title == "1 Hour" && index == 0, highlightedSearchResultId: highlightedSearchResultId)
             }
 
             if shouldShowTaskPlaceholder && taskDragState.targetIndex == insertionIndex(before: tasks.count) {
