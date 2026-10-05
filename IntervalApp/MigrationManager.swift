@@ -64,9 +64,14 @@ class MigrationManager: ObservableObject {
     /// Never commit the same displayed transition more than once.
     private var committedMigrationIds: [UUID] = []
     private var announceMigration: (Migration) -> Void = { migration in
-        SoundManager.playTransitionChime()
-        NotificationManager.shared.sendMigrationNotification(for: migration)
-        NotificationManager.shared.scheduleUpcomingBoundaryNotifications()
+        // Keep transition detection on the UI path cheap. NotificationCenter and audio
+        // work can involve system services, so start them after SwiftUI has had a chance
+        // to publish the transition sheet and process the triggering interaction.
+        DispatchQueue.main.async {
+            SoundManager.playTransitionChime()
+            NotificationManager.shared.sendMigrationNotification(for: migration)
+            NotificationManager.shared.scheduleUpcomingBoundaryNotifications()
+        }
     }
     
     private static let hourFormatter: DateFormatter = {

@@ -16,6 +16,10 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         static let generalTransition = "interval_transition_general"
         static let legacyIds = ["scheduled_next_hour", "scheduled_next_day"]
     }
+
+    /// Keep this file at the top level of the app bundle. macOS notification
+    /// sounds are resolved from the bundle when the app is no longer running.
+    private static let transitionSound = UNNotificationSoundName("chime_zen_bowl.wav")
     
     @Published var authorizationStatus: UNAuthorizationStatus = .notDetermined
     
@@ -125,7 +129,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        content.sound = .default
+        content.sound = UNNotificationSound(named: Self.transitionSound)
         content.userInfo = ["type": "migration", "source": migration.source, "dest": migration.dest]
         
         let request = UNNotificationRequest(
@@ -153,40 +157,31 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         purgeLegacyNotifications()
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Identifier.hourlyTransition, Identifier.dailyTransition])
         
-        let cal = Calendar.current
-        let now = Date()
-        
         // 1. Next Hour trigger
-        if let nextHour = cal.nextDate(after: now, matching: DateComponents(minute: 0, second: 0), matchingPolicy: .nextTime) {
-            let components = cal.dateComponents([.year, .month, .day, .hour, .minute, .second], from: nextHour)
-            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-            
-            let content = UNMutableNotificationContent()
-            content.title = "A new hour begins".localized
-            content.body = "Time to choose your focus for the upcoming hour.".localized
-            content.sound = .default
-            content.userInfo = ["type": "migration", "source": "1 Day", "dest": "1 Hour"]
-            
-            let request = UNNotificationRequest(identifier: Identifier.hourlyTransition, content: content, trigger: trigger)
-            UNUserNotificationCenter.current().add(request)
+        let hourlyTrigger = UNCalendarNotificationTrigger(dateMatching: DateComponents(minute: 0, second: 0), repeats: true)
+        let hourlyContent = UNMutableNotificationContent()
+        hourlyContent.title = "A new hour begins".localized
+        hourlyContent.body = "Time to choose your focus for the upcoming hour.".localized
+        hourlyContent.sound = UNNotificationSound(named: Self.transitionSound)
+        hourlyContent.userInfo = ["type": "migration", "source": "1 Day", "dest": "1 Hour"]
+        let hourlyRequest = UNNotificationRequest(identifier: Identifier.hourlyTransition, content: hourlyContent, trigger: hourlyTrigger)
+        UNUserNotificationCenter.current().add(hourlyRequest) { error in
+            if let error { print("[NotificationManager] Failed to schedule hourly alert: \(error.localizedDescription)") }
         }
         
         // 2. Next Day trigger (at configured dayStartHour / dayStartMinute)
         let startHour = UserDefaults.standard.object(forKey: "dayStartHour") != nil ? UserDefaults.standard.integer(forKey: "dayStartHour") : 6
         let startMinute = UserDefaults.standard.integer(forKey: "dayStartMinute")
         
-        if let nextDay = cal.nextDate(after: now, matching: DateComponents(hour: startHour, minute: startMinute, second: 0), matchingPolicy: .nextTime) {
-            let components = cal.dateComponents([.year, .month, .day, .hour, .minute, .second], from: nextDay)
-            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-            
-            let content = UNMutableNotificationContent()
-            content.title = "A new day begins".localized
-            content.body = "What would you like to focus on today?".localized
-            content.sound = .default
-            content.userInfo = ["type": "migration", "source": "1 Week", "dest": "1 Day"]
-            
-            let request = UNNotificationRequest(identifier: Identifier.dailyTransition, content: content, trigger: trigger)
-            UNUserNotificationCenter.current().add(request)
+        let dailyTrigger = UNCalendarNotificationTrigger(dateMatching: DateComponents(hour: startHour, minute: startMinute, second: 0), repeats: true)
+        let dailyContent = UNMutableNotificationContent()
+        dailyContent.title = "A new day begins".localized
+        dailyContent.body = "What would you like to focus on today?".localized
+        dailyContent.sound = UNNotificationSound(named: Self.transitionSound)
+        dailyContent.userInfo = ["type": "migration", "source": "1 Week", "dest": "1 Day"]
+        let dailyRequest = UNNotificationRequest(identifier: Identifier.dailyTransition, content: dailyContent, trigger: dailyTrigger)
+        UNUserNotificationCenter.current().add(dailyRequest) { error in
+            if let error { print("[NotificationManager] Failed to schedule daily alert: \(error.localizedDescription)") }
         }
     }
     
