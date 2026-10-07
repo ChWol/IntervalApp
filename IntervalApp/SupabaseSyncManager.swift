@@ -1521,9 +1521,23 @@ class SupabaseSyncManager: ObservableObject {
             let remoteStamp = SyncTimestamp.parse(dto.updated_at).map { clock.toLocal($0) }
             
             if let existing = localById[dto.id] {
-                switch MergePolicy.resolve(remoteUpdatedAt: remoteStamp,
-                                           localUpdatedAt: existing.updatedAt,
-                                           localSyncedAt: existing.syncedAt) {
+                let lifecycleAdvanced = MergePolicy.shouldAdoptRemoteTaskLifecycle(
+                    remoteUpdatedAt: remoteStamp,
+                    remoteCompleted: dto.completed == true,
+                    remoteDeleted: dto.deleted_at != nil,
+                    localCompleted: existing.completed,
+                    localDeleted: existing.deletedAt != nil,
+                    localSyncedAt: existing.syncedAt
+                )
+                let outcome: MergeOutcome
+                if lifecycleAdvanced, let remoteStamp {
+                    outcome = .adoptRemote(remoteStamp)
+                } else {
+                    outcome = MergePolicy.resolve(remoteUpdatedAt: remoteStamp,
+                                                  localUpdatedAt: existing.updatedAt,
+                                                  localSyncedAt: existing.syncedAt)
+                }
+                switch outcome {
                 case .adoptRemote(let stamp):
                     assign(text, to: existing, \.text)
                     assign(dto.completed ?? existing.completed, to: existing, \.completed)

@@ -165,6 +165,24 @@ enum MergePolicy {
         if remoteUpdatedAt < localUpdatedAt { return .republishLocal }
         return needsPush(updatedAt: localUpdatedAt, syncedAt: localSyncedAt) ? .keepLocalAndPush : .keepLocal
     }
+
+    /// Completion and binning are deliberate actions. An offline device can change a
+    /// task's text or position after another device has finished it; that edit must not
+    /// implicitly undo the completion when the whole row is uploaded again. A local
+    /// restore is still allowed when this device has already seen the server action.
+    static func shouldAdoptRemoteTaskLifecycle(remoteUpdatedAt: Date?,
+                                               remoteCompleted: Bool,
+                                               remoteDeleted: Bool,
+                                               localCompleted: Bool,
+                                               localDeleted: Bool,
+                                               localSyncedAt: Date?) -> Bool {
+        guard let remoteUpdatedAt else { return false }
+        let remoteAdvancesLifecycle = (remoteCompleted && !localCompleted && !localDeleted)
+            || (remoteDeleted && !localDeleted)
+        guard remoteAdvancesLifecycle else { return false }
+        guard let localSyncedAt else { return true }
+        return remoteUpdatedAt > localSyncedAt
+    }
 }
 
 // MARK: - Tombstones

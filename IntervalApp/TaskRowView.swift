@@ -336,7 +336,7 @@ struct TaskRowView: View {
                                             }
                                             
                                             let now = Date()
-                                            for (i, t) in sorted.enumerated() {
+                                            for (i, t) in sorted.enumerated() where t.order != i {
                                                 t.order = i
                                                 t.updatedAt = now
                                             }
