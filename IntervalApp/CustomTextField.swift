@@ -230,6 +230,8 @@ struct CustomTextField: UIViewRepresentable {
         tv.textColor = .label
         tv.textContainerInset = .zero
         tv.textContainer.lineFragmentPadding = 0
+        tv.textContainer.widthTracksTextView = true
+        tv.textContainer.lineBreakMode = .byWordWrapping
         tv.isScrollEnabled = false
         tv.delegate = context.coordinator
         tv.returnKeyType = .default
@@ -260,6 +262,15 @@ struct CustomTextField: UIViewRepresentable {
             }
         }
         return tv
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
+        guard let width = proposal.width, width > 0 else { return nil }
+        let measured = uiView.sizeThatFits(
+            CGSize(width: width, height: .greatestFiniteMagnitude)
+        )
+        let lineHeight = uiView.font?.lineHeight ?? fontSize
+        return CGSize(width: width, height: max(ceil(measured.height), ceil(lineHeight)))
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
@@ -350,7 +361,7 @@ struct CustomTextField: UIViewRepresentable {
 
         func textViewDidChange(_ textView: UITextView) {
             text = textView.text
-            textView.scrollRangeToVisible(textView.selectedRange)
+            textView.invalidateIntrinsicContentSize()
         }
 
         func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
