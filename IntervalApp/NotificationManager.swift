@@ -79,6 +79,35 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     
     private var lastSentMigrationKey: String = ""
     private var lastSentMigrationTime: Date = .distantPast
+
+    /// A scheduled alert can sound while the app is closed, just before it is
+    /// opened and discovers the same transition. Avoid sounding it again.
+    func wasBoundaryNotificationDelivered(for migration: Migration, now: Date = Date()) async -> Bool {
+        guard (migration.source == "1 Day" && migration.dest == HabitTaskLink.hourInterval) ||
+              (migration.source == "1 Week" && migration.dest == "1 Day") else { return false }
+
+        let delivered = await withCheckedContinuation { continuation in
+            UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
+                continuation.resume(returning: notifications)
+            }
+        }
+        let calendar = Calendar.current
+        let periodStart: Date
+        if migration.dest == HabitTaskLink.hourInterval {
+            periodStart = calendar.dateInterval(of: .hour, for: now)?.start ?? now
+        } else {
+            let hour = UserDefaults.standard.object(forKey: "dayStartHour") != nil ? UserDefaults.standard.integer(forKey: "dayStartHour") : 6
+            let minute = UserDefaults.standard.integer(forKey: "dayStartMinute")
+            let todayStart = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: now) ?? now
+            periodStart = todayStart <= now ? todayStart : (calendar.date(byAdding: .day, value: -1, to: todayStart) ?? todayStart)
+        }
+        return delivered.contains { notification in
+            let info = notification.request.content.userInfo
+            return info["source"] as? String == migration.source &&
+                info["dest"] as? String == migration.dest &&
+                notification.date >= periodStart && notification.date <= now
+        }
+    }
     
     func sendMigrationNotification(for migration: Migration) {
         let isEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
@@ -192,15 +221,16 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        // If the app is active and currently showing the migration modal, suppress redundant system banner & sound
+        // The app plays the transition chime itself while active. A foreground
+        // notification may arrive before the migration sheet is published.
         Task { @MainActor in
             if MigrationManager.shared.currentMigration != nil {
                 completionHandler([])
             } else {
                 #if os(macOS)
-                completionHandler([.banner, .sound])
+                completionHandler([.banner])
                 #else
-                completionHandler([.banner, .sound, .badge])
+                completionHandler([.banner, .badge])
                 #endif
             }
         }

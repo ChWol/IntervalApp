@@ -67,9 +67,12 @@ class MigrationManager: ObservableObject {
         // Keep transition detection on the UI path cheap. NotificationCenter and audio
         // work can involve system services, so start them after SwiftUI has had a chance
         // to publish the transition sheet and process the triggering interaction.
-        DispatchQueue.main.async {
-            SoundManager.playTransitionChime()
-            NotificationManager.shared.sendMigrationNotification(for: migration)
+        Task { @MainActor in
+            let alreadyNotified = await NotificationManager.shared.wasBoundaryNotificationDelivered(for: migration)
+            if !alreadyNotified {
+                SoundManager.playTransitionChime()
+                NotificationManager.shared.sendMigrationNotification(for: migration)
+            }
             NotificationManager.shared.scheduleUpcomingBoundaryNotifications()
         }
     }

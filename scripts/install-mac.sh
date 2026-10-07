@@ -30,6 +30,13 @@ if [[ "${BUILT_BUNDLE_ID}" != "chw.IntervalApp" ]]; then
   exit 1
 fi
 
+# A build with CODE_SIGNING_ALLOWED=NO has only a linker signature whose
+# identifier is the executable name. Seal the app bundle with its real bundle
+# identifier so macOS can associate notifications with its bundled icon.
+if ! /usr/bin/codesign --verify --strict "${BUILT_APP}" >/dev/null 2>&1; then
+  /usr/bin/codesign --force --sign - --identifier "${BUILT_BUNDLE_ID}" "${BUILT_APP}"
+fi
+
 echo "==> Replacing ${APP_PATH} with the freshly built app..."
 APP_PARENT="$(dirname "${APP_PATH}")"
 STAGING_APP="${APP_PARENT}/.IntervalApp.installing.app"
