@@ -30,11 +30,23 @@ if [[ "${BUILT_BUNDLE_ID}" != "chw.IntervalApp" ]]; then
   exit 1
 fi
 
-# A build with CODE_SIGNING_ALLOWED=NO has only a linker signature whose
-# identifier is the executable name. Seal the app bundle with its real bundle
-# identifier so macOS can associate notifications with its bundled icon.
-if ! /usr/bin/codesign --verify --strict "${BUILT_APP}" >/dev/null 2>&1; then
+# Notification Center resolves the sender icon from the signed, registered app.
+# Xcode output can carry a valid signature with the wrong identifier, or an
+# unavailable development certificate. Check the identifier and signature,
+# then repair only when needed so a valid development signature is preserved.
+if [[ ! -s "${BUILT_APP}/Contents/Resources/AppIcon.icns" ]]; then
+  echo "❌ Built app is missing AppIcon.icns" >&2
+  exit 1
+fi
+SIGNED_ID=$(/usr/bin/codesign -dv "${BUILT_APP}" 2>&1 | sed -n 's/^Identifier=//p' || true)
+if [[ "${SIGNED_ID}" != "${BUILT_BUNDLE_ID}" ]] || ! /usr/bin/codesign --verify --strict "${BUILT_APP}" >/dev/null 2>&1; then
   /usr/bin/codesign --force --sign - --identifier "${BUILT_BUNDLE_ID}" "${BUILT_APP}"
+fi
+/usr/bin/codesign --verify --strict "${BUILT_APP}"
+SIGNED_ID=$(/usr/bin/codesign -dv "${BUILT_APP}" 2>&1 | sed -n 's/^Identifier=//p')
+if [[ "${SIGNED_ID}" != "${BUILT_BUNDLE_ID}" ]]; then
+  echo "❌ Signed app identifier ${SIGNED_ID} does not match ${BUILT_BUNDLE_ID}" >&2
+  exit 1
 fi
 
 echo "==> Replacing ${APP_PATH} with the freshly built app..."
@@ -79,5 +91,7 @@ unregister_duplicate_builds
 
 echo "==> Registering the installed app with LaunchServices..."
 "${LSREGISTER}" -f -R -trusted "${APP_PATH}"
+
+/usr/bin/codesign --verify --strict "${APP_PATH}"
 
 echo "✅ Successfully installed ${BUILT_BUNDLE_ID} at ${APP_PATH}."
