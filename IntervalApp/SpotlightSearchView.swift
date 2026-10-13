@@ -170,11 +170,14 @@ struct SpotlightSearchView: View {
         }
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
         .onAppear {
-            isFieldFocused = true
             selectedIndex = 0
+            focusSearchFieldWhenPresented()
             #if os(macOS)
             setupKeyboardMonitor()
             #endif
+        }
+        .onChange(of: isPresented) { _, presented in
+            if presented { focusSearchFieldWhenPresented() }
         }
         .onDisappear {
             #if os(macOS)
@@ -289,6 +292,17 @@ struct SpotlightSearchView: View {
                 .shadow(color: Color.black.opacity(0.25), radius: 28, y: 12)
         )
         #endif
+    }
+
+    private func focusSearchFieldWhenPresented() {
+        // FocusState can be assigned before SwiftUI has installed the overlay's
+        // text field in the active window, especially when ⌘F opens it from a
+        // native menu command. Defer focus until the new field is in the view tree.
+        isFieldFocused = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            guard isPresented else { return }
+            isFieldFocused = true
+        }
     }
     
     private func resultRow(item: SearchResultItem, isSelected: Bool) -> some View {

@@ -51,7 +51,7 @@ struct ContentView: View {
     @State private var hasCompletedInitialPull = false
     @State private var persistenceFailureMessage: String?
     #if os(macOS)
-    @State private var migrationEscapeMonitor: Any?
+    @State private var keyboardShortcutMonitor: Any?
     #endif
     
     @State private var hoveredTopButton: String? = nil
@@ -149,19 +149,6 @@ struct ContentView: View {
                 }
             }
 
-            #if os(macOS)
-            // Keep Escape outside the hit-testing-disabled main view so it still
-            // works while deep focus is actively dimming the rest of the app.
-            if deepFocusTaskId != nil {
-                Button(action: closeDeepFocus) {
-                    EmptyView()
-                }
-                .buttonStyle(InteractivePlainButtonStyle())
-                .keyboardShortcut(.escape, modifiers: [])
-                .opacity(0)
-                .frame(width: 0, height: 0)
-            }
-            #endif
         }
         .overlayPreferenceValue(OnboardingTargetPreferenceKey.self) { anchors in
             GeometryReader { proxy in
@@ -181,11 +168,14 @@ struct ContentView: View {
             .allowsHitTesting(onboardingPage == .tour)
         }
         #if os(macOS)
-        .onAppear { updateMigrationEscapeMonitor() }
+        .onAppear { updateKeyboardShortcutMonitor() }
         .onChange(of: migrationManager.currentMigration?.id) { _, _ in
-            updateMigrationEscapeMonitor()
+            updateKeyboardShortcutMonitor()
         }
-        .onDisappear { removeMigrationEscapeMonitor() }
+        .onChange(of: deepFocusTaskId) { _, _ in
+            updateKeyboardShortcutMonitor()
+        }
+        .onDisappear { removeKeyboardShortcutMonitor() }
         #endif
         .alert("Sign out paused".localized, isPresented: Binding(
             get: { syncManager.signOutAlert != nil },
@@ -608,15 +598,6 @@ struct ContentView: View {
                     
                 }
                 
-                // Cmd-R remains a quiet desktop command; iPhone uses pull-to-refresh.
-                Button(action: { Task { await syncManager.triggerManualSync() } }) {
-                    EmptyView()
-                }
-                .buttonStyle(InteractivePlainButtonStyle())
-                .keyboardShortcut("r", modifiers: .command)
-                .opacity(0)
-                .frame(width: 0, height: 0)
-
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         isSearchPresented.toggle()
@@ -1005,23 +986,38 @@ struct ContentView: View {
     }
 
     #if os(macOS)
-    private func updateMigrationEscapeMonitor() {
-        removeMigrationEscapeMonitor()
-        guard migrationManager.currentMigration != nil else { return }
-        migrationEscapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            guard event.keyCode == 53, event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty else {
-                return event
+    private func updateKeyboardShortcutMonitor() {
+        removeKeyboardShortcutMonitor()
+        let deepFocusIsActive = deepFocusTaskId != nil
+        keyboardShortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let modifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
+
+            if event.keyCode == 53, modifiers.isEmpty {
+                if deepFocusIsActive {
+                    Task { @MainActor in closeDeepFocus() }
+                    return nil
+                }
+                if let migration = migrationManager.currentMigration {
+                    Task { @MainActor in
+                        migrationManager.skipMigration(expectedMigrationId: migration.id)
+                    }
+                    return nil
+                }
             }
-            guard let migration = migrationManager.currentMigration else { return event }
-            migrationManager.skipMigration(expectedMigrationId: migration.id)
-            return nil
+
+            if event.keyCode == 15, modifiers == .command {
+                Task { @MainActor in await syncManager.triggerManualSync() }
+                return nil
+            }
+
+            return event
         }
     }
 
-    private func removeMigrationEscapeMonitor() {
-        if let migrationEscapeMonitor {
-            NSEvent.removeMonitor(migrationEscapeMonitor)
-            self.migrationEscapeMonitor = nil
+    private func removeKeyboardShortcutMonitor() {
+        if let keyboardShortcutMonitor {
+            NSEvent.removeMonitor(keyboardShortcutMonitor)
+            self.keyboardShortcutMonitor = nil
         }
     }
     #endif

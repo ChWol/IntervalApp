@@ -45,6 +45,66 @@ final class HabitPeriodicResetAndStreakTests: XCTestCase {
         XCTAssertTrue(weeklyHabit.isScheduledForToday(date: now))
         XCTAssertFalse(weeklyHabit.isOverdueInCurrentWeek(date: now))
     }
+
+    func testMultiDayWeeklyHabitCreatesACompletionPeriodForEachSelectedDay() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let habit = store.addHabit("Run", frequency: "Weekly:2,4", order: 0)
+        let tuesday = calendar.date(from: DateComponents(year: 2026, month: 6, day: 16, hour: 12))!
+        let wednesday = calendar.date(from: DateComponents(year: 2026, month: 6, day: 17, hour: 12))!
+
+        XCTAssertTrue(habit.isScheduled(on: now, calendar: calendar))
+        XCTAssertFalse(habit.isScheduled(on: tuesday, calendar: calendar))
+        XCTAssertTrue(habit.isScheduledForTodayOrOverdue(calendar: calendar, date: tuesday))
+        habit.lastCompletedDate = now
+        XCTAssertFalse(habit.isScheduledForTodayOrOverdue(calendar: calendar, date: tuesday))
+        XCTAssertTrue(habit.isScheduled(on: wednesday, calendar: calendar))
+        XCTAssertFalse(habit.isCompleted(at: wednesday, calendar: calendar))
+    }
+
+    func testMonthlyHabitUsesSelectedDayAndClampsToShortMonths() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let habit = store.addHabit("Pay rent", frequency: "Monthly:31", order: 0)
+        let february28 = calendar.date(from: DateComponents(year: 2026, month: 2, day: 28, hour: 12))!
+        let march30 = calendar.date(from: DateComponents(year: 2026, month: 3, day: 30, hour: 12))!
+        let march31 = calendar.date(from: DateComponents(year: 2026, month: 3, day: 31, hour: 12))!
+
+        XCTAssertTrue(habit.isScheduled(on: february28, calendar: calendar))
+        habit.lastCompletedDate = february28
+        XCTAssertTrue(habit.isCompleted(at: march30, calendar: calendar))
+        XCTAssertTrue(habit.isScheduled(on: march31, calendar: calendar))
+        XCTAssertFalse(habit.isCompleted(at: march31, calendar: calendar))
+    }
+
+    func testMonthlyHabitCanRepeatOnSeveralDatesInEachMonth() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let habit = store.addHabit("Water plants", frequency: "Monthly:1,15,31", order: 0)
+        let february15 = calendar.date(from: DateComponents(year: 2026, month: 2, day: 15, hour: 12))!
+        let february28 = calendar.date(from: DateComponents(year: 2026, month: 2, day: 28, hour: 12))!
+
+        XCTAssertTrue(habit.isScheduled(on: february15, calendar: calendar))
+        XCTAssertTrue(habit.isScheduled(on: february28, calendar: calendar), "The 31st falls on February's last day")
+        XCTAssertFalse(habit.isScheduled(on: calendar.date(from: DateComponents(year: 2026, month: 2, day: 20, hour: 12))!, calendar: calendar))
+    }
+
+    func testBiweeklyHabitUsesSelectedDaysOnlyOnAnchoredWeeks() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let anchor = calendar.date(from: DateComponents(year: 2026, month: 6, day: 15, hour: 12))!
+        let frequency = "Weekly:2,4;interval=2;anchor=\(anchor.timeIntervalSince1970)"
+        let habit = store.addHabit("Training", frequency: frequency, order: 0)
+        let june17 = calendar.date(from: DateComponents(year: 2026, month: 6, day: 17, hour: 12))!
+        let june22 = calendar.date(from: DateComponents(year: 2026, month: 6, day: 22, hour: 12))!
+        let june29 = calendar.date(from: DateComponents(year: 2026, month: 6, day: 29, hour: 12))!
+
+        XCTAssertTrue(habit.isScheduled(on: anchor, calendar: calendar))
+        XCTAssertTrue(habit.isScheduled(on: june17, calendar: calendar))
+        XCTAssertFalse(habit.isScheduled(on: june22, calendar: calendar))
+        XCTAssertTrue(habit.isScheduled(on: june29, calendar: calendar))
+        XCTAssertEqual(habit.weeklyInterval, 2)
+    }
     
     // MARK: - Streak Preservation and Single-Increment Rule
     

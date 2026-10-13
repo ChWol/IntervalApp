@@ -179,12 +179,18 @@ struct HabitStatsView: View {
     }
 
     private func rhythmDescription(for habit: HabitItem) -> String {
-        guard habit.isWeekly else { return "Daily".localized }
-        guard let weekday = habit.targetWeekday,
-              weekday >= 1, weekday <= calendar.weekdaySymbols.count else {
-            return "Weekly".localized
+        if habit.isWeekly {
+            let names = WeekdayOption.allCurrentOrder
+                .filter { habit.targetWeekdays.contains($0.id) }
+                .map { weekdayName(for: $0.id) }
+            let cadence = habit.weeklyInterval > 1 ? "Every 2 weeks".localized : "Weekly".localized
+            if !names.isEmpty { return "\(cadence) · " + names.joined(separator: ", ") }
         }
-        return "\("Weekly".localized) · \(weekdayName(for: weekday))"
+        if habit.isMonthly {
+            let days = habit.targetMonthDays.sorted().map(String.init).joined(separator: ", ")
+            return days.isEmpty ? "Monthly".localized : "\("Monthly".localized) · \(days)"
+        }
+        return "Daily".localized
     }
 
     private func weekdayName(for weekday: Int) -> String {

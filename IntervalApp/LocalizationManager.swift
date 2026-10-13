@@ -249,6 +249,11 @@ class LocalizationManager: ObservableObject {
             .spanish: "Cambiar nombre", .portuguese: "Renomear", .italian: "Rinomina",
             .arabic: "إعادة تسمية", .chinese: "重命名", .japanese: "名前を変更", .korean: "이름 변경"
         ],
+        "Change rhythm": [
+            .english: "Change rhythm", .german: "Rhythmus ändern", .french: "Modifier le rythme",
+            .spanish: "Cambiar ritmo", .portuguese: "Alterar ritmo", .italian: "Cambia ritmo",
+            .arabic: "تغيير الإيقاع", .chinese: "更改频率", .japanese: "頻度を変更", .korean: "주기 변경"
+        ],
         "Save": [
             .english: "Save", .german: "Speichern", .french: "Enregistrer",
             .spanish: "Guardar", .portuguese: "Guardar", .italian: "Salva",
@@ -1850,6 +1855,47 @@ class LocalizationManager: ObservableObject {
             .english: "Weekly", .german: "Wöchentlich", .french: "Hebdomadaire", .spanish: "Semanal", .portuguese: "Semanal", .italian: "Settimanale",
             .arabic: "أسبوعي", .chinese: "每周", .japanese: "毎週", .korean: "매주"
         ],
+        "Monthly": [
+            .english: "Monthly", .german: "Monatlich", .french: "Mensuel", .spanish: "Mensual", .portuguese: "Mensal", .italian: "Mensile",
+            .arabic: "شهري", .chinese: "每月", .japanese: "毎月", .korean: "매월"
+        ],
+        "Every 2 weeks": [
+            .english: "Every 2 weeks", .german: "Alle 2 Wochen", .french: "Toutes les 2 semaines", .spanish: "Cada 2 semanas", .portuguese: "A cada 2 semanas", .italian: "Ogni 2 settimane",
+            .arabic: "كل أسبوعين", .chinese: "每两周", .japanese: "2週間ごと", .korean: "2주마다"
+        ],
+        "1 week": [
+            .english: "1 week", .german: "1 Woche", .french: "1 semaine", .spanish: "1 semana", .portuguese: "1 semana", .italian: "1 settimana",
+            .arabic: "أسبوع واحد", .chinese: "1周", .japanese: "1週間", .korean: "1주"
+        ],
+        "2 weeks": [
+            .english: "2 weeks", .german: "2 Wochen", .french: "2 semaines", .spanish: "2 semanas", .portuguese: "2 semanas", .italian: "2 settimane",
+            .arabic: "أسبوعان", .chinese: "2周", .japanese: "2週間", .korean: "2주"
+        ],
+        "Repeat every": [
+            .english: "Repeat every", .german: "Wiederholen alle", .french: "Répéter toutes les", .spanish: "Repetir cada", .portuguese: "Repetir a cada", .italian: "Ripeti ogni",
+            .arabic: "تكرار كل", .chinese: "重复间隔", .japanese: "繰り返し", .korean: "반복 간격"
+        ],
+        "Repeat on": [
+            .english: "Repeat on", .german: "Wiederholen am", .french: "Répéter le", .spanish: "Repetir los", .portuguese: "Repetir em", .italian: "Ripeti il",
+            .arabic: "التكرار في", .chinese: "重复日期", .japanese: "繰り返す曜日", .korean: "반복 요일"
+        ],
+        "Repeat on dates": [
+            .english: "Repeat on dates", .german: "An diesen Tagen wiederholen", .french: "Répéter à ces dates", .spanish: "Repetir en estas fechas", .portuguese: "Repetir nestas datas", .italian: "Ripeti in queste date",
+            .arabic: "التكرار في هذه الأيام", .chinese: "在这些日期重复", .japanese: "これらの日に繰り返す", .korean: "이 날짜에 반복"
+        ],
+        "On shorter months, the last available day is used.": [
+            .english: "On shorter months, the last available day is used.", .german: "In kürzeren Monaten wird der letzte verfügbare Tag verwendet.", .french: "Dans les mois plus courts, le dernier jour disponible est utilisé.",
+            .spanish: "En los meses más cortos, se usa el último día disponible.", .portuguese: "Nos meses mais curtos, usa-se o último dia disponível.", .italian: "Nei mesi più brevi viene usato l'ultimo giorno disponibile.",
+            .arabic: "في الأشهر الأقصر، يُستخدم آخر يوم متاح.", .chinese: "在较短的月份中，将使用该月最后一天。", .japanese: "日数が少ない月は、その月の最終日に繰り返します。", .korean: "짧은 달에는 해당 월의 마지막 날에 반복합니다."
+        ],
+        "monthly": [
+            .english: "monthly", .german: "monatlich", .french: "mensuel", .spanish: "mensual", .portuguese: "mensal", .italian: "mensile",
+            .arabic: "شهري", .chinese: "每月", .japanese: "毎月", .korean: "매월"
+        ],
+        "Day of month": [
+            .english: "Day of month", .german: "Tag des Monats", .french: "Jour du mois", .spanish: "Día del mes", .portuguese: "Dia do mês", .italian: "Giorno del mese",
+            .arabic: "يوم من الشهر", .chinese: "每月几日", .japanese: "月の日付", .korean: "매월 날짜"
+        ],
         "complete": [
             .english: "complete", .german: "erledigt", .french: "terminé", .spanish: "completado", .portuguese: "concluído", .italian: "completato",
             .arabic: "مكتمل", .chinese: "已完成", .japanese: "完了", .korean: "완료"
@@ -1921,8 +1967,8 @@ class LocalizationManager: ObservableObject {
         "Add to 1 Hour": [
             .english: "Add to 1 Hour", .german: "Zu 1 Stunde hinzufügen", .french: "Ajouter à 1 heure", .spanish: "Añadir a 1 hora", .portuguese: "Adicionar a 1 hora", .italian: "Aggiungi a 1 ora", .arabic: "أضف إلى ساعة واحدة", .chinese: "添加到1小时", .japanese: "1時間に追加", .korean: "1시간에 추가"
         ],
-        "No habits added yet. Click + New Habit to set daily or weekly routines.": [
-            .english: "No habits added yet. Click + New Habit to set daily or weekly routines.", .german: "Noch keine Gewohnheiten. Klicke auf + Neue Gewohnheit, um tägliche oder wöchentliche Routinen anzulegen.", .french: "Aucune habitude. Cliquez sur + Nouvelle habitude pour créer une routine quotidienne ou hebdomadaire.", .spanish: "Aún no hay hábitos. Haz clic en + Nuevo hábito para crear rutinas diarias o semanales.", .portuguese: "Ainda não há hábitos. Clique em + Novo hábito para criar rotinas diárias ou semanais.", .italian: "Nessuna abitudine. Fai clic su + Nuova abitudine per creare routine giornaliere o settimanali.", .arabic: "لم تُضف عادات بعد. اضغط + عادة جديدة لإنشاء روتين يومي أو أسبوعي.", .chinese: "尚未添加习惯。点击“+ 新习惯”设置每日或每周例程。", .japanese: "習慣はまだありません。「+ 新しい習慣」から毎日または毎週のルーティンを作成できます。", .korean: "아직 습관이 없습니다. + 새 습관을 눌러 매일 또는 매주 반복할 습관을 만드세요."
+        "No habits added yet. Click + New Habit to set daily, weekly, or monthly routines.": [
+            .english: "No habits added yet. Click + New Habit to set daily, weekly, or monthly routines.", .german: "Noch keine Gewohnheiten. Klicke auf + Neue Gewohnheit, um tägliche, wöchentliche oder monatliche Routinen anzulegen.", .french: "Aucune habitude. Cliquez sur + Nouvelle habitude pour créer une routine quotidienne, hebdomadaire ou mensuelle.", .spanish: "Aún no hay hábitos. Haz clic en + Nuevo hábito para crear rutinas diarias, semanales o mensuales.", .portuguese: "Ainda não há hábitos. Clique em + Novo hábito para criar rotinas diárias, semanais ou mensais.", .italian: "Nessuna abitudine. Fai clic su + Nuova abitudine per creare routine giornaliere, settimanali o mensili.", .arabic: "لم تُضف عادات بعد. اضغط + عادة جديدة لإنشاء روتين يومي أو أسبوعي أو شهري.", .chinese: "尚未添加习惯。点击“+ 新习惯”设置每日、每周或每月例程。", .japanese: "習慣はまだありません。「+ 新しい習慣」から毎日、毎週、または毎月のルーティンを作成できます。", .korean: "아직 습관이 없습니다. + 새 습관을 눌러 매일, 매주 또는 매월 반복할 습관을 만드세요."
         ],
         "Your data could not be opened": [
             .english: "Your data could not be opened", .german: "Deine Daten konnten nicht geöffnet werden", .french: "Vos données n’ont pas pu être ouvertes", .spanish: "No se pudieron abrir tus datos", .portuguese: "Não foi possível abrir os seus dados", .italian: "Impossibile aprire i tuoi dati", .arabic: "تعذر فتح بياناتك", .chinese: "无法打开你的数据", .japanese: "データを開けませんでした", .korean: "데이터를 열 수 없습니다"

@@ -59,17 +59,16 @@ final class HabitItem {
         })
         guard !days.isEmpty else { return 0 }
         let today = calendar.startOfDay(for: Self.intervalDayDate(for: date, calendar: calendar))
-        if isWeekly, let weekday = targetWeekday {
-            let cycle = Self.mostRecentWeekdayDate(targetWeekday: weekday, beforeOrOn: date, calendar: calendar)
+        if !isDaily, let cycle = mostRecentScheduledDate(onOrBefore: date, calendar: calendar) {
             var count = 0
             var start = cycle
             if !days.contains(where: { $0 >= start && $0 <= today }) {
-                guard let previous = calendar.date(byAdding: .day, value: -7, to: start) else { return 0 }
+                guard let previous = previousScheduledDate(before: start, calendar: calendar) else { return 0 }
                 start = previous
             }
-            while days.contains(where: { $0 >= start && $0 < (calendar.date(byAdding: .day, value: 7, to: start) ?? start) }) {
+            while days.contains(where: { $0 >= start && $0 < (nextScheduledDate(after: start, calendar: calendar) ?? start) }) {
                 count += 1
-                guard let previous = calendar.date(byAdding: .day, value: -7, to: start) else { break }
+                guard let previous = previousScheduledDate(before: start, calendar: calendar) else { break }
                 start = previous
             }
             return count
@@ -117,15 +116,53 @@ final class HabitItem {
     var isWeekly: Bool {
         frequency.lowercased().starts(with: "weekly")
     }
-    
+
+    var isMonthly: Bool {
+        frequency.lowercased().starts(with: "monthly")
+    }
+
+    var targetWeekdays: Set<Int> {
+        guard isWeekly else { return [] }
+        let raw = frequency.split(separator: ":", maxSplits: 1).last.map(String.init)?.components(separatedBy: ";").first ?? ""
+        let values = raw.split(separator: ",").compactMap { Int($0) }.filter { (1...7).contains($0) }
+        if !values.isEmpty { return Set(values) }
+        if let day = targetWeekday { return [day] }
+        return []
+    }
+
+    var targetMonthDays: Set<Int> {
+        guard isMonthly,
+              let raw = frequency.split(separator: ":", maxSplits: 1).last.map(String.init)?.components(separatedBy: ";").first else { return [] }
+        return Set(raw.split(separator: ",").compactMap { Int($0) }.filter { (1...31).contains($0) })
+    }
+
+    var targetMonthDay: Int? {
+        targetMonthDays.sorted().first
+    }
+
+    var weeklyInterval: Int {
+        guard isWeekly,
+              let value = frequency.components(separatedBy: "interval=").dropFirst().first?.split(separator: ";").first,
+              let interval = Int(value) else { return 1 }
+        return min(max(interval, 1), 52)
+    }
+
+    private var weeklyAnchorDate: Date? {
+        guard let raw = frequency.components(separatedBy: "anchor=").dropFirst().first?.split(separator: ";").first,
+              let timestamp = TimeInterval(raw) else { return nil }
+        return Date(timeIntervalSince1970: timestamp)
+    }
+
     /// Target weekday for weekly habits: 1 = Sun, 2 = Mon, 3 = Tue, 4 = Wed, 5 = Thu, 6 = Fri, 7 = Sat (Calendar.component(.weekday))
     var targetWeekday: Int? {
         get {
             guard isWeekly else { return nil }
-            let parts = frequency.split(separator: ":")
-            if parts.count > 1, let day = Int(parts[1]) {
+            let raw = frequency.split(separator: ":", maxSplits: 1).last.map(String.init) ?? ""
+            let days = raw.components(separatedBy: ";").first?.split(separator: ",") ?? []
+            if let day = days.first.flatMap({ Int($0) }) {
                 return day
             }
+            let parts = frequency.split(separator: ":")
             if parts.count > 1 {
                 let name = String(parts[1]).lowercased()
                 switch name {
@@ -175,13 +212,11 @@ final class HabitItem {
     
     /// Returns true if this weekly habit is currently overdue (i.e. not yet completed in the rolling 7-day cycle since its scheduled weekday, and today is not that scheduled weekday).
     func isOverdue(at date: Date = Date(), calendar: Calendar = .current) -> Bool {
-        guard isWeekly, let target = targetWeekday else { return false }
+        if isWeekly && targetWeekdays.isEmpty { return false }
+        guard !isDaily, let schedule = mostRecentScheduledDate(onOrBefore: date, calendar: calendar) else { return false }
         guard !isCompleted(at: date, calendar: calendar) else { return false }
         let adjusted = Self.intervalDayDate(for: date, calendar: calendar)
-        let currentWeekday = calendar.component(.weekday, from: adjusted)
-        // If today is the target weekday itself, it is today's normal habit, not overdue.
-        // If today is after the target weekday in the 7-day cycle and still incomplete, it is overdue.
-        return currentWeekday != target
+        return !calendar.isDate(schedule, inSameDayAs: calendar.startOfDay(for: adjusted))
     }
     
     /// Backward-compatible alias
@@ -192,17 +227,16 @@ final class HabitItem {
     /// Whether this habit should be shown in the habits bar today (either scheduled for today, or overdue from its rolling cycle).
     func isScheduledForTodayOrOverdue(calendar: Calendar = .current, date: Date = Date()) -> Bool {
         if isDaily { return true }
-        guard let target = targetWeekday else { return true }
         let adjusted = Self.intervalDayDate(for: date, calendar: calendar)
-        let currentWeekday = calendar.component(.weekday, from: adjusted)
+        let scheduledToday = isScheduled(on: date, calendar: calendar)
         
         if isCompleted(at: date, calendar: calendar) {
             // Once completed for this 7-day period, only show on its regular target day
-            return currentWeekday == target
+            return scheduledToday
         }
         
         // If incomplete: visible on its scheduled day AND every following day until next occurrence!
-        return true
+        return scheduledToday || isOverdue(at: date, calendar: calendar)
     }
     
     /// Backward-compatible alias
@@ -220,11 +254,85 @@ final class HabitItem {
         if isDaily {
             return calendar.isDate(adjustedLast, inSameDayAs: adjustedNow)
         }
-        if let target = targetWeekday {
-            let cycleStart = Self.mostRecentWeekdayDate(targetWeekday: target, beforeOrOn: date, calendar: calendar)
+        if !isDaily, let cycleStart = mostRecentScheduledDate(onOrBefore: date, calendar: calendar) {
             let startOfLast = calendar.startOfDay(for: adjustedLast)
             return startOfLast >= cycleStart
         }
         return calendar.isDate(adjustedLast, equalTo: adjustedNow, toGranularity: .weekOfYear)
+    }
+
+    func isScheduled(on date: Date = Date(), calendar: Calendar = .current) -> Bool {
+        let adjusted = calendar.startOfDay(for: Self.intervalDayDate(for: date, calendar: calendar))
+        if isDaily { return true }
+        return isScheduled(onIntervalDay: adjusted, calendar: calendar)
+    }
+
+    func mostRecentScheduledDate(onOrBefore date: Date, calendar: Calendar = .current) -> Date? {
+        let adjusted = calendar.startOfDay(for: Self.intervalDayDate(for: date, calendar: calendar))
+        guard !isDaily else { return adjusted }
+        if isWeekly && targetWeekdays.isEmpty {
+            for offset in 0...400 {
+                guard let candidate = calendar.date(byAdding: .day, value: -offset, to: adjusted),
+                      let weekStart = calendar.dateInterval(of: .weekOfYear, for: candidate)?.start,
+                      isActiveWeeklyWeek(weekStart, calendar: calendar) else { continue }
+                return weekStart
+            }
+            return nil
+        }
+        for offset in 0...400 {
+            guard let candidate = calendar.date(byAdding: .day, value: -offset, to: adjusted) else { continue }
+            if isScheduled(onIntervalDay: candidate, calendar: calendar) {
+                return calendar.startOfDay(for: candidate)
+            }
+        }
+        return nil
+    }
+
+    func previousScheduledDate(before date: Date, calendar: Calendar = .current) -> Date? {
+        guard let priorDay = calendar.date(byAdding: .day, value: -1, to: date) else { return nil }
+        return mostRecentScheduledDate(onOrBefore: priorDay, calendar: calendar)
+    }
+
+    func nextScheduledDate(after date: Date, calendar: Calendar = .current) -> Date? {
+        guard let nextDay = calendar.date(byAdding: .day, value: 1, to: date) else { return nil }
+        if isWeekly && targetWeekdays.isEmpty {
+            for offset in 0...400 {
+                guard let candidate = calendar.date(byAdding: .day, value: offset, to: nextDay),
+                      let weekStart = calendar.dateInterval(of: .weekOfYear, for: candidate)?.start,
+                      weekStart > date, isActiveWeeklyWeek(weekStart, calendar: calendar) else { continue }
+                return weekStart
+            }
+            return nil
+        }
+        for offset in 0...400 {
+            guard let candidate = calendar.date(byAdding: .day, value: offset, to: nextDay) else { continue }
+            if isScheduled(onIntervalDay: candidate, calendar: calendar) {
+                return calendar.startOfDay(for: candidate)
+            }
+        }
+        return nil
+    }
+
+    private func isScheduled(onIntervalDay day: Date, calendar: Calendar) -> Bool {
+        if isDaily { return true }
+        if isWeekly {
+            guard isActiveWeeklyWeek(day, calendar: calendar) else { return false }
+            return targetWeekdays.isEmpty || targetWeekdays.contains(calendar.component(.weekday, from: day))
+        }
+        if isMonthly, !targetMonthDays.isEmpty {
+            let dayOfMonth = calendar.component(.day, from: day)
+            let monthLength = calendar.range(of: .day, in: .month, for: day)?.count ?? dayOfMonth
+            return targetMonthDays.contains(dayOfMonth) || (dayOfMonth == monthLength && targetMonthDays.contains(where: { $0 > monthLength }))
+        }
+        return true
+    }
+
+    private func isActiveWeeklyWeek(_ date: Date, calendar: Calendar) -> Bool {
+        guard weeklyInterval > 1, let anchor = weeklyAnchorDate,
+              let anchorWeek = calendar.dateInterval(of: .weekOfYear, for: anchor)?.start,
+              let candidateWeek = calendar.dateInterval(of: .weekOfYear, for: date)?.start else { return true }
+        let elapsedDays = calendar.dateComponents([.day], from: anchorWeek, to: candidateWeek).day ?? 0
+        let weeks = elapsedDays / 7
+        return weeks >= 0 && weeks % weeklyInterval == 0
     }
 }

@@ -87,6 +87,164 @@ struct WeekdayOption: Identifiable {
     }
 }
 
+private enum HabitRhythmKind: String, CaseIterable {
+    case daily, weekly, monthly
+
+    var title: String { rawValue.capitalized.localized }
+}
+
+private struct HabitRhythmSelection: Equatable {
+    var kind: HabitRhythmKind = .daily
+    var weekdays: Set<Int> = []
+    var weekInterval = 1
+    var monthDays: Set<Int> = []
+    var anchor: Date?
+
+    init(frequency: String = "Daily") {
+        if frequency.lowercased().starts(with: "weekly") {
+            kind = .weekly
+            weekdays = HabitItem(text: "", frequency: frequency).targetWeekdays
+            weekInterval = HabitItem(text: "", frequency: frequency).weeklyInterval
+            if let raw = frequency.components(separatedBy: "anchor=").dropFirst().first?.split(separator: ";").first,
+               let timestamp = TimeInterval(raw) {
+                anchor = Date(timeIntervalSince1970: timestamp)
+            }
+        } else if frequency.lowercased().starts(with: "monthly") {
+            kind = .monthly
+            monthDays = HabitItem(text: "", frequency: frequency).targetMonthDays
+        }
+    }
+
+    var summary: String {
+        switch kind {
+        case .daily: return "Daily".localized
+        case .weekly:
+            let selected = WeekdayOption.allCurrentOrder.filter { weekdays.contains($0.id) }.map(\.shortName)
+            let cadence = weekInterval == 2 ? "Every 2 weeks".localized : "Weekly".localized
+            return selected.isEmpty ? cadence : "\(cadence) · \(selected.joined(separator: ", "))"
+        case .monthly:
+            let days = monthDays.sorted().map(String.init).joined(separator: ", ")
+            return days.isEmpty ? "Monthly".localized : "\("Monthly".localized) · \(days)"
+        }
+    }
+
+    func frequency(anchorDate: Date = Date()) -> String {
+        switch kind {
+        case .daily: return "Daily"
+        case .weekly:
+            let dates = weekdays.sorted().map(String.init).joined(separator: ",")
+            guard weekInterval > 1 else { return "Weekly:\(dates)" }
+            let effectiveAnchor = anchor ?? anchorDate
+            return "Weekly:\(dates);interval=\(weekInterval);anchor=\(effectiveAnchor.timeIntervalSince1970)"
+        case .monthly:
+            return "Monthly:" + monthDays.sorted().map(String.init).joined(separator: ",")
+        }
+    }
+}
+
+private struct HabitRhythmPicker: View {
+    @Binding var selection: HabitRhythmSelection
+    @Environment(\.colorScheme) private var colorScheme
+
+    private let weekdayColumns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 7)
+    private let monthColumns = Array(repeating: GridItem(.flexible(), spacing: 5), count: 7)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 6) {
+                ForEach(HabitRhythmKind.allCases, id: \.self) { kind in
+                    Button {
+                        selection.kind = kind
+                        if kind == .weekly && selection.weekdays.isEmpty {
+                            selection.weekdays = [Calendar.current.component(.weekday, from: Date())]
+                        }
+                        if kind == .monthly && selection.monthDays.isEmpty {
+                            selection.monthDays = [Calendar.current.component(.day, from: Date())]
+                        }
+                    } label: {
+                        Text(kind.title)
+                            .font(.system(size: 11, weight: selection.kind == kind ? .medium : .regular))
+                            .foregroundStyle(selection.kind == kind ? (colorScheme == .dark ? Color.black : Color.white) : Color.primary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 7)
+                            .background(Capsule().fill(selection.kind == kind ? Color.primary : Color.gray.opacity(colorScheme == .dark ? 0.22 : 0.10)))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if selection.kind == .weekly {
+                Text("Repeat on".localized)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
+                LazyVGrid(columns: weekdayColumns, spacing: 7) {
+                    ForEach(WeekdayOption.allCurrentOrder) { option in
+                        selectionCircle(option.shortName, selected: selection.weekdays.contains(option.id), help: option.fullName) {
+                            if selection.weekdays.contains(option.id) { selection.weekdays.remove(option.id) }
+                            else { selection.weekdays.insert(option.id) }
+                        }
+                    }
+                }
+
+                HStack(spacing: 6) {
+                    Text("Repeat every".localized)
+                        .font(.system(size: 10, weight: .light))
+                        .foregroundStyle(.secondary)
+                    cadenceChoice("1 week".localized, interval: 1)
+                    cadenceChoice("2 weeks".localized, interval: 2)
+                }
+            } else if selection.kind == .monthly {
+                Text("Repeat on dates".localized)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
+                LazyVGrid(columns: monthColumns, spacing: 6) {
+                    ForEach(1...31, id: \.self) { day in
+                        selectionCircle(String(day), selected: selection.monthDays.contains(day)) {
+                            if selection.monthDays.contains(day) { selection.monthDays.remove(day) }
+                            else { selection.monthDays.insert(day) }
+                        }
+                    }
+                }
+                Text("On shorter months, the last available day is used.".localized)
+                    .font(.system(size: 9, weight: .light))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(14)
+        .frame(minWidth: 260, idealWidth: 300, maxWidth: 360)
+    }
+
+    private func selectionCircle(_ label: String, selected: Bool, help: String? = nil, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: label.count > 2 ? 9 : 10, weight: selected ? .semibold : .regular))
+                .foregroundStyle(selected ? (colorScheme == .dark ? Color.black : Color.white) : Color.primary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 32)
+                .background(Circle().fill(selected ? Color.primary : Color.gray.opacity(colorScheme == .dark ? 0.22 : 0.10)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(help ?? "")
+    }
+
+    private func cadenceChoice(_ title: String, interval: Int) -> some View {
+        let selected = selection.weekInterval == interval
+        return Button {
+            selection.weekInterval = interval
+            if interval == 2 && selection.anchor == nil { selection.anchor = Date() }
+        } label: {
+            Text(title)
+                .font(.system(size: 9, weight: selected ? .medium : .regular))
+                .foregroundStyle(selected ? (colorScheme == .dark ? Color.black : Color.white) : Color.primary)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(selected ? Color.primary : Color.gray.opacity(colorScheme == .dark ? 0.22 : 0.10)))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Habits Bar View
 
 struct HabitsBarView: View {
@@ -98,8 +256,7 @@ struct HabitsBarView: View {
     
     @State private var newHabitText: String = ""
     @State private var isAdding: Bool = false
-    @State private var selectedFrequency: String = "Daily"
-    @State private var selectedWeekday: Int? = nil
+    @State private var newHabitRhythm = HabitRhythmSelection()
     @State private var showWeekdayPopover: Bool = false
     @State private var hoveredHabitId: String? = nil
     @State private var isPlusHovered: Bool = false
@@ -120,13 +277,6 @@ struct HabitsBarView: View {
             ($0.lastCompletedDate ?? Date.distantPast) > ($1.lastCompletedDate ?? Date.distantPast)
         }
         return overdueIncomplete + todayIncomplete + postponed + completed
-    }
-    
-    private var weeklyButtonLabel: String {
-        if let day = selectedWeekday, let opt = WeekdayOption.option(for: day) {
-            return "weekly (\(opt.shortName))"
-        }
-        return "weekly"
     }
     
     var body: some View {
@@ -172,8 +322,7 @@ struct HabitsBarView: View {
                         Button(action: {
                             withAnimation {
                                 isAdding = true
-                                selectedFrequency = "Daily"
-                                selectedWeekday = nil
+                                newHabitRhythm = HabitRhythmSelection()
                             }
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                                 isInputFocused = true
@@ -196,48 +345,23 @@ struct HabitsBarView: View {
                         .onboardingTarget("habitAdd")
                     } else {
                         HStack(spacing: 8) {
-                            // Minimalist Daily | Weekly Toggle
-                            HStack(spacing: 6) {
-                                Button("daily") {
-                                    withAnimation {
-                                        selectedFrequency = "Daily"
-                                        selectedWeekday = nil
-                                        showWeekdayPopover = false
-                                    }
+                            Button { showWeekdayPopover = true } label: {
+                                HStack(spacing: 5) {
+                                    Text(newHabitRhythm.summary)
+                                        .font(.system(size: 10, weight: .medium))
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 8, weight: .medium))
                                 }
-                                .foregroundColor(selectedFrequency == "Daily" ? .primary : .secondary)
-                                .font(.system(size: 10, weight: selectedFrequency == "Daily" ? .medium : .light))
-                                .buttonStyle(InteractivePlainButtonStyle())
-                                .pointingHandCursor()
-                                
-                                Text("|")
-                                    .font(.system(size: 9))
-                                    .foregroundColor(.gray.opacity(0.4))
-                                
-                                Button(action: {
-                                    if selectedWeekday == nil {
-                                        let currentDay = Calendar.current.component(.weekday, from: Date())
-                                        selectedWeekday = currentDay
-                                        selectedFrequency = "Weekly:\(currentDay)"
-                                    }
-                                    showWeekdayPopover = true
-                                }) {
-                                    Text(weeklyButtonLabel)
-                                        .foregroundColor(selectedFrequency.starts(with: "Weekly") ? .primary : .secondary)
-                                        .font(.system(size: 10, weight: selectedFrequency.starts(with: "Weekly") ? .medium : .light))
-                                }
-                                .buttonStyle(InteractivePlainButtonStyle())
-                                .pointingHandCursor()
-                                .popover(isPresented: $showWeekdayPopover, arrowEdge: .bottom) {
-                                    weekdayPickerPopover
-                                }
+                                .foregroundColor(.primary)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 5)
+                                .background(Capsule().fill(Color.gray.opacity(colorScheme == .dark ? 0.18 : 0.1)))
                             }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule()
-                                    .fill(Color.gray.opacity(colorScheme == .dark ? 0.18 : 0.1))
-                            )
+                            .buttonStyle(InteractivePlainButtonStyle())
+                            .pointingHandCursor()
+                            .popover(isPresented: $showWeekdayPopover, arrowEdge: .bottom) {
+                                weekdayPickerPopover
+                            }
                             
                             TextField("Habit name...", text: $newHabitText)
                                 .textFieldStyle(.plain)
@@ -291,7 +415,7 @@ struct HabitsBarView: View {
                     }
                     
                     if habits.isEmpty && !isAdding {
-                        Text("No habits added yet. Click + New Habit to set daily or weekly routines.".localized)
+                        Text("No habits added yet. Click + New Habit to set daily, weekly, or monthly routines.".localized)
                             .font(.system(size: 12, weight: .light))
                             .foregroundColor(.gray)
                     }
@@ -347,48 +471,18 @@ struct HabitsBarView: View {
     
     @ViewBuilder
     private var weekdayPickerPopover: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("SELECT DAY OF WEEK".localized)
-                .font(.system(size: 9, weight: .light))
-                .tracking(1.5)
-                .foregroundColor(.secondary)
-                .padding(.horizontal, 10)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
-            
-            VStack(spacing: 1) {
-                ForEach(WeekdayOption.allCurrentOrder) { opt in
-                    Button(action: {
-                        selectedWeekday = opt.id
-                        selectedFrequency = "Weekly:\(opt.id)"
-                        showWeekdayPopover = false
-                    }) {
-                        HStack {
-                            Text(opt.fullName)
-                                .font(.system(size: 12, weight: selectedWeekday == opt.id ? .medium : .light))
-                                .foregroundColor(.primary)
-                            Spacer()
-                            if selectedWeekday == opt.id {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 9, weight: .medium))
-                                    .foregroundColor(.primary)
-                            }
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(selectedWeekday == opt.id ? Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.06) : Color.clear)
-                        )
-                    }
-                    .buttonStyle(InteractivePlainButtonStyle())
-                    .pointingHandCursor()
-                }
+        VStack(alignment: .trailing, spacing: 6) {
+            HabitRhythmPicker(selection: $newHabitRhythm)
+            HStack {
+                Spacer()
+                Button("Done".localized) { showWeekdayPopover = false }
+                    .font(.system(size: 10, weight: .medium))
+                    .disabled((newHabitRhythm.kind == .weekly && newHabitRhythm.weekdays.isEmpty) || (newHabitRhythm.kind == .monthly && newHabitRhythm.monthDays.isEmpty))
             }
-            .padding(.horizontal, 4)
-            .padding(.bottom, 6)
+            .padding(.horizontal, 14)
+            .padding(.bottom, 10)
         }
-        .frame(minWidth: 150)
+        .frame(minWidth: 260, idealWidth: 300)
         #if os(macOS)
         .onExitCommand { showWeekdayPopover = false }
         #endif
@@ -413,7 +507,9 @@ struct HabitsBarView: View {
         }
         newHabitText = ""
         let maxOrder = (habits.map { $0.order }.max() ?? -1) + 1
-        let newHabit = HabitItem(text: trimmed, frequency: selectedFrequency, order: maxOrder)
+        guard (newHabitRhythm.kind != .weekly || !newHabitRhythm.weekdays.isEmpty),
+              (newHabitRhythm.kind != .monthly || !newHabitRhythm.monthDays.isEmpty) else { return }
+        let newHabit = HabitItem(text: trimmed, frequency: newHabitRhythm.frequency(), order: maxOrder)
         modelContext.insert(newHabit)
         if PersistenceSafety.save(modelContext) { SupabaseSyncManager.shared.push() }
         withAnimation {
@@ -434,9 +530,26 @@ struct HabitChipView: View {
     @State private var lastPostponeMutation: Date = .distantPast
     @State private var showingRename = false
     @State private var draftName = ""
+    @State private var showingRhythmEditor = false
+    @State private var rhythmSelection = HabitRhythmSelection()
     
     private var isDragged: Bool {
         dragState.draggedHabit?.id == habit.id
+    }
+
+    private var rhythmCaption: String {
+        let rhythm = HabitRhythmSelection(frequency: habit.frequency)
+        switch rhythm.kind {
+        case .daily:
+            return ""
+        case .weekly:
+            return WeekdayOption.allCurrentOrder
+                .filter { rhythm.weekdays.contains($0.id) }
+                .map(\.shortName)
+                .joined(separator: ", ")
+        case .monthly:
+            return rhythm.monthDays.sorted().map(String.init).joined(separator: ", ")
+        }
     }
     
     var body: some View {
@@ -466,8 +579,8 @@ struct HabitChipView: View {
                         .foregroundColor(isDone || isPostponed ? .secondary : .primary)
                         .strikethrough(isDone || isPostponed)
                     
-                    if habit.isWeekly, let day = habit.targetWeekday, let opt = WeekdayOption.option(for: day) {
-                        Text(opt.shortName)
+                    if !rhythmCaption.isEmpty {
+                        Text(rhythmCaption)
                             .font(.system(size: 9, weight: isOverdue ? .medium : .light))
                             .foregroundColor(isOverdue ? .primary : .secondary.opacity(0.8))
                             .padding(.horizontal, 4)
@@ -529,13 +642,75 @@ struct HabitChipView: View {
                 draftName = habit.text
                 showingRename = true
             }
+            Button("Change rhythm".localized, systemImage: "calendar") {
+                rhythmSelection = HabitRhythmSelection(frequency: habit.frequency)
+                showingRhythmEditor = true
+            }
         }
         .alert("Rename habit".localized, isPresented: $showingRename) {
             TextField("Name".localized, text: $draftName)
             Button("Cancel".localized, role: .cancel) { }
             Button("Save".localized) { renameHabit() }
         }
+        .sheet(isPresented: $showingRhythmEditor) {
+            rhythmEditor
+        }
         #endif
+    }
+
+    private var rhythmEditor: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Change rhythm".localized)
+                    .font(.system(size: 15, weight: .medium))
+                Text(habit.text)
+                    .font(.system(size: 11, weight: .light))
+                    .foregroundColor(.secondary)
+            }
+            HabitRhythmPicker(selection: $rhythmSelection)
+            HStack {
+                Spacer()
+                Button("Cancel".localized) { showingRhythmEditor = false }
+                    .keyboardShortcut(.cancelAction)
+                Button("Save".localized, action: saveRhythm)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(rhythmSelection.frequency() == habit.frequency || !rhythmIsValid)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: 400)
+        #if os(macOS)
+        .frame(width: 340)
+        #elseif os(iOS)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        #endif
+        .background(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+    }
+
+    private var rhythmIsValid: Bool {
+        (rhythmSelection.kind != .weekly || !rhythmSelection.weekdays.isEmpty) &&
+        (rhythmSelection.kind != .monthly || !rhythmSelection.monthDays.isEmpty)
+    }
+
+    private func saveRhythm() {
+        let frequency = rhythmSelection.frequency()
+        guard rhythmIsValid else { return }
+        guard frequency != habit.frequency else {
+            showingRhythmEditor = false
+            return
+        }
+        let previousFrequency = habit.frequency
+        let previousUpdatedAt = habit.updatedAt
+        habit.frequency = frequency
+        habit.updatedAt = Date()
+        guard PersistenceSafety.save(modelContext, operation: "Changing habit rhythm") else {
+            habit.frequency = previousFrequency
+            habit.updatedAt = previousUpdatedAt
+            return
+        }
+        SupabaseSyncManager.shared.push()
+        showingRhythmEditor = false
     }
 
     private func renameHabit() {
